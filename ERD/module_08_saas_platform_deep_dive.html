@@ -1,0 +1,346 @@
+
+<h2 class="sr-only">Deep dive into MechWise Module 8: SaaS Platform covering multi-tenancy, onboarding, workshop configuration, subscription management, and white-label architecture</h2>
+<style>
+.tabs{display:flex;gap:4px;border-bottom:0.5px solid var(--border);margin-bottom:1.5rem;overflow-x:auto}
+.tab{padding:8px 14px;font-size:13px;cursor:pointer;border:none;background:none;color:var(--text-secondary);border-bottom:2px solid transparent;white-space:nowrap;font-family:inherit}
+.tab.active{color:var(--text-primary);border-bottom-color:var(--text-accent);font-weight:500}
+.pnl{display:none}.pnl.active{display:block}
+.card{background:var(--surface-1);border-radius:12px;padding:1rem 1.25rem;margin-bottom:12px}
+.badge{display:inline-block;padding:2px 8px;border-radius:var(--radius);font-size:11px;font-weight:500;margin-right:4px}
+.b-pk{background:var(--bg-accent);color:var(--text-accent)}
+.b-fk{background:var(--bg-pro);color:var(--text-pro)}
+.b-req{background:var(--bg-danger);color:var(--text-danger)}
+.b-auto{background:var(--bg-success);color:var(--text-success)}
+.b-val{background:var(--bg-warning);color:var(--text-warning)}
+.b-calc{background:var(--bg-pro);color:var(--text-pro)}
+.b-new{background:var(--bg-success);color:var(--text-success)}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0}
+.tbl th{text-align:left;padding:6px 8px;border-bottom:0.5px solid var(--border-strong);color:var(--text-secondary);font-weight:500;font-size:12px}
+.tbl td{padding:6px 8px;border-bottom:0.5px solid var(--border);vertical-align:top;color:var(--text-primary)}
+.tbl tr:last-child td{border-bottom:none}
+.rule{background:var(--surface-1);border-radius:0;padding:10px 14px;margin:8px 0;font-size:13px;border-left:3px solid var(--border-accent)}
+.rule-warn{border-left-color:var(--border-warning)}
+.rule-err{border-left-color:var(--border-danger)}
+.rule-ok{border-left-color:var(--border-success)}
+.section{font-size:15px;font-weight:500;margin:1.5rem 0 0.75rem;color:var(--text-primary)}
+.sub{font-size:13px;font-weight:500;margin:1rem 0 0.5rem;color:var(--text-secondary)}
+p{margin:0 0 8px;line-height:1.6;font-size:13px;color:var(--text-primary)}
+.muted{color:var(--text-secondary)}
+.flow{display:flex;align-items:center;gap:0;margin:16px 0;flex-wrap:wrap}
+.flow-box{padding:8px 14px;border-radius:var(--radius);font-size:12px;font-weight:500;text-align:center;min-width:80px}
+.flow-arrow{color:var(--text-muted);padding:0 6px;font-size:16px}
+.metric-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:12px 0}
+.metric{background:var(--surface-1);border-radius:var(--radius);padding:10px;text-align:center}
+.metric-label{font-size:11px;color:var(--text-secondary);margin-bottom:2px}
+.metric-val{font-size:18px;font-weight:500}
+.step{display:flex;gap:12px;padding:14px 0;border-bottom:0.5px solid var(--border)}
+.step:last-child{border-bottom:none}
+.step-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;flex-shrink:0}
+.pricing-card{border:0.5px solid var(--border);border-radius:12px;padding:16px;text-align:center}
+.pricing-card.featured{border:2px solid var(--border-accent)}
+.pricing-name{font-weight:500;font-size:15px;margin-bottom:2px}
+.pricing-sub{font-size:12px;color:var(--text-secondary);margin-bottom:12px}
+.pricing-price{font-size:28px;font-weight:500;margin-bottom:4px}
+.pricing-period{font-size:12px;color:var(--text-secondary);margin-bottom:12px}
+.pricing-feature{font-size:12px;padding:4px 0;text-align:left;border-bottom:0.5px solid var(--border)}
+.pricing-feature:last-child{border-bottom:none}
+</style>
+
+<div style="padding:0 0 4px">
+  <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Module 8 of 8 — Final module</div>
+  <div style="font-size:18px;font-weight:500;margin-bottom:4px"><i class="ti ti-cloud" aria-hidden="true" style="color:var(--text-accent);margin-right:6px"></i>SaaS platform architecture</div>
+  <div style="font-size:13px;color:var(--text-secondary)">Multi-tenancy, onboarding, workshop settings, subscription billing, data migration, and white-label</div>
+</div>
+
+<div class="tabs" id="tabs">
+  <button class="tab active" onclick="show(0)"><i class="ti ti-server" aria-hidden="true" style="margin-right:4px"></i>Multi-tenancy</button>
+  <button class="tab" onclick="show(1)"><i class="ti ti-rocket" aria-hidden="true" style="margin-right:4px"></i>Onboarding</button>
+  <button class="tab" onclick="show(2)"><i class="ti ti-settings" aria-hidden="true" style="margin-right:4px"></i>Workshop settings</button>
+  <button class="tab" onclick="show(3)"><i class="ti ti-credit-card" aria-hidden="true" style="margin-right:4px"></i>Subscription</button>
+  <button class="tab" onclick="show(4)"><i class="ti ti-database-import" aria-hidden="true" style="margin-right:4px"></i>Data migration</button>
+  <button class="tab" onclick="show(5)"><i class="ti ti-palette" aria-hidden="true" style="margin-right:4px"></i>White-label</button>
+</div>
+
+<!-- ═══ MULTI-TENANCY ═══ -->
+<div class="pnl active" id="p0">
+<div class="section">Multi-tenancy architecture</div>
+<p>MechWise is designed to sell to many workshops, each operating independently on the same platform. Every row of data belongs to a workshop_id. Workshop A never sees Workshop B's clients, vehicles, invoices, or financials. This is the architectural decision that makes the product a SaaS business instead of a one-off build.</p>
+
+<div class="sub">Tenancy model: shared database, logical isolation</div>
+<div class="rule rule-ok"><span style="font-weight:500">Approach:</span> Single database, all workshops share the same tables, every table includes a workshop_id foreign key. Queries are always filtered by workshop_id. This is the most cost-effective model for a startup SaaS — one database to manage, one deployment to maintain, scales to hundreds of workshops.</div>
+<div class="rule"><span style="font-weight:500">Alternative considered and rejected:</span> Separate database per workshop. More isolation, but drastically increases operational cost — every schema migration, every backup, every monitoring alert multiplies by the number of clients. Only justified at enterprise scale (100+ workshops).</div>
+
+<div class="sub">Isolation enforcement</div>
+<table class="tbl" style="font-size:12px">
+<tr><th>Layer</th><th>How isolation works</th></tr>
+<tr><td style="font-weight:500">Database</td><td>Every table with business data has a workshop_id column. Row-Level Security (RLS) in PostgreSQL ensures queries always filter by the authenticated user's workshop. Even a SQL injection can't read another workshop's data.</td></tr>
+<tr><td style="font-weight:500">API layer</td><td>Every API request includes the workshop context from the JWT token. The backend middleware injects workshop_id into all queries automatically — developers can't accidentally forget the filter.</td></tr>
+<tr><td style="font-weight:500">UI layer</td><td>The frontend receives only data for the logged-in workshop. Dropdown selectors (clients, vehicles, staff, parts) are pre-filtered. No cross-workshop data is ever loaded into the browser.</td></tr>
+<tr><td style="font-weight:500">File storage</td><td>Invoice PDFs, logo images, and file uploads are stored in workshop-prefixed S3 paths: /ws-001/invoices/, /ws-002/invoices/. IAM policies prevent cross-workshop access.</td></tr>
+</table>
+
+<div class="sub">Tables that are workshop-scoped (have workshop_id)</div>
+<div class="card" style="font-size:12px">
+<p style="margin:0">clients, vehicles, client_vehicles, staff, users, quotations, quote_lines, job_cards, job_card_lines, invoices, invoice_lines, payments, parts, purchase_orders, po_lines, appointments, service_reminders, maintenance_history, accounting_ledger, audit_log</p>
+</div>
+
+<div class="sub">Tables that are global (shared across workshops)</div>
+<div class="card" style="font-size:12px">
+<p style="margin:0">vehicle_makes (all workshops use the same brand list), job_categories (default set, workshop can add custom), part_categories (default set), subscription_plans (pricing tiers)</p>
+</div>
+
+<div class="sub">Multi-workshop ownership</div>
+<div class="rule">A single owner can manage multiple workshops under one login. e.g. "Dhalla Automotive — Kingswood" (WS-001) and "Dhalla Automotive — Penrith" (WS-002). The owner sees a workshop switcher in the top nav. Data is completely separate — different staff, different clients, different inventory — but the owner can view combined reports across both locations.</div>
+<div class="rule rule-warn">Cross-workshop features (phase 2): Transfer a vehicle between locations. Share a client record across workshops (same fleet customer uses both locations). Consolidated BAS reporting across all workshops under one ABN.</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">Staff working at multiple locations: A mechanic who splits time between Kingswood and Penrith. Create two staff records (one per workshop) or support a shared staff model with location assignments per day. Phase 1: two records. Phase 2: shared staff with scheduling.</div>
+<div class="rule rule-err">Demo/sandbox workshop: For sales demos and training. Create a WS-DEMO workspace with pre-loaded sample data that resets nightly. Prospective customers can explore the platform without signing up.</div>
+</div>
+
+<!-- ═══ ONBOARDING ═══ -->
+<div class="pnl" id="p1">
+<div class="section">Onboarding wizard</div>
+<p>The first 30 minutes after a workshop signs up determines whether they stick or churn. The onboarding wizard guides the owner through the minimum setup needed to start working — not a 50-field form, but a focused sequence that gets them to "first invoice" as fast as possible.</p>
+
+<div class="sub">Onboarding steps</div>
+<div class="card">
+<div class="step">
+  <div class="step-num" style="background:var(--bg-accent);color:var(--text-accent)">1</div>
+  <div><div style="font-weight:500">Workshop details</div><div class="muted">Business name, ABN, address, phone, email, logo upload. Takes 2 minutes. This populates invoice headers and SMS sender ID. Only business name and phone are mandatory — everything else can be added later.</div></div>
+</div>
+<div class="step">
+  <div class="step-num" style="background:var(--bg-accent);color:var(--text-accent)">2</div>
+  <div><div style="font-weight:500">Add your team</div><div class="muted">Name and role for each staff member. Just first name and role (Mechanic / Front Desk) is enough. Phone, email, hourly rate added later. Skip if owner works alone.</div></div>
+</div>
+<div class="step">
+  <div class="step-num" style="background:var(--bg-accent);color:var(--text-accent)">3</div>
+  <div><div style="font-weight:500">Set your bays</div><div class="muted">How many bays does the workshop have? Name each one (Bay 1, Bay 2, Tyre bay). Determines scheduling capacity. Default 4 bays — adjustable.</div></div>
+</div>
+<div class="step">
+  <div class="step-num" style="background:var(--bg-accent);color:var(--text-accent)">4</div>
+  <div><div style="font-weight:500">Set your labour rate</div><div class="muted">One number: "What do you charge per hour?" Default $80. This populates every job sub-item. Can be overridden per job later. Takes 5 seconds.</div></div>
+</div>
+<div class="step">
+  <div class="step-num" style="background:var(--bg-accent);color:var(--text-accent)">5</div>
+  <div><div style="font-weight:500">Choose your services</div><div class="muted">Checklist of standard job categories and parent jobs. "Which services do you offer?" Tick the ones that apply. Pre-loaded with the 12 categories and 25 parent jobs from the MechWise template. Custom jobs added later.</div></div>
+</div>
+<div class="step">
+  <div class="step-num" style="background:var(--bg-accent);color:var(--text-accent)">6</div>
+  <div><div style="font-weight:500">Import existing data (optional)</div><div class="muted">"Do you have existing customer data?" Upload a CSV or Excel file. The system maps columns to MechWise fields and imports. Or skip and build data organically as customers visit.</div></div>
+</div>
+<div class="step">
+  <div class="step-num" style="background:var(--bg-success);color:var(--text-success)">✓</div>
+  <div><div style="font-weight:500">You're ready to go</div><div class="muted">"Create your first job card" — guided walkthrough of entering a rego, selecting a client, choosing a job, and completing the workflow. The owner sees the platform in action with real data from minute one.</div></div>
+</div>
+</div>
+
+<div class="sub">Time targets</div>
+<div class="metric-row">
+<div class="metric"><div class="metric-label">Steps 1-4</div><div class="metric-val">5 min</div></div>
+<div class="metric"><div class="metric-label">Step 5</div><div class="metric-val">3 min</div></div>
+<div class="metric"><div class="metric-label">Step 6 (import)</div><div class="metric-val">10 min</div></div>
+<div class="metric"><div class="metric-label">First invoice</div><div class="metric-val">20 min</div></div>
+</div>
+
+<div class="sub">Business rules</div>
+<div class="rule">Every step is skippable except step 1 (business name and phone). The wizard saves progress — the owner can close the browser and resume where they left off. A "Setup checklist" widget on the dashboard shows remaining steps until fully configured.</div>
+<div class="rule rule-warn">The default job catalogue (25 parent jobs, 40+ sub-items) is pre-loaded for every new workshop. The owner ticks which ones they offer and adjusts prices to their rates. This means the workshop can start quoting and invoicing immediately without building a catalogue from scratch.</div>
+<div class="rule">A "Getting started" email sequence (day 1, day 3, day 7, day 14) sends tips: "Did you know you can auto-send service reminders?", "Set up your SMS templates to save time", "Import your customer list to get started faster."</div>
+</div>
+
+<!-- ═══ WORKSHOP SETTINGS ═══ -->
+<div class="pnl" id="p2">
+<div class="section">Workshop settings</div>
+<p>The configuration panel where the owner customises MechWise for their specific workshop. Every setting has a sensible default — the goal is that most workshops never need to change most settings.</p>
+
+<div class="sub">Settings categories</div>
+<div class="card">
+<table class="tbl" style="font-size:12px">
+<tr><th>Category</th><th>Settings</th><th>Defaults</th></tr>
+<tr><td style="font-weight:500">Business details</td><td>Name, ABN, MVRL, ARC, address, phone, email, logo, operating hours</td><td>From onboarding wizard</td></tr>
+<tr><td style="font-weight:500">Invoicing</td><td>Invoice prefix (INV-), payment terms (days), default tax type, bank details for BPay/transfer, invoice footer text, logo placement</td><td>INV-, 0 days (pay on pickup), GST Inclusive, footer: "Thank you for choosing [workshop name]"</td></tr>
+<tr><td style="font-weight:500">Pricing</td><td>Default labour rate ($/hr), max discount without approval (%), GST rate, rounding rule (nearest $1, $5, or exact)</td><td>$80/hr, 15%, 10%, nearest $1</td></tr>
+<tr><td style="font-weight:500">Scheduling</td><td>Bay count and names, operating hours per day, buffer time between jobs (min), max bookings per day, advance booking window (days)</td><td>4 bays, Mon-Fri 7:30-5, Sat 8-1, 15min buffer, no max, 60 days ahead</td></tr>
+<tr><td style="font-weight:500">SMS / Email</td><td>SMS provider API key, sender name (max 11 chars), send window (start/end hours), reminder cadence (days before), SMS templates per message type, opt-out text</td><td>9am-8pm AEST, 30/14/7 days, standard templates, "Reply STOP to opt out"</td></tr>
+<tr><td style="font-weight:500">Service intervals</td><td>Default next-service interval (months), default next-service km, pink slip interval (months), oil change interval (km)</td><td>6 months, 10,000 km, 12 months (6 for older vehicles), 5,000 km</td></tr>
+<tr><td style="font-weight:500">Inventory</td><td>Stocktake frequency reminder, default reorder qty multiplier, barcode format, enable location tracking</td><td>Quarterly, 2× reorder level, Code 128, locations enabled</td></tr>
+<tr><td style="font-weight:500">Accounting</td><td>Accounting method (Cash / Accrual), BAS period display, chart of accounts mapping, export format preference</td><td>Cash, quarterly, default mapping, CSV</td></tr>
+<tr><td style="font-weight:500">Workflow</td><td>Enable QC step (yes/no), enable supplementary quote requirement, auto-create reminder on invoice, quote validity period (days)</td><td>No (small workshops skip QC), Yes, Yes, 14 days</td></tr>
+<tr><td style="font-weight:500">Notifications</td><td>Dashboard refresh interval, push notifications on/off, morning briefing time, email daily summary to owner</td><td>5 min, on, 6:30am, yes</td></tr>
+</table>
+</div>
+
+<div class="sub">Business rules</div>
+<div class="rule">Settings changes take effect immediately for new records. Existing quotes, invoices, and job cards are not retroactively affected — they retain the settings that were in place when they were created. e.g. changing the labour rate from $80 to $90 only affects future quotes.</div>
+<div class="rule">Only Owner and Manager roles can access settings. Mechanics and front desk have no access to configuration.</div>
+<div class="rule rule-warn">SMS template customisation: The owner can edit the text of each message type but cannot remove mandatory elements (opt-out text, workshop name, rego). The system validates that template variables ({client_name}, {rego}, etc.) are present — a template missing {rego} shows a warning: "This template won't include the vehicle registration."</div>
+</div>
+
+<!-- ═══ SUBSCRIPTION ═══ -->
+<div class="pnl" id="p3">
+<div class="section">Subscription and billing</div>
+<p>How you make money. The pricing model needs to be simple enough that a workshop owner understands it in 10 seconds, attractive enough to convert, and structured to grow revenue as the customer's usage grows.</p>
+
+<div class="sub">Pricing tiers</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:16px 0">
+<div class="pricing-card">
+<div class="pricing-name">Starter</div>
+<div class="pricing-sub">Solo operator</div>
+<div class="pricing-price">$99</div>
+<div class="pricing-period">/month · 1 user</div>
+<div class="pricing-feature"><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success);margin-right:4px"></i> Clients, vehicles, jobs</div>
+<div class="pricing-feature"><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success);margin-right:4px"></i> Quotes, invoices, payments</div>
+<div class="pricing-feature"><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success);margin-right:4px"></i> Parts inventory</div>
+<div class="pricing-feature"><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success);margin-right:4px"></i> Service / pink slip alerts</div>
+<div class="pricing-feature"><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success);margin-right:4px"></i> 100 SMS / month included</div>
+<div class="pricing-feature"><i class="ti ti-x" aria-hidden="true" style="color:var(--text-muted);margin-right:4px"></i> No customer portal</div>
+<div class="pricing-feature"><i class="ti ti-x" aria-hidden="true" style="color:var(--text-muted);margin-right:4px"></i> No accounting export</div>
+</div>
+<div class="pricing-card featured">
+<div class="pricing-name">Professional</div>
+<div class="pricing-sub">Growing workshop</div>
+<div class="pricing-price">$199</div>
+<div class="pricing-period">/month · up to 5 users</div>
+<div class="pricing-feature"><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success);margin-right:4px"></i> Everything in Starter</div>
+<div class="pricing-feature"><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success);margin-right:4px"></i> Customer portal</div>
+<div class="pricing-feature"><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success);margin-right:4px"></i> Workshop floor board</div>
+<div class="pricing-feature"><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success);margin-right:4px"></i> Dashboard analytics</div>
+<div class="pricing-feature"><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success);margin-right:4px"></i> BAS / accounting export</div>
+<div class="pricing-feature"><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success);margin-right:4px"></i> 500 SMS / month included</div>
+<div class="pricing-feature"><i class="ti ti-x" aria-hidden="true" style="color:var(--text-muted);margin-right:4px"></i> Single location only</div>
+</div>
+<div class="pricing-card">
+<div class="pricing-name">Enterprise</div>
+<div class="pricing-sub">Multi-location</div>
+<div class="pricing-price">$349</div>
+<div class="pricing-period">/month · unlimited users</div>
+<div class="pricing-feature"><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success);margin-right:4px"></i> Everything in Professional</div>
+<div class="pricing-feature"><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success);margin-right:4px"></i> Multi-workshop support</div>
+<div class="pricing-feature"><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success);margin-right:4px"></i> Consolidated reporting</div>
+<div class="pricing-feature"><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success);margin-right:4px"></i> Xero / MYOB integration</div>
+<div class="pricing-feature"><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success);margin-right:4px"></i> 2,000 SMS / month included</div>
+<div class="pricing-feature"><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success);margin-right:4px"></i> Priority support</div>
+<div class="pricing-feature"><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success);margin-right:4px"></i> White-label option</div>
+</div>
+</div>
+
+<div class="sub">Revenue model</div>
+<table class="tbl" style="font-size:12px">
+<tr><th>Revenue stream</th><th>Details</th><th>Typical value</th></tr>
+<tr><td style="font-weight:500">Monthly subscription</td><td>Recurring revenue per workshop per month. Billed monthly or annually (annual = 2 months free). Credit card via Stripe.</td><td>$99–$349/month</td></tr>
+<tr><td style="font-weight:500">Setup / migration fee</td><td>One-time fee for data migration from existing system, initial configuration, and onboarding training. Charged per workshop.</td><td>$500–$1,500</td></tr>
+<tr><td style="font-weight:500">SMS overage</td><td>Beyond the included SMS quota. Charged per SMS at slightly above cost. e.g. included 500, used 650 → 150 extra × $0.10 = $15.</td><td>$0.10 per SMS</td></tr>
+<tr><td style="font-weight:500">Add-on integrations</td><td>Xero/MYOB API sync (included in Enterprise, add-on for Professional at $29/month). Rego lookup API access ($19/month).</td><td>$19–$29/month</td></tr>
+<tr><td style="font-weight:500">Annual price review</td><td>Subscription pricing reviewed annually. Existing customers locked at their rate for 12 months. Increases capped at CPI + 5%.</td><td>3–5% per year</td></tr>
+</table>
+
+<div class="sub">Subscription management table</div>
+<table class="tbl">
+<tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+<tr><td>subscription_id</td><td>VARCHAR(10)</td><td><span class="badge b-pk">PK</span> Unique per workshop.</td></tr>
+<tr><td>workshop_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span></td></tr>
+<tr><td>plan</td><td>VARCHAR(20)</td><td>Starter, Professional, Enterprise.</td></tr>
+<tr><td>billing_cycle</td><td>VARCHAR(10)</td><td>Monthly or Annual.</td></tr>
+<tr><td>start_date</td><td>DATE</td><td>When subscription began.</td></tr>
+<tr><td>current_period_end</td><td>DATE</td><td>End of current billing cycle.</td></tr>
+<tr><td>stripe_customer_id</td><td>VARCHAR(50)</td><td>Links to Stripe for payment processing.</td></tr>
+<tr><td>status</td><td>VARCHAR(20)</td><td>Active, Past Due, Cancelled, Trial.</td></tr>
+<tr><td>trial_end</td><td>DATE</td><td>14-day free trial. Full Professional features. No credit card required to start.</td></tr>
+<tr><td>sms_used</td><td>INTEGER</td><td>SMS count this billing period. Resets on renewal.</td></tr>
+<tr><td>sms_included</td><td>INTEGER</td><td>Quota from the plan tier.</td></tr>
+</table>
+
+<div class="sub">Business rules</div>
+<div class="rule">14-day free trial with full Professional features. No credit card required. At day 10: email reminder "Your trial ends in 4 days." At day 14: downgrade to read-only mode. Data is preserved for 30 days — the owner can subscribe at any point to restore access.</div>
+<div class="rule">Downgrade path: Enterprise → Professional removes multi-workshop access (data preserved but hidden). Professional → Starter removes analytics, portal, and floor board. Core workflow (quotes, invoices, payments) is always available — never lock the owner out of their money.</div>
+<div class="rule rule-warn">Cancellation: The owner keeps read-only access for 30 days after cancellation. Data export (full CSV dump) is available during this period. After 30 days, data is archived (retained for 12 months per Australian contract law) then permanently deleted.</div>
+</div>
+
+<!-- ═══ DATA MIGRATION ═══ -->
+<div class="pnl" id="p4">
+<div class="section">Data migration</div>
+<p>Every new workshop customer has existing data — spreadsheets, old software exports, paper records. The migration tool gets their data into MechWise cleanly. This is the service you charge $500–$1,500 for, and it's what prevents the customer from churning in the first week ("all my old data is gone").</p>
+
+<div class="sub">Migration sources (common in Australian workshops)</div>
+<table class="tbl" style="font-size:12px">
+<tr><th>Source</th><th>Format</th><th>Complexity</th><th>Approach</th></tr>
+<tr><td style="font-weight:500">Excel / CSV spreadsheets</td><td>.xlsx, .csv</td><td>Low-Medium</td><td>Column mapping wizard in MechWise. Upload file → system detects columns → map to MechWise fields → preview → import. Handles Dhalla-type flat data.</td></tr>
+<tr><td style="font-weight:500">Custom PHP/MySQL system</td><td>SQL dump or CSV export</td><td>Medium</td><td>Like Dhalla's system. Export from old DB → clean up → import via CSV. May need custom scripts for data transformation.</td></tr>
+<tr><td style="font-weight:500">Workshop Software (WS)</td><td>Proprietary export</td><td>Medium</td><td>Workshop Software is a common Australian product. Export to CSV/XML → custom mapper → import.</td></tr>
+<tr><td style="font-weight:500">Autodata / Navigator Pro</td><td>Varies</td><td>Medium-High</td><td>Service history and vehicle data. May need API integration or manual CSV export.</td></tr>
+<tr><td style="font-weight:500">Paper records only</td><td>Physical</td><td>High</td><td>Manual data entry. Offer as a premium service: staff enters last 12 months of invoices and customer details. $1,500 for up to 200 records.</td></tr>
+<tr><td style="font-weight:500">QuickBooks / MYOB / Xero</td><td>CSV/API</td><td>Low</td><td>Client list and invoice history exportable as CSV. Clean import. Financial data stays in accounting software — MechWise imports client/vehicle data only.</td></tr>
+</table>
+
+<div class="sub">Migration wizard workflow</div>
+<div class="flow">
+<div class="flow-box" style="background:var(--bg-accent);color:var(--text-accent)">Upload file</div>
+<div class="flow-arrow">→</div>
+<div class="flow-box" style="background:var(--bg-warning);color:var(--text-warning)">Detect columns</div>
+<div class="flow-arrow">→</div>
+<div class="flow-box" style="background:var(--bg-pro);color:var(--text-pro)">Map fields</div>
+<div class="flow-arrow">→</div>
+<div class="flow-box" style="background:var(--bg-accent);color:var(--text-accent)">Validate</div>
+<div class="flow-arrow">→</div>
+<div class="flow-box" style="background:var(--bg-success);color:var(--text-success)">Import</div>
+</div>
+
+<div class="sub">Validation during import</div>
+<div class="rule rule-ok">Phone numbers: auto-detect format, strip spaces/dashes, add leading 0 if 9 digits, flag invalid lengths. Show count: "285 valid, 38 invalid — review?"</div>
+<div class="rule rule-ok">Duplicate detection: match on phone number and rego. Show duplicates with merge options: "Satnam Randava appears 3 times — merge into one client with 3 vehicles?"</div>
+<div class="rule rule-ok">Missing data: flag but don't block. "120 clients have no email — these will be captured progressively." Import proceeds with what's available.</div>
+<div class="rule rule-ok">Post-import report: summary of what was imported, what was skipped, what needs attention. Saved as a log in the audit trail.</div>
+
+<div class="sub">Dhalla-specific migration (your first customer)</div>
+<div class="rule rule-warn">Already done in this project. The enhanced Excel workbook (26 sheets) is the migration-ready dataset. 300 clients deduplicated, 323 vehicles with regos, 123 parts with prices, 276 service reminders, 11 staff members. The SQL schema accepts this data directly. Dhalla is the proof-of-concept migration — every future customer follows the same process with their own data.</div>
+</div>
+
+<!-- ═══ WHITE-LABEL ═══ -->
+<div class="pnl" id="p5">
+<div class="section">White-label and branding</div>
+<p>Every workshop that uses MechWise should feel like the system is "theirs" — their logo on the login page, their branding on invoices, their name in SMS messages. The platform infrastructure is invisible to the end customer. This is what makes the product feel professional rather than like a generic tool.</p>
+
+<div class="sub">Branding touchpoints</div>
+<table class="tbl" style="font-size:12px">
+<tr><th>Touchpoint</th><th>What's customised</th><th>Default if not set</th></tr>
+<tr><td style="font-weight:500">Login page</td><td>Workshop logo, business name, background colour. URL: mechwise.com.au/dhalla (subdomain or path-based).</td><td>MechWise logo with "Powered by MechWise" footer.</td></tr>
+<tr><td style="font-weight:500">Dashboard header</td><td>Workshop logo and name in the top-left. Colour accent from brand colours if uploaded.</td><td>MechWise branding.</td></tr>
+<tr><td style="font-weight:500">Invoice PDFs</td><td>Workshop logo, business name, ABN, address, phone, email. Custom footer text. Full control over the header block layout.</td><td>No logo. Business name from workshop record.</td></tr>
+<tr><td style="font-weight:500">Quote PDFs</td><td>Same as invoice. Includes "Quote valid until [date]" text.</td><td>Same as invoice.</td></tr>
+<tr><td style="font-weight:500">SMS messages</td><td>Sender name: "Dhalla Auto" (max 11 chars). Workshop name and phone in message body.</td><td>Sender: "MechWise". Generic footer.</td></tr>
+<tr><td style="font-weight:500">Email messages</td><td>From name, reply-to address, email signature block, logo in header.</td><td>From: "MechWise", reply-to: workshop email.</td></tr>
+<tr><td style="font-weight:500">Customer portal</td><td>Workshop logo, name, address, phone in header and footer. Custom welcome text.</td><td>MechWise branding with workshop name.</td></tr>
+</table>
+
+<div class="sub">Enterprise white-label (add-on)</div>
+<div class="rule">For Enterprise tier customers who want zero MechWise branding: custom domain (software.dhallaautomotive.com.au), custom email sender domain (noreply@dhallaautomotive.com.au), no "Powered by MechWise" footer. The customer's clients never know MechWise exists.</div>
+<div class="rule">Custom domain requires DNS CNAME setup. MechWise provides instructions: "Point software.yourdomain.com.au to cname.mechwise.com.au." SSL certificate auto-provisioned via Let's Encrypt.</div>
+
+<div class="sub">Reseller model (future)</div>
+<div class="rule rule-warn">Automotive industry consultants or franchise groups could resell MechWise under their own brand. e.g. "Autofix Pro — Powered by MechWise" with the reseller earning 20-30% of subscription revenue. This requires a reseller admin panel (manage workshops, view aggregate metrics, custom pricing). Phase 3 feature.</div>
+
+<div class="sub">Technology stack recommendation</div>
+<div class="card">
+<table class="tbl" style="font-size:12px">
+<tr><th>Layer</th><th>Technology</th><th>Why</th></tr>
+<tr><td style="font-weight:500">Frontend</td><td>React + Next.js + Tailwind CSS</td><td>Fast, responsive, component-based. Server-side rendering for SEO (customer portal). Tailwind for rapid, consistent styling.</td></tr>
+<tr><td style="font-weight:500">Backend API</td><td>Node.js (Express or Fastify) or Python (FastAPI)</td><td>REST API. JSON payloads. JWT auth. Middleware injects workshop_id. Either language works — choose based on team skills.</td></tr>
+<tr><td style="font-weight:500">Database</td><td>PostgreSQL 15+</td><td>Row-Level Security for multi-tenancy. JSONB for flexible fields. Excellent performance with proper indexing. Free and open source.</td></tr>
+<tr><td style="font-weight:500">File storage</td><td>AWS S3 or Cloudflare R2</td><td>Invoice PDFs, logos, uploads. Cheap, scalable, CDN-backed. R2 has no egress fees.</td></tr>
+<tr><td style="font-weight:500">SMS provider</td><td>MessageMedia or Twilio</td><td>MessageMedia is Australian (local number support, ACMA compliant). Twilio is global with better API docs. Either works.</td></tr>
+<tr><td style="font-weight:500">Email</td><td>SendGrid or Postmark</td><td>Transactional email (invoices, reminders, password resets). Postmark has excellent deliverability. SendGrid has a free tier.</td></tr>
+<tr><td style="font-weight:500">Payments</td><td>Stripe</td><td>Subscription billing, card processing, invoicing. Handles GST calculations. PCI-compliant. Australian entity available.</td></tr>
+<tr><td style="font-weight:500">Hosting</td><td>AWS (Sydney region) or Vercel + Railway</td><td>AWS ap-southeast-2 for data sovereignty (Australian data stays in Australia). Vercel for Next.js frontend. Railway for backend and DB.</td></tr>
+<tr><td style="font-weight:500">PDF generation</td><td>Puppeteer or wkhtmltopdf</td><td>Server-side HTML to PDF rendering for invoices and quotes. Puppeteer is more flexible; wkhtmltopdf is lighter.</td></tr>
+<tr><td style="font-weight:500">Monitoring</td><td>Sentry (errors) + Datadog or Uptime Robot</td><td>Error tracking, performance monitoring, uptime alerts. Essential for SaaS reliability.</td></tr>
+</table>
+</div>
+</div>
+
+<script>
+function show(i){
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',j===i));
+  document.querySelectorAll('.pnl').forEach((p,j)=>p.classList.toggle('active',j===i));
+}
+</script>

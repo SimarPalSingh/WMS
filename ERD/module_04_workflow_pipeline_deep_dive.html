@@ -1,0 +1,377 @@
+
+<h2 class="sr-only">Deep dive into MechWise Module 4: Workflow Pipeline covering quotations, job cards, invoices, payments, and the full quote-to-cash lifecycle</h2>
+<style>
+.tabs{display:flex;gap:4px;border-bottom:0.5px solid var(--border);margin-bottom:1.5rem;overflow-x:auto}
+.tab{padding:8px 14px;font-size:13px;cursor:pointer;border:none;background:none;color:var(--text-secondary);border-bottom:2px solid transparent;white-space:nowrap;font-family:inherit}
+.tab.active{color:var(--text-primary);border-bottom-color:var(--text-accent);font-weight:500}
+.pnl{display:none}.pnl.active{display:block}
+.card{background:var(--surface-1);border-radius:12px;padding:1rem 1.25rem;margin-bottom:12px}
+.badge{display:inline-block;padding:2px 8px;border-radius:var(--radius);font-size:11px;font-weight:500;margin-right:4px}
+.b-pk{background:var(--bg-accent);color:var(--text-accent)}
+.b-fk{background:var(--bg-pro);color:var(--text-pro)}
+.b-req{background:var(--bg-danger);color:var(--text-danger)}
+.b-auto{background:var(--bg-success);color:var(--text-success)}
+.b-val{background:var(--bg-warning);color:var(--text-warning)}
+.b-calc{background:var(--bg-pro);color:var(--text-pro)}
+.b-new{background:var(--bg-success);color:var(--text-success)}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0}
+.tbl th{text-align:left;padding:6px 8px;border-bottom:0.5px solid var(--border-strong);color:var(--text-secondary);font-weight:500;font-size:12px}
+.tbl td{padding:6px 8px;border-bottom:0.5px solid var(--border);vertical-align:top;color:var(--text-primary)}
+.tbl tr:last-child td{border-bottom:none}
+.rule{background:var(--surface-1);border-radius:0;padding:10px 14px;margin:8px 0;font-size:13px;border-left:3px solid var(--border-accent)}
+.rule-warn{border-left-color:var(--border-warning)}
+.rule-err{border-left-color:var(--border-danger)}
+.rule-ok{border-left-color:var(--border-success)}
+.section{font-size:15px;font-weight:500;margin:1.5rem 0 0.75rem;color:var(--text-primary)}
+.sub{font-size:13px;font-weight:500;margin:1rem 0 0.5rem;color:var(--text-secondary)}
+p{margin:0 0 8px;line-height:1.6;font-size:13px;color:var(--text-primary)}
+.muted{color:var(--text-secondary)}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;font-size:12px}
+.flow{display:flex;align-items:center;gap:0;margin:16px 0;flex-wrap:wrap}
+.flow-box{padding:8px 14px;border-radius:var(--radius);font-size:12px;font-weight:500;text-align:center;min-width:80px}
+.flow-arrow{color:var(--text-muted);padding:0 6px;font-size:16px}
+.status-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--border)}
+.status-row:last-child{border-bottom:none}
+.status-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.metric-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:12px 0}
+.metric{background:var(--surface-1);border-radius:var(--radius);padding:10px;text-align:center}
+.metric-label{font-size:11px;color:var(--text-secondary);margin-bottom:2px}
+.metric-val{font-size:18px;font-weight:500}
+.pipeline{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin:16px 0;border-radius:12px;overflow:hidden}
+.pipe-step{padding:12px;text-align:center;font-size:12px}
+.pipe-step-label{font-weight:500;margin-bottom:2px}
+.pipe-step-sub{font-size:11px;opacity:0.8}
+</style>
+
+<div style="padding:0 0 4px">
+  <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Module 4 of 8</div>
+  <div style="font-size:18px;font-weight:500;margin-bottom:4px"><i class="ti ti-arrow-right" aria-hidden="true" style="color:var(--text-accent);margin-right:6px"></i>Workflow pipeline</div>
+  <div style="font-size:13px;color:var(--text-secondary)">Quote → job card → invoice → payment: the full revenue lifecycle</div>
+</div>
+
+<div class="pipeline">
+<div class="pipe-step" style="background:var(--bg-accent);color:var(--text-accent)"><div class="pipe-step-label">Quotation</div><div class="pipe-step-sub">Price the work</div></div>
+<div class="pipe-step" style="background:var(--bg-warning);color:var(--text-warning)"><div class="pipe-step-label">Job card</div><div class="pipe-step-sub">Do the work</div></div>
+<div class="pipe-step" style="background:var(--bg-pro);color:var(--text-pro)"><div class="pipe-step-label">Invoice</div><div class="pipe-step-sub">Bill the work</div></div>
+<div class="pipe-step" style="background:var(--bg-success);color:var(--text-success)"><div class="pipe-step-label">Payment</div><div class="pipe-step-sub">Collect the money</div></div>
+</div>
+
+<div class="tabs" id="tabs">
+  <button class="tab active" onclick="show(0)"><i class="ti ti-file-text" aria-hidden="true" style="margin-right:4px"></i>Quotations</button>
+  <button class="tab" onclick="show(1)"><i class="ti ti-clipboard" aria-hidden="true" style="margin-right:4px"></i>Job cards</button>
+  <button class="tab" onclick="show(2)"><i class="ti ti-receipt" aria-hidden="true" style="margin-right:4px"></i>Invoices</button>
+  <button class="tab" onclick="show(3)"><i class="ti ti-credit-card" aria-hidden="true" style="margin-right:4px"></i>Payments</button>
+  <button class="tab" onclick="show(4)"><i class="ti ti-list-details" aria-hidden="true" style="margin-right:4px"></i>Line items</button>
+  <button class="tab" onclick="show(5)"><i class="ti ti-player-play" aria-hidden="true" style="margin-right:4px"></i>Worked example</button>
+</div>
+
+<!-- ═══ QUOTATIONS ═══ -->
+<div class="pnl active" id="p0">
+<div class="section">quotations table</div>
+<p>The entry point of the revenue pipeline. A quote tells the customer "here's what's wrong, here's what it costs, do you approve?" The current Dhalla system has a "Quotation" button in the nav but it's barely functional. In MechWise, quotes are the starting point for every job — even walk-ins get a verbal quote that's recorded in the system.</p>
+
+<table class="tbl">
+<tr><th>Field</th><th>Type</th><th>Tags</th><th>Validation and notes</th></tr>
+<tr><td>quote_id</td><td>VARCHAR(10)</td><td><span class="badge b-pk">PK</span><span class="badge b-auto">Auto</span></td><td>Format: QT-0001. Zero-padded 4-digit sequential. Unique per workshop.</td></tr>
+<tr><td>workshop_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span></td><td>Multi-tenancy key. Every quote belongs to exactly one workshop.</td></tr>
+<tr><td>client_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span><span class="badge b-req">Required</span></td><td>Who is being quoted. Auto-fills client name, phone, email from the clients table. If client doesn't exist yet, system offers "Create new client" inline.</td></tr>
+<tr><td>vehicle_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span><span class="badge b-req">Required</span></td><td>Which vehicle the work is for. Rego, make, model, year auto-displayed. If vehicle is new, rego lookup auto-fills details.</td></tr>
+<tr><td>quote_date</td><td>DATE</td><td><span class="badge b-auto">Auto</span></td><td>Defaults to today. Editable for back-dated quotes.</td></tr>
+<tr><td>valid_until</td><td>DATE</td><td><span class="badge b-auto">Auto</span></td><td>Defaults to quote_date + 14 days (configurable in workshop settings). After this date, status auto-changes to "Expired" via a nightly job. Customer sees "Quote valid for 14 days" on the PDF.</td></tr>
+<tr><td>total_ex_gst</td><td>DECIMAL(10,2)</td><td><span class="badge b-calc">Calculated</span></td><td>Sum of all quote line totals (ex-GST).</td></tr>
+<tr><td>gst_amount</td><td>DECIMAL(10,2)</td><td><span class="badge b-calc">Calculated</span></td><td>= total_ex_gst × 0.10.</td></tr>
+<tr><td>total_inc_gst</td><td>DECIMAL(10,2)</td><td><span class="badge b-calc">Calculated</span></td><td>= total_ex_gst + gst_amount.</td></tr>
+<tr><td>discount_amount</td><td>DECIMAL(10,2)</td><td></td><td>Applied before GST calculation. If discount is percentage-based, system converts to dollar amount. e.g. 10% of $450 = $45 discount.</td></tr>
+<tr><td>final_amount</td><td>DECIMAL(10,2)</td><td><span class="badge b-calc">Calculated</span></td><td>= (total_ex_gst − discount_amount) × 1.1. The number the customer sees.</td></tr>
+<tr><td>status</td><td>VARCHAR(30)</td><td><span class="badge b-req">Required</span></td><td>See status lifecycle below.</td></tr>
+<tr><td>approved_date</td><td>DATE</td><td></td><td>When the customer said yes. NULL until approved. Used for conversion-time analytics.</td></tr>
+<tr><td>approved_method</td><td>VARCHAR(30)</td><td></td><td>Enum: SMS, Email, In-Person, Phone, Digital Signature. Tracked for compliance — proof the customer authorised the work. "In-Person" is the default for walk-ins.</td></tr>
+<tr><td>created_by</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span></td><td>Staff member who created the quote. For accountability and commission tracking in v2.</td></tr>
+</table>
+
+<div class="sub">Quote status lifecycle</div>
+<div class="card">
+<div class="status-row"><div class="status-dot" style="background:var(--text-secondary)"></div><div><span style="font-weight:500">Draft</span> <span class="muted">— being built, not yet sent to customer. Lines can be freely added, edited, or removed. Only visible internally.</span></div></div>
+<div class="status-row"><div class="status-dot" style="background:var(--text-accent)"></div><div><span style="font-weight:500">Sent</span> <span class="muted">— delivered to customer via SMS, email, or printed handout. Timestamp recorded. Quote is now read-only unless owner unlocks it for editing (which creates a new version: QT-0001-v2).</span></div></div>
+<div class="status-row"><div class="status-dot" style="background:var(--text-success)"></div><div><span style="font-weight:500">Approved</span> <span class="muted">— customer said yes. approved_date and approved_method recorded. "Convert to job card" button appears. This is the green light to start work.</span></div></div>
+<div class="status-row"><div class="status-dot" style="background:var(--text-danger)"></div><div><span style="font-weight:500">Declined</span> <span class="muted">— customer said no. Reason field (optional): "Too expensive", "Going elsewhere", "Not now". Useful for win/loss analysis.</span></div></div>
+<div class="status-row"><div class="status-dot" style="background:var(--text-muted)"></div><div><span style="font-weight:500">Expired</span> <span class="muted">— valid_until date has passed without approval. Auto-set by nightly job. System can auto-send a follow-up: "Your quote has expired. Would you like us to re-quote?"</span></div></div>
+<div class="status-row"><div class="status-dot" style="background:var(--text-pro)"></div><div><span style="font-weight:500">Converted</span> <span class="muted">— approved quote has been converted into a job card. The quote_id is stored on the job card as a reference. No further changes allowed.</span></div></div>
+</div>
+
+<div class="sub">Business rules</div>
+<div class="rule">SMS quote delivery: The quote is sent as a short message with a link to a web page showing the full quote details. e.g. "Hi Peter, your quote from Dhalla Automotive for Hyundai Tucson NSW-PL1 is $169.40. View details: mechwise.com.au/q/QT0001. Reply YES to approve." When the customer replies "YES", status auto-changes to Approved.</div>
+<div class="rule">Email quote delivery: Generate a branded PDF with workshop logo, ABN, vehicle details, line items, and GST breakdown. Attach to email. Include an "Approve quote" button that links to the customer portal confirmation page.</div>
+<div class="rule rule-warn">Walk-in shortcut: When a car arrives without a prior quote, front desk creates a quote, immediately marks it "Approved" (method: In-Person), and converts to a job card in one flow. The system should support this "quick start" path — quote → approve → job card in 3 clicks.</div>
+<div class="rule rule-warn">Additional work discovered: If the mechanic finds extra problems during a job, a supplementary quote is created (linked to the original as "Additional quote for QT-0001"). This requires separate approval before the extra work begins. Never add unapproved work to an existing job card — it's a compliance and trust issue.</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">Multiple quotes for the same vehicle: A customer asks for pricing on three options — "just pads", "pads + rotors", "full brake service". Create 3 separate quotes. Only the approved one converts to a job card. The others auto-expire or are manually declined.</div>
+<div class="rule rule-err">Quote revision: Customer wants to remove a line item or change a spec. Don't edit the sent quote — create a new version (QT-0001-v2) so there's an audit trail. The old version is marked "Superseded".</div>
+<div class="rule rule-err">Insurance quotes: The insurer requires a specific format with assessor notes, photos, and a separate labour schedule. Support a "Quote type" field (Standard, Insurance, Fleet) that applies different PDF templates.</div>
+</div>
+
+<!-- ═══ JOB CARDS ═══ -->
+<div class="pnl" id="p1">
+<div class="section">job_cards table</div>
+<p>The heart of the workshop. A job card represents a vehicle that's in (or about to be in) the workshop being worked on. It tracks who's doing the work, what stage it's at, and what's been done. This is what appears on the workshop floor board and what mechanics interact with all day.</p>
+
+<table class="tbl">
+<tr><th>Field</th><th>Type</th><th>Tags</th><th>Validation and notes</th></tr>
+<tr><td>jobcard_id</td><td>VARCHAR(10)</td><td><span class="badge b-pk">PK</span><span class="badge b-auto">Auto</span></td><td>Format: JC-0001. Sequential. This is the "job number" mechanics reference verbally — "I'm working on JC-fifteen".</td></tr>
+<tr><td>quote_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span></td><td>Links back to the approved quote. NULL for walk-in jobs created without a prior quote (which still get an auto-generated internal quote for record-keeping).</td></tr>
+<tr><td>client_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span><span class="badge b-req">Required</span></td><td>Inherited from quote or entered directly.</td></tr>
+<tr><td>vehicle_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span><span class="badge b-req">Required</span></td><td>Inherited from quote or entered directly.</td></tr>
+<tr><td>staff_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span></td><td>Primary mechanic assigned. Can be changed during the job. Individual line items can also have different mechanics (e.g. apprentice does oil change, senior mechanic does brakes).</td></tr>
+<tr><td>date_in</td><td>DATE</td><td><span class="badge b-req">Required</span></td><td>When the vehicle arrives / work begins. Defaults to today.</td></tr>
+<tr><td>date_due</td><td>DATE</td><td></td><td>Promised completion date. System calculates from estimated_duration and mechanic availability. If overdue, job card turns red on the floor board.</td></tr>
+<tr><td>date_completed</td><td>DATE</td><td><span class="badge b-auto">Auto</span></td><td>Auto-filled when status changes to "Completed". Used for turnaround time analytics.</td></tr>
+<tr><td>mileage_in</td><td>INTEGER</td><td><span class="badge b-val">Validated</span></td><td>Odometer reading at drop-off. Must be ≥ vehicle's last recorded mileage. Auto-updates the vehicle's current_mileage_km field. Required for service interval calculations.</td></tr>
+<tr><td>bay_number</td><td>VARCHAR(20)</td><td></td><td>Which workshop bay the vehicle is in. e.g. "Bay 1", "Bay 2", "Hoist 3", "Yard". Displayed on the floor board. Dhalla has ~4 bays.</td></tr>
+<tr><td>status</td><td>VARCHAR(30)</td><td><span class="badge b-req">Required</span></td><td>See status lifecycle below. The core state machine of the platform.</td></tr>
+<tr><td>priority</td><td>VARCHAR(10)</td><td></td><td>Enum: Urgent, Normal, Low. Urgent jobs appear at the top of the floor board with a red border. Used for breakdowns, safety-critical repairs, and fleet vehicles that need same-day turnaround.</td></tr>
+<tr><td>total_ex_gst</td><td>DECIMAL(10,2)</td><td><span class="badge b-calc">Calculated</span></td><td>Sum of all job card line totals. May differ from the quote if extra work was added or prices adjusted.</td></tr>
+<tr><td>internal_notes</td><td>TEXT</td><td></td><td>Staff-only notes. Not visible to customer. e.g. "Exhaust pipe rusting — mention to customer next visit", "Customer is difficult about pricing".</td></tr>
+<tr><td>customer_notes</td><td>TEXT</td><td></td><td>Visible on the customer portal and printed on the invoice. e.g. "Recommend timing belt replacement at next service", "Monitor transmission fluid level".</td></tr>
+</table>
+
+<div class="sub">Job card status lifecycle</div>
+<div class="card">
+<div class="status-row"><div class="status-dot" style="background:var(--text-secondary)"></div><div><span style="font-weight:500">Booked</span> <span class="muted">— scheduled for a future date. Vehicle hasn't arrived yet. Appears on the calendar view and daily schedule.</span></div></div>
+<div class="status-row"><div class="status-dot" style="background:var(--text-accent)"></div><div><span style="font-weight:500">Waiting</span> <span class="muted">— vehicle has arrived but work hasn't started. Sitting in the yard or bay waiting for a mechanic. Clock starts ticking for turnaround time.</span></div></div>
+<div class="status-row"><div class="status-dot" style="background:var(--text-warning)"></div><div><span style="font-weight:500">In progress</span> <span class="muted">— mechanic is actively working on the vehicle. Individual sub-items can be ticked off as completed. Bay is occupied.</span></div></div>
+<div class="status-row"><div class="status-dot" style="background:var(--text-danger)"></div><div><span style="font-weight:500">Waiting for parts</span> <span class="muted">— work is paused because a required part is out of stock. Linked to a pending PO. System shows "Estimated: 2 days until part arrives" based on PO lead time. Bay may be freed for another vehicle.</span></div></div>
+<div class="status-row"><div class="status-dot" style="background:var(--text-pro)"></div><div><span style="font-weight:500">Quality check</span> <span class="muted">— mechanic has finished, senior mechanic or owner is reviewing the work. Test drive, visual inspection, torque check. Optional step — can be skipped in workshop settings.</span></div></div>
+<div class="status-row"><div class="status-dot" style="background:var(--text-success)"></div><div><span style="font-weight:500">Ready for pickup</span> <span class="muted">— work is done, invoice generated, vehicle is parked and waiting for customer. SMS notification auto-sent: "Your vehicle is ready for collection." Payment can happen now or on pickup.</span></div></div>
+<div class="status-row"><div class="status-dot" style="background:var(--text-success)"></div><div><span style="font-weight:500">Completed</span> <span class="muted">— customer has collected the vehicle and payment received (or terms agreed). Job card is archived. date_completed filled. Maintenance history entry auto-created. Service reminder auto-scheduled.</span></div></div>
+<div class="status-row"><div class="status-dot" style="background:var(--text-muted)"></div><div><span style="font-weight:500">Cancelled</span> <span class="muted">— job cancelled before or during work. If parts were deducted, they're returned to stock. Cancellation reason required. Partial-work scenarios generate a partial invoice.</span></div></div>
+</div>
+
+<div class="sub">Business rules</div>
+<div class="rule">When status changes from "In progress" to "Waiting for parts", the system prompts: "Which part is needed?" Links to a PO or shows available stock. The bay can be reassigned to another vehicle while waiting.</div>
+<div class="rule">When status changes to "Ready for pickup", auto-send SMS to the client: "Hi [name], your [make model] ([rego]) is ready for collection at Dhalla Automotive. Total: $[amount]. Open [hours]." Configurable template in workshop settings.</div>
+<div class="rule rule-warn">Additional work during a job: Mechanic discovers worn brake pads during a minor service. The system enforces: (1) create a supplementary quote, (2) contact customer for approval, (3) only then add the extra lines to the job card. Never let a mechanic add unapproved work — it causes disputes at pickup.</div>
+<div class="rule rule-warn">Turnaround tracking: date_in to date_completed = total turnaround. Target is same-day for minor services, 1–2 days for major work. Dashboard shows average turnaround by job type and flags overdue jobs.</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">Vehicle left overnight: Customer drops off at 4:30pm, work starts next morning. date_in is today (drop-off), but actual work hours are tracked separately on job card lines. Don't count overnight as work time.</div>
+<div class="rule rule-err">Split job across mechanics: Oil change done by the apprentice (ST-005), brakes done by the senior mechanic (ST-001). Each job card line has its own staff_id. The header staff_id shows the primary/responsible mechanic.</div>
+<div class="rule rule-err">Customer changes mind mid-job: Approved the full brake service but calls back saying "just do the pads, skip the rotors." The job card line for rotor machining is removed (or marked "Customer declined"). Quote revised and price adjusted before invoicing.</div>
+</div>
+
+<!-- ═══ INVOICES ═══ -->
+<div class="pnl" id="p2">
+<div class="section">invoices table</div>
+<p>The billing document. Generated from a completed job card — line items flow directly from job card lines to invoice lines without re-entry. The invoice is the legal tax document that satisfies ATO requirements and goes into accounting.</p>
+
+<table class="tbl">
+<tr><th>Field</th><th>Type</th><th>Tags</th><th>Validation and notes</th></tr>
+<tr><td>invoice_id</td><td>VARCHAR(10)</td><td><span class="badge b-pk">PK</span><span class="badge b-auto">Auto</span></td><td>Format: INV-0001. Sequential. Must be continuous with no gaps — ATO requires sequential invoice numbers for GST-registered businesses. If an invoice is voided, it stays in the sequence as "Void".</td></tr>
+<tr><td>jobcard_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span></td><td>Links to the completed job card. One-to-one: each job card generates exactly one invoice. NULL for manual invoices (rare — e.g. selling parts over the counter without a job card).</td></tr>
+<tr><td>client_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span><span class="badge b-req">Required</span></td><td>Who is being billed.</td></tr>
+<tr><td>vehicle_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span><span class="badge b-req">Required</span></td><td>Which vehicle. Rego, make, model, year, VIN all appear on the invoice PDF.</td></tr>
+<tr><td>invoice_date</td><td>DATE</td><td><span class="badge b-auto">Auto</span></td><td>Defaults to today (date of completion). Editable for end-of-month billing scenarios.</td></tr>
+<tr><td>due_date</td><td>DATE</td><td><span class="badge b-auto">Auto</span></td><td>= invoice_date + payment terms. Default: same day (payment on pickup). Fleet accounts may have 14 or 30 day terms. Overdue invoices auto-flagged after this date.</td></tr>
+<tr><td>tax_type</td><td>VARCHAR(20)</td><td></td><td>"GST Inclusive" (default). "GST Exclusive" for business-to-business where client handles their own GST. "GST Free" for exempt items.</td></tr>
+<tr><td>subtotal_ex_gst</td><td>DECIMAL(10,2)</td><td><span class="badge b-calc">Calculated</span></td><td>Sum of all line item totals (ex-GST).</td></tr>
+<tr><td>gst_amount</td><td>DECIMAL(10,2)</td><td><span class="badge b-calc">Calculated</span></td><td>Sum of all line item GST amounts. Calculated per-line, not on the header — ensures accuracy when lines have different GST rates.</td></tr>
+<tr><td>discount_type</td><td>VARCHAR(20)</td><td></td><td>Enum: Percentage, Fixed Amount, None. Inherited from the quote if applicable.</td></tr>
+<tr><td>discount_value</td><td>DECIMAL(10,2)</td><td></td><td>The percentage (e.g. 10) or fixed dollar amount (e.g. 50). Separate from discount_amount so the system knows the original intent.</td></tr>
+<tr><td>discount_amount</td><td>DECIMAL(10,2)</td><td><span class="badge b-calc">Calculated</span></td><td>The actual dollar discount applied. If percentage: subtotal × (value/100). Applied before GST.</td></tr>
+<tr><td>final_amount</td><td>DECIMAL(10,2)</td><td><span class="badge b-calc">Calculated</span></td><td>= (subtotal_ex_gst − discount_amount) + gst_on_discounted. What the customer pays.</td></tr>
+<tr><td>payment_status</td><td>VARCHAR(20)</td><td><span class="badge b-req">Required</span></td><td>See status values below.</td></tr>
+<tr><td>payment_method</td><td>VARCHAR(30)</td><td></td><td>Filled on payment. Enum: Cash, Credit Card, Debit Card, EFTPOS, PayID, Direct Debit, BPay, Bank Transfer.</td></tr>
+<tr><td>next_service_due</td><td>DATE</td><td><span class="badge b-new">New</span></td><td>Auto-calculated: invoice_date + service interval (default 6 months, configurable). Pushed to the vehicle record and creates a service reminder.</td></tr>
+<tr><td>next_service_km</td><td>INTEGER</td><td><span class="badge b-new">New</span></td><td>Auto-calculated: mileage_in + interval (default 10,000km). Pushed to the vehicle record.</td></tr>
+</table>
+
+<div class="sub">Payment status values</div>
+<div class="card">
+<table class="tbl" style="font-size:12px">
+<tr><th>Status</th><th>Meaning</th><th>Dashboard treatment</th></tr>
+<tr><td style="font-weight:500;color:var(--text-success)">Paid</td><td>Full payment received. payment_date and payment_method filled.</td><td>Green. Archived from active view.</td></tr>
+<tr><td style="font-weight:500;color:var(--text-warning)">Unpaid</td><td>Invoice issued, no payment yet. Within due_date.</td><td>Yellow. Appears in "Awaiting payment" list.</td></tr>
+<tr><td style="font-weight:500;color:var(--text-danger)">Overdue</td><td>Due_date has passed, still unpaid. Auto-set by nightly job.</td><td>Red. Priority item on dashboard. Auto-reminder SMS sent at 7 days, 14 days, 30 days overdue.</td></tr>
+<tr><td style="font-weight:500;color:var(--text-accent)">Partial</td><td>Some payment received but balance remains. e.g. $200 paid on $495 invoice.</td><td>Shows paid amount and outstanding balance. Appears in "Awaiting payment" list.</td></tr>
+<tr><td style="font-weight:500;color:var(--text-secondary)">Void</td><td>Invoice cancelled. Error correction or duplicate. Must record a reason. Stays in sequence — INV-0005 voided, next is INV-0006.</td><td>Greyed out. Excluded from revenue reports but visible in audit trail.</td></tr>
+<tr><td style="font-weight:500;color:var(--text-pro)">Refunded</td><td>Payment was received but returned. Links to a refund payment record. e.g. warranty claim refund.</td><td>Shows original amount and refund amount.</td></tr>
+</table>
+</div>
+
+<div class="sub">Invoice PDF contents (ATO-compliant tax invoice)</div>
+<div class="rule rule-ok">Header: Workshop logo, business name, ABN, MVRL/ARC numbers, address, phone, email.</div>
+<div class="rule rule-ok">Customer block: Client name (or business name), address, phone, email.</div>
+<div class="rule rule-ok">Vehicle block: Registration, make, model, year, VIN, odometer reading, fuel type, transmission.</div>
+<div class="rule rule-ok">Service block: Next service due (date + km), pink slip expiry, reading at service, next service reading.</div>
+<div class="rule rule-ok">Line items: S.No, Description, Parts used, Qty, Unit price (ex-GST), Line total. Grouped by parent job name.</div>
+<div class="rule rule-ok">Totals: Subtotal ex-GST, Discount (if any), GST amount, Total inc-GST. Payment method and reference.</div>
+<div class="rule rule-ok">Footer: "Thank you for choosing Dhalla Automotive. Your next service is due [date] or at [km] km."</div>
+
+<div class="sub">Business rules</div>
+<div class="rule">Sequential numbering is legally required. The system must never skip, reuse, or delete an invoice number. Voided invoices keep their number and appear as "VOID" in the sequence.</div>
+<div class="rule">next_service_due auto-triggers: (1) update the vehicle's next_service_due field, (2) create a service_reminder record with status "Pending", (3) schedule SMS/email reminders at 30/14/7 days before due.</div>
+<div class="rule rule-warn">Invoice editing: Once an invoice is marked "Paid", it cannot be edited — only voided and re-issued. This prevents after-the-fact tampering. Unpaid invoices can be edited by Owner or Manager with an audit log entry.</div>
+</div>
+
+<!-- ═══ PAYMENTS ═══ -->
+<div class="pnl" id="p3">
+<div class="section">payments table</div>
+<p>Tracks every dollar that moves in or out. Separated from invoices to support partial payments, multiple payment methods on one invoice, and supplier payments. This is the foundation for cash flow reporting and BAS lodgement.</p>
+
+<table class="tbl">
+<tr><th>Field</th><th>Type</th><th>Tags</th><th>Validation and notes</th></tr>
+<tr><td>payment_id</td><td>VARCHAR(10)</td><td><span class="badge b-pk">PK</span><span class="badge b-auto">Auto</span></td><td>Format: PAY-001.</td></tr>
+<tr><td>payment_type</td><td>VARCHAR(20)</td><td><span class="badge b-req">Required</span></td><td>Enum: Customer (incoming from client), Supplier (outgoing to supplier), Refund (return to client), Expense (operational cost — rent, power, tools).</td></tr>
+<tr><td>invoice_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span></td><td>For customer payments — which invoice is being paid. NULL for supplier payments and expenses.</td></tr>
+<tr><td>supplier_inv_id</td><td>VARCHAR(20)</td><td></td><td>The supplier's own invoice number. e.g. "CDR-78543". For reconciliation with supplier statements.</td></tr>
+<tr><td>client_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span></td><td>For customer payments and refunds.</td></tr>
+<tr><td>supplier_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span></td><td>For supplier payments.</td></tr>
+<tr><td>amount</td><td>DECIMAL(10,2)</td><td><span class="badge b-req">Required</span><span class="badge b-val">Validated</span></td><td>Always positive. Direction is determined by payment_type. For partial payments: can be less than invoice total. For refunds: must not exceed original payment amount.</td></tr>
+<tr><td>payment_method</td><td>VARCHAR(30)</td><td><span class="badge b-req">Required</span></td><td>Enum: Cash, Credit Card, Debit Card, EFTPOS, PayID, Direct Debit, BPay, Bank Transfer. "Cash" for physical cash, "EFTPOS" for tap-and-go terminal payments, "PayID" for BSB-based instant transfer.</td></tr>
+<tr><td>payment_date</td><td>DATE</td><td><span class="badge b-req">Required</span></td><td>When the payment was made or received. Defaults to today.</td></tr>
+<tr><td>payment_ref</td><td>VARCHAR(100)</td><td></td><td>Reference for tracking: last 4 digits of card ("VISA ****1234"), bank transfer reference, BPay receipt number. Helps reconcile with bank statements.</td></tr>
+<tr><td>received_by</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span></td><td>Staff who processed the payment. For accountability — if the till is $50 short, who was on desk?</td></tr>
+</table>
+
+<div class="sub">Payment scenarios</div>
+<div class="card">
+<table class="tbl" style="font-size:12px">
+<tr><th>Scenario</th><th>Records created</th><th>Invoice status</th></tr>
+<tr><td>Customer pays $495 in full via EFTPOS</td><td>1 payment: PAY-001, type=Customer, amount=$495, method=EFTPOS</td><td>Paid</td></tr>
+<tr><td>Customer pays $200 cash now, $295 card later</td><td>PAY-001: $200 Cash → status: Partial. PAY-002: $295 Credit Card → status: Paid</td><td>Partial → Paid</td></tr>
+<tr><td>Fleet account — pay on 30-day terms</td><td>No payment yet. Invoice status: Unpaid. Payment created when bank transfer received.</td><td>Unpaid → Paid (when received)</td></tr>
+<tr><td>Warranty refund — $165 back to customer</td><td>PAY-003: type=Refund, amount=$165, method=Bank Transfer</td><td>Refunded</td></tr>
+<tr><td>Pay CoolDrive $385 for monthly parts order</td><td>PAY-004: type=Supplier, supplier_id=SP-002, amount=$385, method=Bank Transfer</td><td>N/A (supplier payment, not customer invoice)</td></tr>
+<tr><td>Workshop electricity bill $198</td><td>PAY-005: type=Expense, amount=$198, method=Direct Debit</td><td>N/A (business expense)</td></tr>
+</table>
+</div>
+
+<div class="sub">Business rules</div>
+<div class="rule">When a customer payment is recorded against an invoice: compare sum of all payments for that invoice_id against invoice.final_amount. If equal: set payment_status = "Paid". If less: set payment_status = "Partial" and calculate outstanding balance.</div>
+<div class="rule">Daily cash reconciliation: Sum all payment_method = "Cash" payments for today = expected cash in till. Owner counts physical cash and enters the actual. Difference is recorded as "Cash variance" — positive (over) or negative (short).</div>
+<div class="rule rule-warn">Every payment auto-creates an accounting_ledger entry. Customer payments = Incoming. Supplier and Expense payments = Outgoing. GST is extracted from the related invoice or PO for BAS reporting.</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">Bounced payment: Customer's card is declined after the vehicle has been released. Create a reversal payment (negative amount) and set invoice back to "Unpaid". Flag the client record: "Previous payment issue — request payment before release."</div>
+<div class="rule rule-err">Overpayment: Customer pays $500 on a $495 invoice. Record full $500 payment. System shows $5 credit balance on the client account. Apply to next invoice or refund.</div>
+<div class="rule rule-err">Contra/barter: Customer is a plumber who does workshop plumbing in exchange for car servicing. Record as a payment with method "Contra" and a notes field explaining the arrangement. Amount still reflects the invoice value for GST purposes.</div>
+</div>
+
+<!-- ═══ LINE ITEMS ═══ -->
+<div class="pnl" id="p4">
+<div class="section">Line items — the shared structure</div>
+<p>Quotes, job cards, and invoices all share the same line item structure. This is deliberate — data flows through the pipeline without re-entry. When a quote is approved, its lines are copied to the job card. When the job is completed, job card lines are copied to the invoice. Same fields, same format, same traceability.</p>
+
+<div class="sub">Common line item fields</div>
+<table class="tbl">
+<tr><th>Field</th><th>Present on</th><th>Notes</th></tr>
+<tr><td>line_id</td><td>All three</td><td>Unique per table: QL-001 (quote), JCL-001 (job card), IL-001 (invoice).</td></tr>
+<tr><td>parent_id</td><td>All three</td><td>quote_id, jobcard_id, or invoice_id — which header this line belongs to.</td></tr>
+<tr><td>line_type</td><td>All three</td><td>Enum: Labour, Part, Subcontract, Sundry. Determines whether the line links to a job_sub_item or a part.</td></tr>
+<tr><td>job_sub_item_id</td><td>All three</td><td>FK to job_sub_items. Populated for line_type = "Labour". e.g. JS-001 "Engine oil change".</td></tr>
+<tr><td>part_id</td><td>All three</td><td>FK to parts. Populated for line_type = "Part". e.g. PT-001 "Penrite 10W-40 5L".</td></tr>
+<tr><td>description</td><td>All three</td><td>Human-readable text. Auto-filled from the linked sub-item or part name. Editable for custom descriptions.</td></tr>
+<tr><td>qty</td><td>All three</td><td>Quantity. Default 1. Adjustable — e.g. 4 spark plugs, 2 brake pads.</td></tr>
+<tr><td>unit_price_ex_gst</td><td>All three</td><td>Price per unit excluding GST. Auto-filled from catalogue, editable per line.</td></tr>
+<tr><td>line_total_ex_gst</td><td>All three</td><td>= qty × unit_price_ex_gst.</td></tr>
+</table>
+
+<div class="sub">Fields unique to each stage</div>
+<div class="card">
+<table class="tbl" style="font-size:12px">
+<tr><th>Field</th><th>Quote</th><th>Job card</th><th>Invoice</th><th>Why</th></tr>
+<tr><td>gst_amount</td><td><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i></td><td>—</td><td><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i></td><td>Quotes show GST for the customer. Job cards don't need per-line GST. Invoices need it for BAS.</td></tr>
+<tr><td>line_total_inc_gst</td><td><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i></td><td>—</td><td><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i></td><td>Customer-facing total. Not needed on internal job card.</td></tr>
+<tr><td>gst_rate</td><td>—</td><td>—</td><td><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i></td><td>Per-line rate stored on invoices for audit accuracy (supports mixed 10%/0% lines).</td></tr>
+<tr><td>actual_labour_hrs</td><td>—</td><td><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i></td><td>—</td><td>Mechanic logs actual time worked vs estimated. Job card only — drives efficiency analytics.</td></tr>
+<tr><td>staff_id</td><td>—</td><td><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i></td><td>—</td><td>Which mechanic did this specific sub-item. Job card only — for time tracking and accountability.</td></tr>
+<tr><td>completed</td><td>—</td><td><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i></td><td>—</td><td>Checkbox: has this line been done? Powers the progress indicator on the floor board.</td></tr>
+</table>
+</div>
+
+<div class="sub">Data flow between stages</div>
+<div class="flow">
+<div class="flow-box" style="background:var(--bg-accent);color:var(--text-accent)">Quote lines</div>
+<div class="flow-arrow">→ copy</div>
+<div class="flow-box" style="background:var(--bg-warning);color:var(--text-warning)">Job card lines</div>
+<div class="flow-arrow">→ copy</div>
+<div class="flow-box" style="background:var(--bg-pro);color:var(--text-pro)">Invoice lines</div>
+</div>
+
+<div class="rule">Copy, not move: Each stage has its own line records. The quote lines are preserved as the "what was promised." The job card lines show "what was actually done" (with actual_labour_hrs and possible additions). The invoice lines are the final "what was billed." If a discrepancy exists between what was quoted and what was billed, the system flags it for owner review.</div>
+<div class="rule rule-warn">Line items can be added to a job card that weren't on the original quote (discovered extra work). These are flagged as "Additional — not on original quote" and require a supplementary approval. They flow to the invoice marked as supplementary.</div>
+</div>
+
+<!-- ═══ WORKED EXAMPLE ═══ -->
+<div class="pnl" id="p5">
+<div class="section">Full worked example: Peter's Hyundai Tucson minor service</div>
+<p>Following one job through the entire pipeline from phone call to payment — showing every table touched, every status change, and every automation triggered.</p>
+
+<div class="sub"><i class="ti ti-phone" aria-hidden="true" style="color:var(--text-accent)"></i> Monday 9:00am — the phone call</div>
+<div class="rule rule-ok">Peter calls: "My Tucson is due for a service, can I bring it in tomorrow?" Front desk types rego "NSW-PL1" → system finds VH-001 linked to CL-005 (Peter), shows vehicle details (2017 Hyundai Tucson, last service 6 months ago at 92,500km). Selects job: "Minor service (JB-001)". System auto-populates 4 sub-items and linked parts.</div>
+<div class="card" style="font-size:12px">
+<div style="font-weight:500;margin-bottom:6px">Quote QT-0042 created</div>
+<table class="tbl" style="font-size:11px">
+<tr><th>Line</th><th>Type</th><th>Description</th><th style="text-align:right">Amount</th></tr>
+<tr><td>QL-091</td><td>Labour</td><td>Engine oil change</td><td style="text-align:right">$24.00</td></tr>
+<tr><td>QL-092</td><td>Part</td><td>Penrite 10W-40 5L</td><td style="text-align:right">$50.00</td></tr>
+<tr><td>QL-093</td><td>Labour</td><td>Oil filter replacement</td><td style="text-align:right">$8.00</td></tr>
+<tr><td>QL-094</td><td>Part</td><td>Oil filter Z456 (Hyundai)</td><td style="text-align:right">$10.00</td></tr>
+<tr><td>QL-095</td><td>Labour</td><td>Engine flush</td><td style="text-align:right">$8.00</td></tr>
+<tr><td>QL-096</td><td>Part</td><td>Engine flush additive</td><td style="text-align:right">$20.00</td></tr>
+<tr><td>QL-097</td><td>Labour</td><td>25-point safety check</td><td style="text-align:right">$40.00</td></tr>
+<tr><td colspan="3" style="font-weight:500">Subtotal ex-GST (package price)</td><td style="text-align:right;font-weight:500">$140.00</td></tr>
+<tr><td colspan="3">GST (10%)</td><td style="text-align:right">$14.00</td></tr>
+<tr><td colspan="3" style="font-weight:500;font-size:13px">Total inc GST</td><td style="text-align:right;font-weight:500;font-size:13px">$154.00</td></tr>
+</table>
+<div class="muted" style="margin-top:6px">Status: Draft → Sent (SMS to 0435 791 593). Appointment: APT-0089 created for Tue 8:00am, Bay 2, ST-001 (Tinku).</div>
+</div>
+
+<div class="sub"><i class="ti ti-message" aria-hidden="true" style="color:var(--text-success)"></i> Monday 9:15am — SMS approval</div>
+<div class="rule rule-ok">Peter receives SMS: "Hi Peter, your quote from Dhalla Automotive for Hyundai Tucson NSW-PL1 is $154.00. View: mechwise.au/q/QT0042. Reply YES to approve." Peter replies "YES". Quote status → Approved. approved_date = today, approved_method = SMS. System auto-creates job card JC-0089.</div>
+
+<div class="sub"><i class="ti ti-car" aria-hidden="true" style="color:var(--text-warning)"></i> Tuesday 7:45am — vehicle arrives</div>
+<div class="rule rule-ok">Peter drops off the Tucson. Front desk opens JC-0089, enters mileage_in: 95,200km (vehicle.current_mileage updated). Status: Booked → Waiting. Vehicle assigned to Bay 2.</div>
+
+<div class="sub"><i class="ti ti-tool" aria-hidden="true" style="color:var(--text-warning)"></i> Tuesday 8:15am — work begins</div>
+<div class="rule rule-ok">Tinku (ST-001) starts the job. Status: Waiting → In Progress. He works through each sub-item, ticking them off: oil drain ✓, filter swap ✓, engine flush ✓, 25-point check ✓. Actual time: 0.9 hrs.</div>
+
+<div class="sub"><i class="ti ti-alert-triangle" aria-hidden="true" style="color:var(--text-danger)"></i> Tuesday 8:40am — extra work discovered</div>
+<div class="rule rule-warn">During the 25-point check, Tinku notices the front wiper blades are cracked. He creates a supplementary quote: QT-0042-ADD with 1 line: "Wiper blade replacement — $40 inc GST". SMS sent to Peter: "During your service we found worn wiper blades. Additional cost: $40. Reply YES to approve." Peter replies "YES". Extra line added to job card JC-0089.</div>
+
+<div class="sub"><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i> Tuesday 9:30am — work completed</div>
+<div class="rule rule-ok">All lines completed. Status: In Progress → Ready for Pickup. Parts auto-deducted: PT-001 (oil, stock 12→11), PT-010 (Z456 filter, stock 5→4), engine flush (stock decremented), wiper blades (stock decremented). Z456 filter at 4 — below reorder level 5 — reorder alert triggered, draft PO created to CoolDrive.</div>
+
+<div class="sub"><i class="ti ti-receipt" aria-hidden="true" style="color:var(--text-pro)"></i> Tuesday 9:31am — invoice generated</div>
+<div class="card" style="font-size:12px">
+<div style="font-weight:500;margin-bottom:6px">Invoice INV-0089 auto-generated from JC-0089</div>
+<table class="tbl" style="font-size:11px">
+<tr><th>Line</th><th>Description</th><th style="text-align:right">Ex-GST</th><th style="text-align:right">GST</th><th style="text-align:right">Inc-GST</th></tr>
+<tr><td>IL-201</td><td>Minor service (labour + parts)</td><td style="text-align:right">$140.00</td><td style="text-align:right">$14.00</td><td style="text-align:right">$154.00</td></tr>
+<tr><td>IL-202</td><td>Wiper blade replacement (additional)</td><td style="text-align:right">$36.36</td><td style="text-align:right">$3.64</td><td style="text-align:right">$40.00</td></tr>
+<tr><td colspan="2" style="font-weight:500;font-size:13px">Total</td><td style="text-align:right;font-weight:500">$176.36</td><td style="text-align:right;font-weight:500">$17.64</td><td style="text-align:right;font-weight:500;font-size:13px">$194.00</td></tr>
+</table>
+<div class="muted" style="margin-top:6px">Payment status: Unpaid. Due: Today. PDF generated with workshop logo, ABN, vehicle details.</div>
+<div class="muted">Next service due: 2026-04-07 or at 105,200km. Service reminder REM-301 auto-created (Pending).</div>
+</div>
+
+<div class="sub"><i class="ti ti-message" aria-hidden="true" style="color:var(--text-accent)"></i> Tuesday 9:32am — pickup notification</div>
+<div class="rule rule-ok">SMS auto-sent: "Hi Peter, your Hyundai Tucson NSW-PL1 is ready for collection. Total: $194.00. We're open until 5pm. — Dhalla Automotive"</div>
+
+<div class="sub"><i class="ti ti-credit-card" aria-hidden="true" style="color:var(--text-success)"></i> Tuesday 4:30pm — payment</div>
+<div class="rule rule-ok">Peter arrives, pays $194 via EFTPOS. Payment PAY-067 created: type=Customer, invoice_id=INV-0089, amount=$194, method=EFTPOS, ref="VISA ****4521". Invoice status → Paid. Job card status → Completed (date_completed = today).</div>
+
+<div class="sub"><i class="ti ti-database" aria-hidden="true" style="color:var(--text-secondary)"></i> Automatic background updates</div>
+<div class="rule rule-ok">Vehicle VH-001: current_mileage = 95,200, next_service_due = 2026-04-07, next_service_km = 105,200.</div>
+<div class="rule rule-ok">Maintenance history: New record created — service_date = today, type = "Minor service + wiper blades", mileage = 95,200, cost = $194, invoice = INV-0089.</div>
+<div class="rule rule-ok">Accounting ledger: TXN-201 created — direction = Incoming, entity = Peter (CL-005), amount_ex_gst = $176.36, gst = $17.64, total = $194, BAS period = Q2 2025-26.</div>
+<div class="rule rule-ok">Service reminder: REM-301 created — type = "Next Service", due = 2026-04-07, status = Pending. SMS will auto-send at 30, 14, and 7 days before due date.</div>
+<div class="rule rule-ok">Reorder alert: Oil filter Z456 at 4 units (below reorder level 5). Draft PO-0034 auto-created for CoolDrive with 10 × Z456 at $5.00 each = $50 + GST.</div>
+</div>
+
+<script>
+function show(i){
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',j===i));
+  document.querySelectorAll('.pnl').forEach((p,j)=>p.classList.toggle('active',j===i));
+}
+</script>

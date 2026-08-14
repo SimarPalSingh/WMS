@@ -1,0 +1,390 @@
+
+<h2 class="sr-only">Deep dive into MechWise Module 7: Maintenance History and Vehicle Lifecycle covering service records, vehicle timeline, customer portal, data completeness, and audit trail</h2>
+<style>
+.tabs{display:flex;gap:4px;border-bottom:0.5px solid var(--border);margin-bottom:1.5rem;overflow-x:auto}
+.tab{padding:8px 14px;font-size:13px;cursor:pointer;border:none;background:none;color:var(--text-secondary);border-bottom:2px solid transparent;white-space:nowrap;font-family:inherit}
+.tab.active{color:var(--text-primary);border-bottom-color:var(--text-accent);font-weight:500}
+.pnl{display:none}.pnl.active{display:block}
+.card{background:var(--surface-1);border-radius:12px;padding:1rem 1.25rem;margin-bottom:12px}
+.badge{display:inline-block;padding:2px 8px;border-radius:var(--radius);font-size:11px;font-weight:500;margin-right:4px}
+.b-pk{background:var(--bg-accent);color:var(--text-accent)}
+.b-fk{background:var(--bg-pro);color:var(--text-pro)}
+.b-req{background:var(--bg-danger);color:var(--text-danger)}
+.b-auto{background:var(--bg-success);color:var(--text-success)}
+.b-val{background:var(--bg-warning);color:var(--text-warning)}
+.b-calc{background:var(--bg-pro);color:var(--text-pro)}
+.b-new{background:var(--bg-success);color:var(--text-success)}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0}
+.tbl th{text-align:left;padding:6px 8px;border-bottom:0.5px solid var(--border-strong);color:var(--text-secondary);font-weight:500;font-size:12px}
+.tbl td{padding:6px 8px;border-bottom:0.5px solid var(--border);vertical-align:top;color:var(--text-primary)}
+.tbl tr:last-child td{border-bottom:none}
+.rule{background:var(--surface-1);border-radius:0;padding:10px 14px;margin:8px 0;font-size:13px;border-left:3px solid var(--border-accent)}
+.rule-warn{border-left-color:var(--border-warning)}
+.rule-err{border-left-color:var(--border-danger)}
+.rule-ok{border-left-color:var(--border-success)}
+.section{font-size:15px;font-weight:500;margin:1.5rem 0 0.75rem;color:var(--text-primary)}
+.sub{font-size:13px;font-weight:500;margin:1rem 0 0.5rem;color:var(--text-secondary)}
+p{margin:0 0 8px;line-height:1.6;font-size:13px;color:var(--text-primary)}
+.muted{color:var(--text-secondary)}
+.timeline{position:relative;padding-left:28px;margin:12px 0}
+.timeline::before{content:'';position:absolute;left:10px;top:0;bottom:0;width:2px;background:var(--border)}
+.tl-item{position:relative;padding:12px 0 12px 16px;border-bottom:0.5px solid var(--border)}
+.tl-item:last-child{border-bottom:none}
+.tl-item::before{content:'';position:absolute;left:-22px;top:16px;width:12px;height:12px;border-radius:50%;border:2px solid var(--border-strong);background:var(--surface-2)}
+.tl-green::before{background:var(--text-success);border-color:var(--text-success)}
+.tl-blue::before{background:var(--text-accent);border-color:var(--text-accent)}
+.tl-amber::before{background:var(--text-warning);border-color:var(--text-warning)}
+.tl-gray::before{background:var(--text-muted);border-color:var(--text-muted)}
+.metric-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:12px 0}
+.metric{background:var(--surface-1);border-radius:var(--radius);padding:10px;text-align:center}
+.metric-label{font-size:11px;color:var(--text-secondary);margin-bottom:2px}
+.metric-val{font-size:18px;font-weight:500}
+.progress-bar{height:8px;border-radius:4px;background:var(--surface-0);margin:6px 0;overflow:hidden}
+.progress-fill{height:100%;border-radius:4px}
+.portal-mock{border:0.5px solid var(--border);border-radius:12px;overflow:hidden}
+.portal-header{padding:12px 16px;border-bottom:0.5px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.portal-body{padding:16px}
+</style>
+
+<div style="padding:0 0 4px">
+  <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Module 7 of 8</div>
+  <div style="font-size:18px;font-weight:500;margin-bottom:4px"><i class="ti ti-history" aria-hidden="true" style="color:var(--text-accent);margin-right:6px"></i>Maintenance history and vehicle lifecycle</div>
+  <div style="font-size:13px;color:var(--text-secondary)">Service records, vehicle timeline, customer portal, data completeness, and audit trail</div>
+</div>
+
+<div class="tabs" id="tabs">
+  <button class="tab active" onclick="show(0)"><i class="ti ti-list" aria-hidden="true" style="margin-right:4px"></i>Service history</button>
+  <button class="tab" onclick="show(1)"><i class="ti ti-timeline" aria-hidden="true" style="margin-right:4px"></i>Vehicle timeline</button>
+  <button class="tab" onclick="show(2)"><i class="ti ti-user-circle" aria-hidden="true" style="margin-right:4px"></i>Customer portal</button>
+  <button class="tab" onclick="show(3)"><i class="ti ti-chart-dots" aria-hidden="true" style="margin-right:4px"></i>Data completeness</button>
+  <button class="tab" onclick="show(4)"><i class="ti ti-file-search" aria-hidden="true" style="margin-right:4px"></i>Audit trail</button>
+  <button class="tab" onclick="show(5)"><i class="ti ti-transfer" aria-hidden="true" style="margin-right:4px"></i>Vehicle transfer</button>
+</div>
+
+<!-- ═══ SERVICE HISTORY ═══ -->
+<div class="pnl active" id="p0">
+<div class="section">maintenance_history table</div>
+<p>The permanent, immutable record of everything that's ever been done to a vehicle at this workshop. Auto-generated when a job card is completed — one history entry per completed job. This is what the mechanic checks before starting work ("when was the timing belt last done?") and what the customer sees on their portal.</p>
+
+<table class="tbl">
+<tr><th>Field</th><th>Type</th><th>Tags</th><th>Validation and notes</th></tr>
+<tr><td>record_id</td><td>VARCHAR(10)</td><td><span class="badge b-pk">PK</span><span class="badge b-auto">Auto</span></td><td>Format: MH-0001. Sequential.</td></tr>
+<tr><td>vehicle_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span><span class="badge b-req">Required</span></td><td>Which vehicle. The history stays with the vehicle even if ownership changes — a new buyer can see the full service record.</td></tr>
+<tr><td>jobcard_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span></td><td>Links to the job card that generated this record. Click through to see full detail: line items, mechanic notes, parts used.</td></tr>
+<tr><td>service_date</td><td>DATE</td><td><span class="badge b-req">Required</span></td><td>Date the work was completed (from job_cards.date_completed). The primary sort key — history is always shown newest first.</td></tr>
+<tr><td>service_type</td><td>VARCHAR(100)</td><td><span class="badge b-auto">Auto</span></td><td>Summary of the parent job(s) performed. Auto-generated from job card lines. e.g. "Minor service", "Front brake replacement + tyre rotation", "Pink slip — Pass".</td></tr>
+<tr><td>description</td><td>TEXT</td><td><span class="badge b-auto">Auto</span></td><td>Detailed list of all sub-items completed. Auto-generated from job card lines, bullet-pointed. e.g. "Oil change (10W-40 5L), oil filter Z456, engine flush, 25-point check — all passed."</td></tr>
+<tr><td>staff_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span></td><td>Primary mechanic who did the work. For accountability and continuity — "Tinku did the last three services on this car."</td></tr>
+<tr><td>mileage</td><td>INTEGER</td><td><span class="badge b-auto">Auto</span></td><td>Odometer at time of service (from job_cards.mileage_in). Builds the mileage progression chart over time.</td></tr>
+<tr><td>total_cost</td><td>DECIMAL(10,2)</td><td><span class="badge b-auto">Auto</span></td><td>Invoice total inc GST. What the customer paid for this service. Visible to owner/manager only on the internal view — hidden from customer portal for privacy.</td></tr>
+<tr><td>invoice_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span></td><td>Links to the invoice. Click through to see the full invoice PDF.</td></tr>
+<tr><td>customer_notes</td><td>TEXT</td><td></td><td>Carried from job_cards.customer_notes. What the mechanic wants the customer to know: "Recommend timing belt at next service", "Monitor brake pad wear — borderline".</td></tr>
+<tr><td>internal_notes</td><td>TEXT</td><td></td><td>Carried from job_cards.internal_notes. Staff-only: "Exhaust gasket weeping slightly — not urgent", "Customer questioned the brake price, gave 10% discount."</td></tr>
+</table>
+
+<div class="sub">Auto-generation rules</div>
+<div class="rule rule-ok">When a job card's status changes to "Completed", the system auto-creates a maintenance_history record by pulling: service_date from date_completed, service_type by concatenating parent job names, description by listing all completed sub-items, mileage from mileage_in, total_cost from the linked invoice's final_amount, and notes from both customer_notes and internal_notes fields.</div>
+<div class="rule">The record is immutable once created — no edits, no deletes. If a correction is needed (wrong mileage entered, wrong part noted), the correction is logged as an addendum to the existing record with a timestamp and staff_id, not an overwrite.</div>
+
+<div class="sub">Business rules</div>
+<div class="rule">When a mechanic opens a new job card for a vehicle, the system shows a sidebar with the last 5 maintenance history records. This gives instant context: "Last service was 6 months ago at 92,500km — minor service. Before that: brakes at 85,000km."</div>
+<div class="rule rule-warn">Pre-purchase inspection scenario: A buyer asks "what's been done to this car?" The workshop can print or email a full vehicle history report — every service, every part, every mileage reading. This is a value-add service the workshop can charge for ($20–$50) and builds trust in the platform.</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">Service done elsewhere: The customer says "I had the timing belt done at another workshop 6 months ago." The system should support a "Manual history entry" — staff enters the date, description, mileage, and notes with a flag "Reported by customer — not verified." This prevents the mechanic from recommending work that's already been done.</div>
+<div class="rule rule-err">Warranty claims: If a part fails within warranty (e.g. alternator dies 3 months after installation), the history record for the original installation is the proof. The system should support linking a warranty job card back to the original: "Warranty replacement — ref MH-0034 (alternator installed 12 Jul 2025)."</div>
+</div>
+
+<!-- ═══ VEHICLE TIMELINE ═══ -->
+<div class="pnl" id="p1">
+<div class="section">Vehicle timeline view</div>
+<p>A chronological story of a vehicle's life at this workshop — every service, every pink slip, every ownership change, plotted on a visual timeline. This is the "at a glance" view the mechanic checks before starting work.</p>
+
+<div class="sub">Example: VH-001 — NSW-PL1 Hyundai Tucson 2017</div>
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+<div>
+<div style="font-weight:500;font-size:15px">Hyundai Tucson 2017 — NSW-PL1</div>
+<div class="muted" style="font-size:12px">Owner: Peter (CL-005) · Current: 95,200 km · Next service: 7 Apr 2026 at 105,200 km</div>
+</div>
+<div style="text-align:right">
+<div class="muted" style="font-size:11px">Data completeness</div>
+<div class="progress-bar" style="width:100px"><div class="progress-fill" style="width:75%;background:var(--text-success)"></div></div>
+<div class="muted" style="font-size:10px">75% — missing: engine_no, insurance</div>
+</div>
+</div>
+
+<div class="timeline">
+<div class="tl-item tl-green">
+<div style="display:flex;justify-content:space-between">
+<div style="font-weight:500;font-size:13px">Minor service + wiper blades</div>
+<div class="muted" style="font-size:12px">8 Oct 2025 · 95,200 km</div>
+</div>
+<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">Oil change (10W-40 5L), oil filter Z456, engine flush, 25-point check, front wiper blade replacement. All items passed inspection.</div>
+<div style="font-size:11px;margin-top:4px"><span class="muted">Mechanic:</span> Tinku · <span class="muted">Invoice:</span> INV-0089 · <span class="muted">Total:</span> $194.00</div>
+<div style="font-size:11px;color:var(--text-accent);margin-top:2px"><i class="ti ti-note" aria-hidden="true"></i> "Monitor transmission — slight shudder on cold start. Recommend transmission flush at next service."</div>
+</div>
+
+<div class="tl-item tl-blue">
+<div style="display:flex;justify-content:space-between">
+<div style="font-weight:500;font-size:13px">Pink slip — passed</div>
+<div class="muted" style="font-size:12px">10 Apr 2025 · 92,500 km</div>
+</div>
+<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">E-safety inspection. All items passed. Certificate: ES-2025-042187. Valid until 10 Oct 2025.</div>
+<div style="font-size:11px;margin-top:4px"><span class="muted">Mechanic:</span> Tinku · <span class="muted">Invoice:</span> INV-0072 · <span class="muted">Total:</span> $52.00</div>
+</div>
+
+<div class="tl-item tl-green">
+<div style="display:flex;justify-content:space-between">
+<div style="font-weight:500;font-size:13px">Minor service</div>
+<div class="muted" style="font-size:12px">8 Apr 2025 · 92,500 km</div>
+</div>
+<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">Oil change (10W-40 5L), oil filter Z456, engine flush, 25-point check. All passed.</div>
+<div style="font-size:11px;margin-top:4px"><span class="muted">Mechanic:</span> Tinku · <span class="muted">Invoice:</span> INV-0071 · <span class="muted">Total:</span> $154.00</div>
+</div>
+
+<div class="tl-item tl-amber">
+<div style="display:flex;justify-content:space-between">
+<div style="font-weight:500;font-size:13px">Front brake replacement</div>
+<div class="muted" style="font-size:12px">15 Oct 2024 · 85,100 km</div>
+</div>
+<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">Front brake pads (Bendix), front disc machining, brake caliper inspection, brake fluid top-up.</div>
+<div style="font-size:11px;margin-top:4px"><span class="muted">Mechanic:</span> Baljit · <span class="muted">Invoice:</span> INV-0048 · <span class="muted">Total:</span> $280.00</div>
+<div style="font-size:11px;color:var(--text-accent);margin-top:2px"><i class="ti ti-note" aria-hidden="true"></i> "Rear pads at 40% — will need replacing in approximately 15,000 km."</div>
+</div>
+
+<div class="tl-item tl-green">
+<div style="display:flex;justify-content:space-between">
+<div style="font-weight:500;font-size:13px">Major service</div>
+<div class="muted" style="font-size:12px">12 Apr 2024 · 75,300 km</div>
+</div>
+<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">Full synthetic oil, oil filter, air filter, cabin filter, spark plugs × 4, coolant top-up, brake fluid check, 25-point check.</div>
+<div style="font-size:11px;margin-top:4px"><span class="muted">Mechanic:</span> Tinku · <span class="muted">Invoice:</span> INV-0029 · <span class="muted">Total:</span> $350.00</div>
+</div>
+
+<div class="tl-item tl-gray">
+<div style="display:flex;justify-content:space-between">
+<div style="font-weight:500;font-size:13px">Ownership registered</div>
+<div class="muted" style="font-size:12px">15 Jan 2020</div>
+</div>
+<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">Vehicle linked to Peter (CL-005). Source: first visit registration.</div>
+</div>
+</div>
+
+<div style="display:flex;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:0.5px solid var(--border);font-size:12px">
+<div><span class="muted">Total lifetime spend:</span> <span style="font-weight:500">$1,030.00</span> across 5 visits over 1 year 9 months</div>
+<div><span class="muted">Avg visit frequency:</span> <span style="font-weight:500">4.2 months</span></div>
+</div>
+</div>
+
+<div class="sub">Timeline event types</div>
+<table class="tbl" style="font-size:12px">
+<tr><th>Event type</th><th>Source</th><th>Color</th><th>Notes</th></tr>
+<tr><td>Service completed</td><td>maintenance_history (auto from job card)</td><td><span style="color:var(--text-success)"><i class="ti ti-circle-check" aria-hidden="true"></i></span> Green</td><td>Standard service work — minor, major, specific repairs.</td></tr>
+<tr><td>Inspection</td><td>maintenance_history (pink slip jobs)</td><td><span style="color:var(--text-accent)"><i class="ti ti-circle-check" aria-hidden="true"></i></span> Blue</td><td>Pink slip, pre-purchase inspection. Shows pass/fail and cert number.</td></tr>
+<tr><td>Significant repair</td><td>maintenance_history (high-value jobs)</td><td><span style="color:var(--text-warning)"><i class="ti ti-circle-check" aria-hidden="true"></i></span> Amber</td><td>Brakes, clutch, timing belt, transmission — things the next mechanic needs to know about.</td></tr>
+<tr><td>Ownership change</td><td>client_vehicles (ownership_end set)</td><td><span style="color:var(--text-muted)"><i class="ti ti-circle" aria-hidden="true"></i></span> Grey</td><td>Vehicle changed owners. Shows old and new owner names.</td></tr>
+<tr><td>Mileage milestone</td><td>Calculated from mileage progression</td><td><span style="color:var(--text-secondary)"><i class="ti ti-flag" aria-hidden="true"></i></span> Grey</td><td>Auto-inserted at 50k, 100k, 150k, 200k km. e.g. "Passed 100,000 km — consider timing belt check."</td></tr>
+<tr><td>Customer-reported</td><td>Manual entry by staff</td><td><span style="color:var(--text-muted)"><i class="ti ti-circle" aria-hidden="true"></i></span> Grey dashed</td><td>Work done elsewhere, reported by customer. Flagged "Not verified."</td></tr>
+</table>
+
+<div class="sub">Business rules</div>
+<div class="rule">The timeline is the first thing shown when a vehicle is selected anywhere in the system (job card, quote, appointment). It provides instant context without clicking through to separate screens.</div>
+<div class="rule rule-warn">Mechanic recommendations (customer_notes) from previous visits should be highlighted on new job cards. If the last visit noted "rear pads at 40%", and the car is back 6 months later, the system surfaces: "Previous recommendation: rear brake pads were at 40%. Check and quote if needed."</div>
+</div>
+
+<!-- ═══ CUSTOMER PORTAL ═══ -->
+<div class="pnl" id="p2">
+<div class="section">Customer portal</div>
+<p>A simple, read-mostly web page where customers can see their vehicle's service history, upcoming service dates, approve quotes, and view invoices. Reduces phone calls ("when is my service due?"), builds trust, and provides a digital touchpoint for the workshop brand. Access via a unique link sent by SMS — no app install, no password required initially.</p>
+
+<div class="sub">Portal access model</div>
+<div class="rule rule-ok"><span style="font-weight:500">Phase 1 — Magic link:</span> SMS contains a unique URL: mechwise.au/p/abc123. No login required — the link itself is the authentication. Valid for 30 days, refreshed each time a new SMS is sent. This removes all friction — the customer taps the link and sees their info.</div>
+<div class="rule"><span style="font-weight:500">Phase 2 — Login:</span> Optional email/password account for customers who want persistent access. Google/Apple sign-in for convenience. Required for fleet managers who need to view multiple vehicles.</div>
+
+<div class="sub">Customer portal mockup</div>
+<div class="portal-mock">
+<div class="portal-header" style="background:var(--surface-1)">
+<div style="font-weight:500;font-size:14px"><i class="ti ti-car" aria-hidden="true" style="color:var(--text-accent);margin-right:6px"></i>Dhalla Automotive</div>
+<div class="muted" style="font-size:12px">Hi Peter</div>
+</div>
+<div class="portal-body">
+<div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+<div style="flex:1;min-width:140px">
+<div class="muted" style="font-size:11px">Your vehicle</div>
+<div style="font-weight:500;font-size:14px">Hyundai Tucson 2017</div>
+<div class="muted" style="font-size:12px">NSW-PL1</div>
+</div>
+<div style="flex:1;min-width:140px">
+<div class="muted" style="font-size:11px">Next service due</div>
+<div style="font-weight:500;font-size:14px;color:var(--text-success)">7 Apr 2026</div>
+<div class="muted" style="font-size:12px">or at 105,200 km</div>
+</div>
+<div style="flex:1;min-width:140px">
+<div class="muted" style="font-size:11px">Pink slip expires</div>
+<div style="font-weight:500;font-size:14px;color:var(--text-warning)">10 Oct 2025</div>
+<div class="muted" style="font-size:12px">in 2 days — book now</div>
+</div>
+</div>
+
+<div style="font-weight:500;font-size:13px;margin-bottom:8px">Service history</div>
+<div style="border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden">
+<div style="padding:10px 12px;border-bottom:0.5px solid var(--border);font-size:12px;display:flex;justify-content:space-between">
+<div><span style="font-weight:500">Minor service + wipers</span><br><span class="muted">8 Oct 2025 · 95,200 km</span></div>
+<div style="text-align:right"><span style="font-weight:500">$194.00</span><br><span class="muted" style="font-size:11px;color:var(--text-accent);cursor:pointer"><i class="ti ti-download" aria-hidden="true"></i> Invoice PDF</span></div>
+</div>
+<div style="padding:10px 12px;border-bottom:0.5px solid var(--border);font-size:12px;display:flex;justify-content:space-between">
+<div><span style="font-weight:500">Pink slip — passed</span><br><span class="muted">10 Apr 2025 · 92,500 km</span></div>
+<div style="text-align:right"><span style="font-weight:500">$52.00</span><br><span class="muted" style="font-size:11px;color:var(--text-accent);cursor:pointer"><i class="ti ti-download" aria-hidden="true"></i> Invoice PDF</span></div>
+</div>
+<div style="padding:10px 12px;font-size:12px;display:flex;justify-content:space-between">
+<div><span style="font-weight:500">Minor service</span><br><span class="muted">8 Apr 2025 · 92,500 km</span></div>
+<div style="text-align:right"><span style="font-weight:500">$154.00</span><br><span class="muted" style="font-size:11px;color:var(--text-accent);cursor:pointer"><i class="ti ti-download" aria-hidden="true"></i> Invoice PDF</span></div>
+</div>
+</div>
+
+<div style="margin-top:16px;text-align:center">
+<button style="padding:10px 24px;font-size:13px;font-weight:500;cursor:pointer" onclick="sendPrompt('Show me what the customer booking flow looks like on the portal')">Book next service ↗</button>
+</div>
+
+<div style="margin-top:16px;padding-top:12px;border-top:0.5px solid var(--border);font-size:11px;color:var(--text-muted);text-align:center">Dhalla Automotive Pty Ltd · 70A Cox Avenue, Kingswood NSW 2747 · 0247 082 717</div>
+</div>
+</div>
+
+<div class="sub">Portal features by phase</div>
+<table class="tbl" style="font-size:12px">
+<tr><th>Feature</th><th>Phase 1</th><th>Phase 2</th><th>Phase 3</th></tr>
+<tr><td>View service history</td><td><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i></td><td><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i></td><td><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i></td></tr>
+<tr><td>Download invoice PDFs</td><td><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i></td><td><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i></td><td><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i></td></tr>
+<tr><td>View upcoming service/pink slip dates</td><td><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i></td><td><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i></td><td><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i></td></tr>
+<tr><td>Approve quotes (tap to approve)</td><td>—</td><td><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i></td><td><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i></td></tr>
+<tr><td>Book service online</td><td>—</td><td><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i></td><td><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i></td></tr>
+<tr><td>Pay invoice online</td><td>—</td><td>—</td><td><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i></td></tr>
+<tr><td>Multiple vehicles (fleet view)</td><td>—</td><td>—</td><td><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i></td></tr>
+<tr><td>Live job status tracking</td><td>—</td><td>—</td><td><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i></td></tr>
+</table>
+
+<div class="sub">Business rules</div>
+<div class="rule">The portal shows customer_notes from job cards but never internal_notes. e.g. "Recommend timing belt at next service" is visible; "Customer argued about the brake price" is not.</div>
+<div class="rule">Invoice PDFs are downloadable — customers need these for insurance claims, fleet management, and tax deductions (for business vehicles). The download link stays active indefinitely.</div>
+<div class="rule rule-warn">The portal URL is unique per client, not per vehicle. If Peter has two vehicles, both appear on the same portal page. Fleet managers see all fleet vehicles on one dashboard.</div>
+</div>
+
+<!-- ═══ DATA COMPLETENESS ═══ -->
+<div class="pnl" id="p3">
+<div class="section">Data completeness tracking</div>
+<p>The current Dhalla database has massive gaps — 0% email capture, most vehicles have only a rego number, many phone numbers are malformed. Rather than forcing a one-time cleanup (impossible for 300+ clients), MechWise tracks completeness and prompts for missing data at natural touchpoints.</p>
+
+<div class="sub">Entity completeness scores</div>
+<div class="card">
+<div style="margin-bottom:16px">
+<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="font-weight:500">Clients</span><span>300 records · 27% complete</span></div>
+<div class="progress-bar"><div class="progress-fill" style="width:27%;background:var(--text-danger)"></div></div>
+<div class="muted" style="font-size:11px">Missing: 300 emails (100%), 65 phone numbers (22%), 300 addresses (100%)</div>
+</div>
+<div style="margin-bottom:16px">
+<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="font-weight:500">Vehicles</span><span>323 records · 6% complete</span></div>
+<div class="progress-bar"><div class="progress-fill" style="width:6%;background:var(--text-danger)"></div></div>
+<div class="muted" style="font-size:11px">Missing: make/model/year (99%), VIN (100%), fuel type (100%). Rego lookup API will fix 80%+ instantly.</div>
+</div>
+<div style="margin-bottom:16px">
+<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="font-weight:500">Parts inventory</span><span>123 records · 15% complete</span></div>
+<div class="progress-bar"><div class="progress-fill" style="width:15%;background:var(--text-danger)"></div></div>
+<div class="muted" style="font-size:11px">Missing: cost prices (98%), stock levels (60%), supplier links (95%), locations (100%)</div>
+</div>
+<div style="margin-bottom:16px">
+<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="font-weight:500">Staff</span><span>11 records · 30% complete</span></div>
+<div class="progress-bar"><div class="progress-fill" style="width:30%;background:var(--text-warning)"></div></div>
+<div class="muted" style="font-size:11px">Missing: 10 mobiles (91%), hourly rates (100%), certifications (91%)</div>
+</div>
+<div>
+<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="font-weight:500">Suppliers</span><span>5 records · 40% complete</span></div>
+<div class="progress-bar"><div class="progress-fill" style="width:40%;background:var(--text-warning)"></div></div>
+<div class="muted" style="font-size:11px">Missing: contact person (100%), ABN (100%), email (100%)</div>
+</div>
+</div>
+
+<div class="sub">Progressive capture triggers</div>
+<table class="tbl" style="font-size:12px">
+<tr><th>When</th><th>What to prompt for</th><th>How</th></tr>
+<tr><td>Creating a new quote</td><td>Client email</td><td>Inline prompt: "Add email to send this quote electronically?" Email field highlighted with a soft blue border.</td></tr>
+<tr><td>Generating an invoice</td><td>Client address</td><td>Optional field: "Add address for the invoice header?" Not blocking — invoice generates without it.</td></tr>
+<tr><td>Entering a new rego</td><td>Vehicle make/model/year/VIN</td><td>Rego lookup API auto-fills. If API fails: "Couldn't find this rego. Enter make and model manually?"</td></tr>
+<tr><td>Recording a payment</td><td>Client email (for receipt)</td><td>"Email receipt to customer? Add their email:" — one-field prompt after payment is processed.</td></tr>
+<tr><td>Sending a service reminder</td><td>Client phone</td><td>If phone is missing: "Can't send SMS — no phone number for [name]. Add mobile?" Shows on the dashboard reminder queue.</td></tr>
+<tr><td>First stocktake</td><td>Part cost prices, stock levels</td><td>Guided stocktake wizard: walks through each part category, asks cost and count. Can be done in stages over several days.</td></tr>
+<tr><td>Creating a purchase order</td><td>Supplier ABN, email, contact</td><td>"Complete supplier details to send this PO by email:" Shows missing fields inline.</td></tr>
+</table>
+
+<div class="sub">Business rules</div>
+<div class="rule">Completeness scores are shown on the dashboard as a progress widget. The goal is to reach 80%+ within 3 months of going live — achieved naturally through daily use, not data entry marathons.</div>
+<div class="rule">Never block a workflow because data is missing. A quote can be created without a client email. A job card can be created without a VIN. The system works with what it has and asks for more at the right time.</div>
+<div class="rule rule-warn">Weekly completeness report email to the workshop owner: "This week: 12 emails captured, 8 vehicle details auto-filled, 15 parts priced. Overall data completeness: 34% → 41%. Top missing: client emails (240 remaining)."</div>
+</div>
+
+<!-- ═══ AUDIT TRAIL ═══ -->
+<div class="pnl" id="p4">
+<div class="section">Audit trail</div>
+<p>An immutable log of every create, update, and delete action in the system. Required for ATO compliance (7-year retention), dispute resolution, and security monitoring. Staff can't see the audit trail — it's owner-only and designed for accountability.</p>
+
+<div class="sub">audit_log table</div>
+<table class="tbl">
+<tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+<tr><td>log_id</td><td>BIGINT AUTO_INCREMENT</td><td><span class="badge b-pk">PK</span> Numeric, never gaps, never resets.</td></tr>
+<tr><td>timestamp</td><td>TIMESTAMP</td><td>Exact time of the action, UTC. Displayed in workshop timezone on the UI.</td></tr>
+<tr><td>user_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span> Who performed the action. Links to users table.</td></tr>
+<tr><td>action</td><td>VARCHAR(20)</td><td>Enum: CREATE, UPDATE, DELETE, LOGIN, LOGOUT, EXPORT, VOID, PAYMENT.</td></tr>
+<tr><td>table_name</td><td>VARCHAR(50)</td><td>Which table was affected. e.g. "invoices", "job_cards", "clients".</td></tr>
+<tr><td>record_id</td><td>VARCHAR(20)</td><td>The PK of the affected record. e.g. "INV-0089", "CL-005".</td></tr>
+<tr><td>field_name</td><td>VARCHAR(50)</td><td>For UPDATE actions: which field changed. NULL for CREATE/DELETE.</td></tr>
+<tr><td>old_value</td><td>TEXT</td><td>The value before the change. NULL for CREATE.</td></tr>
+<tr><td>new_value</td><td>TEXT</td><td>The value after the change. NULL for DELETE.</td></tr>
+<tr><td>ip_address</td><td>VARCHAR(45)</td><td>IP address of the user. Useful for identifying suspicious access from unknown locations.</td></tr>
+</table>
+
+<div class="sub">What gets logged</div>
+<div class="rule rule-ok">Every invoice creation, edit, void, and payment. Every price change on parts or job sub-items. Every client or vehicle record modification. Every login and logout. Every data export. Every user permission change.</div>
+<div class="rule">The audit log is append-only and write-protected — no user (not even the owner) can edit or delete audit entries. In a database where the owner has admin access, the audit table should be on a separate schema or have row-level security preventing DELETE/UPDATE.</div>
+
+<div class="sub">Retention and compliance</div>
+<div class="rule rule-warn">ATO requires business records to be kept for 5 years (7 years for some). The audit log, combined with the accounting ledger and invoice records, satisfies this requirement. The system should prevent deletion of any financial record within the retention period.</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">Bulk operations: An owner imports 300 clients from CSV. This generates 300 CREATE entries in the audit log. The system should batch these with a single parent log entry: "Bulk import: 300 clients created from file 'dhalla_customers.csv'" plus individual child entries for traceability.</div>
+</div>
+
+<!-- ═══ VEHICLE TRANSFER ═══ -->
+<div class="pnl" id="p5">
+<div class="section">Vehicle ownership transfer</div>
+<p>What happens when a vehicle changes hands — sold, gifted, repossessed, or traded in. The service history stays with the vehicle (it's a property of the VIN, not the owner), but reminders and invoicing switch to the new owner.</p>
+
+<div class="sub">Transfer workflow</div>
+<div class="rule rule-ok">1. Front desk opens the vehicle record and clicks "Transfer ownership."</div>
+<div class="rule rule-ok">2. System shows current owner and asks: "Who is the new owner?" Option to select existing client or create new.</div>
+<div class="rule rule-ok">3. Current client_vehicles link: ownership_end = today, is_primary_owner = FALSE.</div>
+<div class="rule rule-ok">4. New client_vehicles link created: ownership_start = today, is_primary_owner = TRUE.</div>
+<div class="rule rule-ok">5. All pending service_reminders for this vehicle: cancelled for old owner, recreated for new owner (if new owner has a phone/email).</div>
+<div class="rule rule-ok">6. Vehicle timeline receives a grey "Ownership change" event: "Transferred from Peter (CL-005) to [new owner]."</div>
+<div class="rule rule-ok">7. Old owner's portal still shows historical records for this vehicle (greyed out, marked "No longer owned") but no future reminders.</div>
+
+<div class="sub">Transfer scenarios</div>
+<table class="tbl" style="font-size:12px">
+<tr><th>Scenario</th><th>Handling</th></tr>
+<tr><td style="font-weight:500">Sold to a new customer</td><td>New customer brings the car for a service and says "I just bought this." Create new client, transfer ownership. Full service history is now available to the new owner and mechanic.</td></tr>
+<tr><td style="font-weight:500">Sold privately, buyer unknown</td><td>Old owner calls and says "I sold the car." End their ownership. Vehicle goes into "Unassigned" status. If the new owner never shows up, the vehicle eventually becomes inactive.</td></tr>
+<tr><td style="font-weight:500">Fleet vehicle reassigned</td><td>Same fleet client, but the driver changes. The client_vehicles link stays (fleet is still the owner). Update the driver contact details on the client record or add a new "Authorised driver" link.</td></tr>
+<tr><td style="font-weight:500">Trade-in at a dealership</td><td>Same as "sold privately." The workshop likely won't see this car again unless the new owner happens to bring it in.</td></tr>
+<tr><td style="font-weight:500">Inherited or gifted</td><td>New client_vehicles link with relationship = "Family Member" converted to "Owner". Ownership_start = date of transfer.</td></tr>
+</table>
+
+<div class="sub">Business rules</div>
+<div class="rule">Service history is permanent and vehicle-bound. Ownership changes affect who gets contacted (reminders, invoices) but never alter the historical record. This is essential for pre-purchase inspections — the buyer needs to see what was done regardless of who owned the car at the time.</div>
+<div class="rule rule-warn">When a transferred vehicle returns with a new owner, the system should flag: "This vehicle was previously serviced under [old owner]. 5 historical records available." The mechanic gets full context even though the customer is new.</div>
+</div>
+
+<script>
+function show(i){
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',j===i));
+  document.querySelectorAll('.pnl').forEach((p,j)=>p.classList.toggle('active',j===i));
+}
+</script>

@@ -1,0 +1,335 @@
+
+<h2 class="sr-only">Deep dive into MechWise Module 6: Accounting and Reporting covering the transaction ledger, BAS/GST compliance, dashboard KPIs, and financial analytics</h2>
+<style>
+.tabs{display:flex;gap:4px;border-bottom:0.5px solid var(--border);margin-bottom:1.5rem;overflow-x:auto}
+.tab{padding:8px 14px;font-size:13px;cursor:pointer;border:none;background:none;color:var(--text-secondary);border-bottom:2px solid transparent;white-space:nowrap;font-family:inherit}
+.tab.active{color:var(--text-primary);border-bottom-color:var(--text-accent);font-weight:500}
+.pnl{display:none}.pnl.active{display:block}
+.card{background:var(--surface-1);border-radius:12px;padding:1rem 1.25rem;margin-bottom:12px}
+.badge{display:inline-block;padding:2px 8px;border-radius:var(--radius);font-size:11px;font-weight:500;margin-right:4px}
+.b-pk{background:var(--bg-accent);color:var(--text-accent)}
+.b-fk{background:var(--bg-pro);color:var(--text-pro)}
+.b-req{background:var(--bg-danger);color:var(--text-danger)}
+.b-auto{background:var(--bg-success);color:var(--text-success)}
+.b-val{background:var(--bg-warning);color:var(--text-warning)}
+.b-calc{background:var(--bg-pro);color:var(--text-pro)}
+.b-new{background:var(--bg-success);color:var(--text-success)}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0}
+.tbl th{text-align:left;padding:6px 8px;border-bottom:0.5px solid var(--border-strong);color:var(--text-secondary);font-weight:500;font-size:12px}
+.tbl td{padding:6px 8px;border-bottom:0.5px solid var(--border);vertical-align:top;color:var(--text-primary)}
+.tbl tr:last-child td{border-bottom:none}
+.rule{background:var(--surface-1);border-radius:0;padding:10px 14px;margin:8px 0;font-size:13px;border-left:3px solid var(--border-accent)}
+.rule-warn{border-left-color:var(--border-warning)}
+.rule-err{border-left-color:var(--border-danger)}
+.rule-ok{border-left-color:var(--border-success)}
+.section{font-size:15px;font-weight:500;margin:1.5rem 0 0.75rem;color:var(--text-primary)}
+.sub{font-size:13px;font-weight:500;margin:1rem 0 0.5rem;color:var(--text-secondary)}
+p{margin:0 0 8px;line-height:1.6;font-size:13px;color:var(--text-primary)}
+.muted{color:var(--text-secondary)}
+.flow{display:flex;align-items:center;gap:0;margin:16px 0;flex-wrap:wrap}
+.flow-box{padding:8px 14px;border-radius:var(--radius);font-size:12px;font-weight:500;text-align:center;min-width:80px}
+.flow-arrow{color:var(--text-muted);padding:0 6px;font-size:16px}
+.metric-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:12px 0}
+.metric{background:var(--surface-1);border-radius:var(--radius);padding:10px;text-align:center}
+.metric-label{font-size:11px;color:var(--text-secondary);margin-bottom:2px}
+.metric-val{font-size:18px;font-weight:500}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:16px 0}
+.kpi{background:var(--surface-1);border-radius:12px;padding:14px;text-align:center}
+.kpi-val{font-size:24px;font-weight:500;margin-bottom:2px}
+.kpi-label{font-size:12px;color:var(--text-secondary)}
+.kpi-delta{font-size:11px;margin-top:4px}
+.bar-row{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12px}
+.bar-label{width:80px;text-align:right;color:var(--text-secondary);flex-shrink:0}
+.bar-track{flex:1;height:16px;background:var(--surface-0);border-radius:4px;overflow:hidden;position:relative}
+.bar-fill{height:100%;border-radius:4px}
+.bar-val{width:60px;text-align:right;font-weight:500;flex-shrink:0}
+</style>
+
+<div style="padding:0 0 4px">
+  <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Module 6 of 8</div>
+  <div style="font-size:18px;font-weight:500;margin-bottom:4px"><i class="ti ti-chart-bar" aria-hidden="true" style="color:var(--text-accent);margin-right:6px"></i>Accounting and reporting</div>
+  <div style="font-size:13px;color:var(--text-secondary)">Transaction ledger, BAS/GST compliance, dashboard KPIs, margin analytics, and export</div>
+</div>
+
+<div class="tabs" id="tabs">
+  <button class="tab active" onclick="show(0)"><i class="ti ti-book" aria-hidden="true" style="margin-right:4px"></i>Ledger</button>
+  <button class="tab" onclick="show(1)"><i class="ti ti-receipt-tax" aria-hidden="true" style="margin-right:4px"></i>BAS / GST</button>
+  <button class="tab" onclick="show(2)"><i class="ti ti-dashboard" aria-hidden="true" style="margin-right:4px"></i>Dashboard KPIs</button>
+  <button class="tab" onclick="show(3)"><i class="ti ti-trending-up" aria-hidden="true" style="margin-right:4px"></i>Financial reports</button>
+  <button class="tab" onclick="show(4)"><i class="ti ti-file-export" aria-hidden="true" style="margin-right:4px"></i>Export and integration</button>
+  <button class="tab" onclick="show(5)"><i class="ti ti-eye" aria-hidden="true" style="margin-right:4px"></i>Live dashboard</button>
+</div>
+
+<!-- ═══ LEDGER ═══ -->
+<div class="pnl active" id="p0">
+<div class="section">accounting_ledger table</div>
+<p>A unified transaction record of every dollar that moves through the workshop. Auto-populated — when an invoice is paid, a ledger entry is created. When a PO is received, another entry appears. When rent or electricity is paid, the owner logs an expense. This is the single source of truth for all financial reporting.</p>
+
+<table class="tbl">
+<tr><th>Field</th><th>Type</th><th>Tags</th><th>Validation and notes</th></tr>
+<tr><td>transaction_id</td><td>VARCHAR(20)</td><td><span class="badge b-pk">PK</span><span class="badge b-auto">Auto</span></td><td>Format: TXN-0001. Sequential, no gaps.</td></tr>
+<tr><td>workshop_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span></td><td>Multi-tenancy. Every transaction belongs to one workshop.</td></tr>
+<tr><td>transaction_date</td><td>DATE</td><td><span class="badge b-req">Required</span></td><td>The date the money moved (not the date the entry was created). For invoices: payment_date. For POs: receipt date. For expenses: date paid.</td></tr>
+<tr><td>bas_period</td><td>VARCHAR(20)</td><td><span class="badge b-calc">Calculated</span></td><td>Australian BAS quarter, auto-derived from transaction_date. Format: "Q1 2025-26" (Jul-Sep), "Q2 2025-26" (Oct-Dec), "Q3 2025-26" (Jan-Mar), "Q4 2025-26" (Apr-Jun). See BAS/GST tab for logic.</td></tr>
+<tr><td>entity_type</td><td>VARCHAR(20)</td><td><span class="badge b-req">Required</span></td><td>Enum: Customer, Supplier, Expense, Refund. Who is on the other side of this transaction.</td></tr>
+<tr><td>entity_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span></td><td>client_id for Customer, supplier_id for Supplier, NULL for Expense. Links back to the entity record.</td></tr>
+<tr><td>entity_name</td><td>VARCHAR(200)</td><td><span class="badge b-auto">Auto</span></td><td>Denormalised name for reporting. e.g. "Peter", "CoolDrive Auto Parts", "Workshop electricity". Saves joining to client/supplier tables in every report query.</td></tr>
+<tr><td>transaction_type</td><td>VARCHAR(20)</td><td><span class="badge b-req">Required</span></td><td>Enum: Invoice, Payment, Purchase, Refund, Expense. What kind of financial event.</td></tr>
+<tr><td>direction</td><td>VARCHAR(10)</td><td><span class="badge b-req">Required</span></td><td>Enum: Incoming (revenue — money in), Outgoing (cost — money out). Determines sign in P&L calculations.</td></tr>
+<tr><td>related_doc_type</td><td>VARCHAR(20)</td><td></td><td>What source document generated this entry: "Invoice", "PO", "Payment", "Manual". For audit traceability.</td></tr>
+<tr><td>related_doc_id</td><td>VARCHAR(20)</td><td></td><td>The ID of the source document. e.g. "INV-0089", "PO-0034", "PAY-067". Clickable link to the source record.</td></tr>
+<tr><td>description</td><td>TEXT</td><td></td><td>Human-readable summary. Auto-generated from source: "Minor service + wipers — Hyundai Tucson NSW-PL1" or "Monthly oil restock — CoolDrive".</td></tr>
+<tr><td>amount_ex_gst</td><td>DECIMAL(10,2)</td><td><span class="badge b-req">Required</span></td><td>Transaction amount excluding GST. This is the base figure for income/expense reporting and BAS Line 7 (total sales) and Line 11 (total purchases).</td></tr>
+<tr><td>gst_amount</td><td>DECIMAL(10,2)</td><td><span class="badge b-req">Required</span></td><td>The GST component. For BAS: incoming GST = GST collected on sales (BAS Line 1A). Outgoing GST = GST paid on purchases (BAS Line 1B).</td></tr>
+<tr><td>amount_inc_gst</td><td>DECIMAL(10,2)</td><td><span class="badge b-calc">Calculated</span></td><td>= amount_ex_gst + gst_amount. The actual amount that moved through the bank account.</td></tr>
+<tr><td>payment_status</td><td>VARCHAR(20)</td><td></td><td>Mirrored from source: Paid, Unpaid, Partial. For accrual vs cash accounting (see BAS tab).</td></tr>
+<tr><td>payment_method</td><td>VARCHAR(30)</td><td></td><td>Mirrored from payment record. Useful for cash vs card reconciliation.</td></tr>
+<tr><td>entered_by</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span></td><td>Staff who triggered or manually created the entry. For auto-generated entries, this is the staff who completed the job card or processed the payment.</td></tr>
+</table>
+
+<div class="sub">Auto-population rules</div>
+<div class="rule rule-ok"><span style="font-weight:500">Invoice paid →</span> TXN created: type=Invoice, direction=Incoming, entity=Customer, amounts from invoice totals, related_doc=INV-xxxx.</div>
+<div class="rule rule-ok"><span style="font-weight:500">PO received →</span> TXN created: type=Purchase, direction=Outgoing, entity=Supplier, amounts from PO totals, related_doc=PO-xxxx.</div>
+<div class="rule rule-ok"><span style="font-weight:500">Supplier payment made →</span> TXN created: type=Payment, direction=Outgoing, entity=Supplier, amounts from payment record, related_doc=PAY-xxxx.</div>
+<div class="rule rule-ok"><span style="font-weight:500">Refund issued →</span> TXN created: type=Refund, direction=Outgoing, entity=Customer (same client), amounts from refund payment record.</div>
+<div class="rule rule-ok"><span style="font-weight:500">Manual expense →</span> Owner enters: type=Expense, direction=Outgoing, entity_name="Rent" or "Electricity" etc. Manual entry with receipt upload in phase 2.</div>
+
+<div class="sub">Business rules</div>
+<div class="rule">The ledger is append-only. Entries are never edited or deleted — corrections are made by adding a reversing entry. This ensures the audit trail is complete and tamper-proof. If an invoice is voided, a matching reversing TXN is created (same amounts, opposite direction).</div>
+<div class="rule rule-warn">Timing: Ledger entries are created when money moves (cash basis) by default. For workshops using accrual accounting (recognising revenue when the invoice is issued, not when paid), the system creates the entry on invoice date and updates payment_status when payment arrives. The BAS tab explains which method to use.</div>
+</div>
+
+<!-- ═══ BAS / GST ═══ -->
+<div class="pnl" id="p1">
+<div class="section">BAS and GST compliance</div>
+<p>Every GST-registered Australian business must lodge a Business Activity Statement (BAS) quarterly. This is the single most painful administrative task for workshop owners — tallying up GST collected on sales, GST paid on purchases, and calculating the net amount owed to the ATO. MechWise automates this entirely.</p>
+
+<div class="sub">Australian financial year quarters</div>
+<div class="card">
+<table class="tbl" style="font-size:12px">
+<tr><th>BAS period</th><th>Months</th><th>Lodgement deadline</th><th>How bas_period is calculated</th></tr>
+<tr><td style="font-weight:500">Q1 2025-26</td><td>Jul, Aug, Sep 2025</td><td>28 October 2025</td><td>If month is 7, 8, or 9: Q1 of current FY</td></tr>
+<tr><td style="font-weight:500">Q2 2025-26</td><td>Oct, Nov, Dec 2025</td><td>28 February 2026</td><td>If month is 10, 11, or 12: Q2 of current FY</td></tr>
+<tr><td style="font-weight:500">Q3 2025-26</td><td>Jan, Feb, Mar 2026</td><td>28 April 2026</td><td>If month is 1, 2, or 3: Q3 of previous calendar year's FY</td></tr>
+<tr><td style="font-weight:500">Q4 2025-26</td><td>Apr, May, Jun 2026</td><td>28 July 2026</td><td>If month is 4, 5, or 6: Q4 of previous calendar year's FY</td></tr>
+</table>
+<div class="muted" style="font-size:11px;margin-top:6px">Australian FY runs July to June. Most small workshops lodge quarterly. Annual turnover under $10M can use the simpler "Simpler BAS" which only reports total sales, GST on sales, GST on purchases, and net GST.</div>
+</div>
+
+<div class="sub">BAS calculation from the ledger</div>
+<div class="card">
+<table class="tbl" style="font-size:12px">
+<tr><th>BAS label</th><th>ATO field</th><th>Ledger query</th></tr>
+<tr><td style="font-weight:500">Total sales</td><td>G1</td><td>SUM(amount_inc_gst) WHERE direction = 'Incoming' AND bas_period = [quarter]</td></tr>
+<tr><td style="font-weight:500">GST on sales</td><td>1A</td><td>SUM(gst_amount) WHERE direction = 'Incoming' AND bas_period = [quarter]</td></tr>
+<tr><td style="font-weight:500">Total purchases</td><td>G11</td><td>SUM(amount_inc_gst) WHERE direction = 'Outgoing' AND bas_period = [quarter]</td></tr>
+<tr><td style="font-weight:500">GST on purchases</td><td>1B</td><td>SUM(gst_amount) WHERE direction = 'Outgoing' AND bas_period = [quarter]</td></tr>
+<tr><td style="font-weight:500;color:var(--text-accent)">Net GST payable</td><td>9</td><td>= 1A − 1B. Positive = owe ATO. Negative = ATO refund.</td></tr>
+</table>
+</div>
+
+<div class="sub">BAS summary example: Q2 2025-26 (Oct–Dec)</div>
+<div class="card">
+<div class="metric-row">
+<div class="metric"><div class="metric-label">Total sales (G1)</div><div class="metric-val" style="font-size:16px">$48,620</div></div>
+<div class="metric"><div class="metric-label">GST collected (1A)</div><div class="metric-val" style="font-size:16px;color:var(--text-danger)">$4,420</div></div>
+<div class="metric"><div class="metric-label">Total purchases (G11)</div><div class="metric-val" style="font-size:16px">$18,340</div></div>
+<div class="metric"><div class="metric-label">GST paid (1B)</div><div class="metric-val" style="font-size:16px;color:var(--text-success)">$1,667</div></div>
+<div class="metric"><div class="metric-label">Net GST payable (9)</div><div class="metric-val" style="font-size:16px;color:var(--text-danger)">$2,753</div></div>
+</div>
+<div class="muted" style="font-size:11px">Due: 28 February 2026. The workshop owes the ATO $2,753 for this quarter. MechWise calculates this automatically — no spreadsheets needed.</div>
+</div>
+
+<div class="sub">Cash vs accrual accounting</div>
+<div class="rule"><span style="font-weight:500">Cash basis</span> (recommended for workshops under $10M turnover): GST is reported when money changes hands. Invoice issued in December but paid in January → GST counts in Q3, not Q2. Simpler, matches bank statements. MechWise default.</div>
+<div class="rule"><span style="font-weight:500">Accrual basis:</span> GST is reported when the invoice is issued, regardless of payment. Invoice issued in December → GST counts in Q2 even if unpaid. Required for larger businesses. MechWise supports both — configurable in workshop settings.</div>
+<div class="rule rule-warn">The accounting_method setting (Cash or Accrual) changes which date the ledger uses for BAS period assignment. Cash: uses payment_date from the payment record. Accrual: uses invoice_date from the invoice record.</div>
+
+<div class="sub">BAS lodgement workflow</div>
+<div class="rule rule-ok">1. At quarter end, the system auto-generates the BAS summary. Dashboard shows a banner: "Q2 BAS is ready for review. Due: 28 Feb."</div>
+<div class="rule rule-ok">2. Owner reviews the figures. The system shows any unreconciled items: unpaid invoices (accrual method), missing supplier invoices, expenses without receipts.</div>
+<div class="rule rule-ok">3. Owner exports the BAS summary as a PDF or CSV. Sends to their accountant or enters directly into the ATO Business Portal / myGov.</div>
+<div class="rule rule-ok">4. Owner marks the quarter as "Lodged" in MechWise. System records the lodgement date and archives the quarter.</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">GST-free items: Some insurance work and government contracts are GST-free. These must be excluded from GST calculations but still included in total sales (G1). The gst_amount for these lines is $0, but amount_ex_gst still contributes to revenue.</div>
+<div class="rule rule-err">Adjustments: If a previously reported invoice is voided in a later quarter, the adjustment appears in the current quarter's BAS. The system handles this by creating a reversing ledger entry with a negative amount in the current period.</div>
+<div class="rule rule-err">Mixed-method invoices: An invoice with both GST-inclusive items (standard parts and labour) and GST-free items (certain insurance repairs). Per-line GST rates handle this — the invoice header sums the mixed GST correctly.</div>
+</div>
+
+<!-- ═══ DASHBOARD KPIs ═══ -->
+<div class="pnl" id="p2">
+<div class="section">Dashboard KPIs</div>
+<p>The current Dhalla system has no analytics at all — just a "Total Sale With GST" page with a date range. MechWise replaces this with a live dashboard showing the numbers the workshop owner actually cares about. All KPIs are computed from real data — no manual entry.</p>
+
+<div class="sub">Revenue KPIs</div>
+<div class="kpi-grid">
+<div class="kpi"><div class="kpi-val">$12,480</div><div class="kpi-label">Revenue this month</div><div class="kpi-delta" style="color:var(--text-success)"><i class="ti ti-trending-up" aria-hidden="true"></i> +8% vs last month</div></div>
+<div class="kpi"><div class="kpi-val">$48,620</div><div class="kpi-label">Revenue this quarter</div><div class="kpi-delta" style="color:var(--text-success)"><i class="ti ti-trending-up" aria-hidden="true"></i> +12% vs same Q last year</div></div>
+<div class="kpi"><div class="kpi-val">$298</div><div class="kpi-label">Avg invoice value</div><div class="kpi-delta" style="color:var(--text-accent)"><i class="ti ti-minus" aria-hidden="true"></i> Stable</div></div>
+<div class="kpi"><div class="kpi-val">42</div><div class="kpi-label">Jobs completed</div><div class="kpi-delta" style="color:var(--text-success)"><i class="ti ti-trending-up" aria-hidden="true"></i> +5 vs last month</div></div>
+</div>
+
+<div class="sub">Operations KPIs</div>
+<div class="kpi-grid">
+<div class="kpi"><div class="kpi-val">4.2 hrs</div><div class="kpi-label">Avg turnaround time</div><div class="kpi-delta" style="color:var(--text-success)"><i class="ti ti-trending-down" aria-hidden="true"></i> -0.3 hrs (faster)</div></div>
+<div class="kpi"><div class="kpi-val">72%</div><div class="kpi-label">Bay utilisation</div><div class="kpi-delta" style="color:var(--text-warning)"><i class="ti ti-trending-down" aria-hidden="true"></i> -5% (capacity available)</div></div>
+<div class="kpi"><div class="kpi-val">87%</div><div class="kpi-label">Quote conversion rate</div><div class="kpi-delta" style="color:var(--text-success)"><i class="ti ti-trending-up" aria-hidden="true"></i> +3%</div></div>
+<div class="kpi"><div class="kpi-val">3</div><div class="kpi-label">Overdue invoices</div><div class="kpi-delta" style="color:var(--text-danger)"><i class="ti ti-alert-circle" aria-hidden="true"></i> $1,240 outstanding</div></div>
+</div>
+
+<div class="sub">Profitability KPIs (owner and manager only)</div>
+<div class="kpi-grid">
+<div class="kpi"><div class="kpi-val">44%</div><div class="kpi-label">Parts margin</div><div class="kpi-delta" style="color:var(--text-success)"><i class="ti ti-check" aria-hidden="true"></i> Healthy</div></div>
+<div class="kpi"><div class="kpi-val">68%</div><div class="kpi-label">Labour margin</div><div class="kpi-delta" style="color:var(--text-success)"><i class="ti ti-check" aria-hidden="true"></i> Healthy</div></div>
+<div class="kpi"><div class="kpi-val">$2,753</div><div class="kpi-label">GST payable this Q</div><div class="kpi-delta" style="color:var(--text-muted)">Due 28 Feb</div></div>
+<div class="kpi"><div class="kpi-val">5</div><div class="kpi-label">Parts below cost</div><div class="kpi-delta" style="color:var(--text-danger)"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Review pricing</div></div>
+</div>
+
+<div class="sub">KPI calculation formulas</div>
+<table class="tbl" style="font-size:12px">
+<tr><th>KPI</th><th>Formula</th><th>Source tables</th></tr>
+<tr><td>Revenue this month</td><td>SUM(final_amount) from invoices WHERE invoice_date in current month AND payment_status != 'Void'</td><td>invoices</td></tr>
+<tr><td>Avg invoice value</td><td>SUM(final_amount) / COUNT(*) from invoices this month</td><td>invoices</td></tr>
+<tr><td>Avg turnaround</td><td>AVG(date_completed − date_in) from job_cards WHERE status = 'Completed' this month</td><td>job_cards</td></tr>
+<tr><td>Bay utilisation</td><td>(Total booked hours / total available bay-hours) × 100. Available = bays × operating hours × working days</td><td>appointments, bays, workshops</td></tr>
+<tr><td>Quote conversion</td><td>COUNT(status='Approved' or 'Converted') / COUNT(all quotes) this month × 100</td><td>quotations</td></tr>
+<tr><td>Parts margin</td><td>(SUM(sell_price) − SUM(cost_price)) / SUM(sell_price) across all parts sold this month</td><td>invoice_lines, parts</td></tr>
+<tr><td>Labour margin</td><td>(SUM(labour billed) − SUM(mechanic cost)) / SUM(labour billed). Mechanic cost = actual_hrs × staff.hourly_rate</td><td>job_card_lines, staff</td></tr>
+</table>
+
+<div class="sub">Business rules</div>
+<div class="rule">All KPIs show a comparison to the previous period (last month, last quarter, same quarter last year). Green arrow = improving, red = declining, grey = stable (within 2% variance).</div>
+<div class="rule">Profitability KPIs are only visible to users with can_view_financials = TRUE. Mechanics see only the operations KPIs relevant to their work (turnaround, jobs completed).</div>
+<div class="rule rule-warn">KPIs are computed in real-time from the ledger and source tables — not stored as static values. This means they're always current but may be slower on large datasets. Phase 2 adds a nightly rollup table for historical KPIs to improve performance.</div>
+</div>
+
+<!-- ═══ FINANCIAL REPORTS ═══ -->
+<div class="pnl" id="p3">
+<div class="section">Financial reports</div>
+<p>Structured reports the workshop owner runs weekly, monthly, or quarterly. Each report pulls from the ledger and source tables with configurable date ranges, filters, and groupings.</p>
+
+<div class="sub">Report catalogue</div>
+<div class="card">
+<table class="tbl" style="font-size:12px">
+<tr><th>Report</th><th>What it shows</th><th>Audience</th><th>Frequency</th></tr>
+<tr><td style="font-weight:500">Revenue summary</td><td>Total revenue by month, broken down by job type (minor service, brakes, tyres, etc.). Shows trend over 12 months. Includes job count and average value per type.</td><td>Owner, Manager</td><td>Monthly</td></tr>
+<tr><td style="font-weight:500">Profit and loss</td><td>Revenue minus cost of parts, labour cost (mechanic hourly_rate × actual hours), and expenses. Shows gross profit, operating expenses, and net profit. By month and quarter.</td><td>Owner only</td><td>Monthly / Quarterly</td></tr>
+<tr><td style="font-weight:500">Aged receivables</td><td>Outstanding invoices grouped by age: Current (0-30 days), 30-60 days, 60-90 days, 90+ days. Shows client name, invoice number, amount, and days overdue. Action column: "Send reminder" / "Call client".</td><td>Owner, Manager, Front desk</td><td>Weekly</td></tr>
+<tr><td style="font-weight:500">Accounts payable</td><td>Supplier invoices grouped by due date. Shows supplier name, PO number, amount, due date, and days until due. Highlights overdue supplier payments.</td><td>Owner, Manager</td><td>Weekly</td></tr>
+<tr><td style="font-weight:500">Mechanic productivity</td><td>Per mechanic: jobs completed, total hours billed, actual hours worked, efficiency ratio (billed/actual), revenue generated. Ranked by revenue or efficiency.</td><td>Owner only</td><td>Monthly</td></tr>
+<tr><td style="font-weight:500">Parts profitability</td><td>Per part: units sold, revenue, cost, margin %, margin $. Sorted by margin $ descending — shows which parts make the most money and which lose money.</td><td>Owner, Manager</td><td>Monthly</td></tr>
+<tr><td style="font-weight:500">Customer value</td><td>Per client: total lifetime revenue, visit count, average spend, last visit date, days since last visit. Top 20 customers by lifetime value. Identifies VIPs and lapsed customers.</td><td>Owner, Manager</td><td>Quarterly</td></tr>
+<tr><td style="font-weight:500">Inventory valuation</td><td>Total value of stock on hand (qty × cost_price). Grouped by category. Shows dead stock (items with qty > 0 but zero sales in last 6 months).</td><td>Owner, Manager</td><td>Monthly / Stocktake</td></tr>
+<tr><td style="font-weight:500">BAS summary</td><td>GST collected, GST paid, net GST payable for the selected quarter. Drill-down to individual transactions. Export-ready for accountant.</td><td>Owner</td><td>Quarterly</td></tr>
+<tr><td style="font-weight:500">Daily takings</td><td>Today's payments by method: cash total, card total, bank transfer total. Running total vs yesterday. Cash reconciliation at day's end.</td><td>Owner, Front desk</td><td>Daily</td></tr>
+</table>
+</div>
+
+<div class="sub">Revenue by job type — example output</div>
+<div class="card">
+<div class="bar-row"><div class="bar-label">Minor service</div><div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--text-accent)"></div></div><div class="bar-val">$18,480</div></div>
+<div class="bar-row"><div class="bar-label">Brakes</div><div class="bar-track"><div class="bar-fill" style="width:52%;background:var(--text-accent)"></div></div><div class="bar-val">$9,620</div></div>
+<div class="bar-row"><div class="bar-label">Major service</div><div class="bar-track"><div class="bar-fill" style="width:40%;background:var(--text-accent)"></div></div><div class="bar-val">$7,350</div></div>
+<div class="bar-row"><div class="bar-label">Tyres</div><div class="bar-track"><div class="bar-fill" style="width:28%;background:var(--text-accent)"></div></div><div class="bar-val">$5,120</div></div>
+<div class="bar-row"><div class="bar-label">Pink slip</div><div class="bar-track"><div class="bar-fill" style="width:18%;background:var(--text-accent)"></div></div><div class="bar-val">$3,380</div></div>
+<div class="bar-row"><div class="bar-label">Electrical</div><div class="bar-track"><div class="bar-fill" style="width:14%;background:var(--text-accent)"></div></div><div class="bar-val">$2,540</div></div>
+<div class="bar-row"><div class="bar-label">Other</div><div class="bar-track"><div class="bar-fill" style="width:12%;background:var(--text-secondary)"></div></div><div class="bar-val">$2,130</div></div>
+<div class="muted" style="margin-top:8px;font-size:11px">Quarter total: $48,620. Minor services = 38% of revenue — the core bread-and-butter work.</div>
+</div>
+
+<div class="sub">Mechanic productivity — example output</div>
+<div class="card">
+<table class="tbl" style="font-size:12px">
+<tr><th>Mechanic</th><th style="text-align:right">Jobs</th><th style="text-align:right">Hours billed</th><th style="text-align:right">Hours actual</th><th style="text-align:right">Efficiency</th><th style="text-align:right">Revenue</th></tr>
+<tr><td style="font-weight:500">Tinku</td><td style="text-align:right">18</td><td style="text-align:right">32.5</td><td style="text-align:right">29.0</td><td style="text-align:right;color:var(--text-success)">112%</td><td style="text-align:right">$5,840</td></tr>
+<tr><td style="font-weight:500">Baljit</td><td style="text-align:right">14</td><td style="text-align:right">28.0</td><td style="text-align:right">30.5</td><td style="text-align:right;color:var(--text-warning)">92%</td><td style="text-align:right">$4,120</td></tr>
+<tr><td style="font-weight:500">Harman</td><td style="text-align:right">10</td><td style="text-align:right">22.0</td><td style="text-align:right">21.5</td><td style="text-align:right;color:var(--text-success)">102%</td><td style="text-align:right">$3,010</td></tr>
+</table>
+<div class="muted" style="font-size:11px;margin-top:6px">Efficiency > 100% means the mechanic finished faster than estimated (good). < 100% means they took longer. Tinku is the most efficient — he finishes 12% faster than book time.</div>
+</div>
+
+<div class="sub">Business rules</div>
+<div class="rule">All reports support date range filtering, PDF export, and CSV export. PDF generates a branded document with workshop logo suitable for handing to the accountant. CSV is for further analysis in Excel.</div>
+<div class="rule">Mechanic productivity and P&L reports are restricted to Owner role. Sharing these with staff requires explicit opt-in in workshop settings.</div>
+<div class="rule rule-warn">Report caching: Reports on the current period are computed live. Historical reports (closed months and quarters) are cached and served instantly. If the source data changes (late invoice, correction), the cache is invalidated and regenerated.</div>
+</div>
+
+<!-- ═══ EXPORT AND INTEGRATION ═══ -->
+<div class="pnl" id="p4">
+<div class="section">Export and accounting software integration</div>
+<p>Most workshop owners don't do their own bookkeeping — they have an accountant who uses Xero, MYOB, or QuickBooks. MechWise doesn't try to replace the accountant's software. Instead, it produces clean export files that the accountant can import directly.</p>
+
+<div class="sub">Export formats</div>
+<div class="card">
+<table class="tbl" style="font-size:12px">
+<tr><th>Export</th><th>Format</th><th>Contents</th><th>Use case</th></tr>
+<tr><td style="font-weight:500">BAS summary</td><td>PDF</td><td>Quarterly GST summary with drill-down figures. ATO field labels (G1, 1A, G11, 1B, 9) mapped.</td><td>Accountant lodges BAS via ATO portal.</td></tr>
+<tr><td style="font-weight:500">Transaction export</td><td>CSV</td><td>All ledger entries for a date range: date, description, entity, amount_ex_gst, gst, amount_inc_gst, direction, payment method.</td><td>Import into Xero/MYOB as journal entries.</td></tr>
+<tr><td style="font-weight:500">Invoice register</td><td>CSV</td><td>All invoices: number, date, client, amount, GST, payment status, payment date, method. One row per invoice.</td><td>Accounts receivable reconciliation.</td></tr>
+<tr><td style="font-weight:500">Supplier payments</td><td>CSV</td><td>All supplier payments: date, supplier, PO reference, amount, GST, method. One row per payment.</td><td>Accounts payable reconciliation.</td></tr>
+<tr><td style="font-weight:500">Payroll summary</td><td>CSV</td><td>Per staff member: hours worked (from job card lines), hourly rate, gross pay calculation. Not actual payroll — just the data feed for the accountant's payroll system.</td><td>Phase 2 — feeds into payroll software.</td></tr>
+</table>
+</div>
+
+<div class="sub">Accounting software integration roadmap</div>
+<div class="rule rule-ok"><span style="font-weight:500">Phase 1: CSV export.</span> Manual process — owner downloads CSV from MechWise, sends to accountant, accountant imports into Xero/MYOB. Simple, reliable, no API integration needed.</div>
+<div class="rule"><span style="font-weight:500">Phase 2: Xero API integration.</span> Direct push of invoices, payments, and expenses to Xero via their API. Auto-sync: when an invoice is created in MechWise, it appears in Xero within minutes. Two-way: payments recorded in Xero can update MechWise. Xero covers ~60% of Australian small businesses.</div>
+<div class="rule"><span style="font-weight:500">Phase 3: MYOB and QuickBooks.</span> Same as Xero but via MYOB AccountRight API and QuickBooks Online API. Covers the remaining ~30% of accountants.</div>
+
+<div class="sub">Chart of accounts mapping</div>
+<div class="rule rule-warn">When integrating with accounting software, MechWise transactions need to map to the accountant's chart of accounts. Default mapping: service revenue → "Sales — Mechanical repairs" (4-1000), parts revenue → "Sales — Parts" (4-1100), parts purchases → "Cost of goods — Parts" (5-1000), labour cost → "Wages — Mechanical" (6-1000), expenses → mapped per category. The workshop owner or accountant configures this mapping once in settings.</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">Dual-entry prevention: If Xero integration is active, the accountant shouldn't also be manually entering invoices from emailed PDFs. The system should include a "Connected to Xero" banner on exported PDFs: "This invoice is auto-synced to your accounting software. Do not enter manually."</div>
+<div class="rule rule-err">Bank reconciliation: MechWise knows which invoices were paid by card vs cash vs transfer, but it doesn't see bank transactions. Reconciliation happens in the accounting software. MechWise's daily takings report provides the expected figures for the accountant to match against bank statements.</div>
+</div>
+
+<!-- ═══ LIVE DASHBOARD ═══ -->
+<div class="pnl" id="p5">
+<div class="section">Live dashboard mockup</div>
+<p>What the workshop owner sees when they log in. A single-screen summary of everything that matters — today's numbers, alerts, and trends.</p>
+
+<div class="card" style="border:0.5px solid var(--border)">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+<div><div style="font-size:16px;font-weight:500">Dhalla Automotive</div><div class="muted" style="font-size:12px">Tuesday 8 October 2025 · 11:30am</div></div>
+<div class="muted" style="font-size:12px">BAS Q2 due in 143 days</div>
+</div>
+
+<div class="kpi-grid" style="margin-bottom:16px">
+<div class="kpi" style="background:var(--surface-0)"><div class="kpi-val" style="font-size:20px">$1,840</div><div class="kpi-label">Today's revenue</div></div>
+<div class="kpi" style="background:var(--surface-0)"><div class="kpi-val" style="font-size:20px">6</div><div class="kpi-label">Jobs today</div></div>
+<div class="kpi" style="background:var(--surface-0)"><div class="kpi-val" style="font-size:20px">3/4</div><div class="kpi-label">Bays in use</div></div>
+<div class="kpi" style="background:var(--surface-0)"><div class="kpi-val" style="font-size:20px;color:var(--text-danger)">$1,240</div><div class="kpi-label">Overdue invoices</div></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+<div>
+<div style="font-size:13px;font-weight:500;margin-bottom:8px"><i class="ti ti-alert-triangle" aria-hidden="true" style="color:var(--text-warning);margin-right:4px"></i>Action items</div>
+<div style="font-size:12px;padding:6px 0;border-bottom:0.5px solid var(--border)"><span style="color:var(--text-danger)"><i class="ti ti-circle-x" aria-hidden="true"></i></span> Z456 filter — out of reorder. Draft PO ready.</div>
+<div style="font-size:12px;padding:6px 0;border-bottom:0.5px solid var(--border)"><span style="color:var(--text-warning)"><i class="ti ti-clock" aria-hidden="true"></i></span> INV-0081 overdue 9 days — $234 from Sandeep</div>
+<div style="font-size:12px;padding:6px 0;border-bottom:0.5px solid var(--border)"><span style="color:var(--text-warning)"><i class="ti ti-phone" aria-hidden="true"></i></span> Amit (8:30am) hasn't confirmed booking</div>
+<div style="font-size:12px;padding:6px 0"><span style="color:var(--text-success)"><i class="ti ti-message" aria-hidden="true"></i></span> 2 customers replied BOOK overnight</div>
+</div>
+<div>
+<div style="font-size:13px;font-weight:500;margin-bottom:8px"><i class="ti ti-chart-bar" aria-hidden="true" style="color:var(--text-accent);margin-right:4px"></i>This month so far</div>
+<div class="bar-row"><div class="bar-label" style="width:60px">Revenue</div><div class="bar-track"><div class="bar-fill" style="width:65%;background:var(--text-accent)"></div></div><div class="bar-val" style="width:50px">$8,240</div></div>
+<div class="bar-row"><div class="bar-label" style="width:60px">Target</div><div class="bar-track"><div class="bar-fill" style="width:100%;background:var(--border)"></div></div><div class="bar-val" style="width:50px">$12,500</div></div>
+<div style="font-size:11px;color:var(--text-secondary);margin-top:8px">66% of monthly target · 8 working days remaining</div>
+<div style="font-size:11px;color:var(--text-success);margin-top:4px"><i class="ti ti-trending-up" aria-hidden="true"></i> Tracking +8% vs last month pace</div>
+</div>
+</div>
+</div>
+
+<div class="sub">Dashboard business rules</div>
+<div class="rule">Auto-refreshes every 5 minutes when the browser tab is active. Real-time push for critical alerts (payment received, new booking, part out of stock).</div>
+<div class="rule">Responsive: on mobile (owner checking from home), collapses to a single-column view with KPIs stacked and action items prioritised.</div>
+<div class="rule rule-warn">Monthly revenue target is manually set by the owner in workshop settings. Default: average of last 3 months' revenue. The progress bar shows actual vs target with a pace indicator ("On track" / "Behind target" / "Ahead of target").</div>
+</div>
+
+<script>
+function show(i){
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',j===i));
+  document.querySelectorAll('.pnl').forEach((p,j)=>p.classList.toggle('active',j===i));
+}
+</script>

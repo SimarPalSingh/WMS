@@ -1,0 +1,30 @@
+# Dependencies
+node_modules
+/mechwise-app/node_modules
+/.pnp
+.pnp.*
+
+# Next.js build outputs
+/mechwise-app/.next/
+/mechwise-app/out/
+/mechwise-app/build
+
+# Database
+/mechwise-app/prisma/*.db
+/mechwise-app/prisma/*.db-journal
+
+# Environment variables
+.env
+.env*.local
+/mechwise-app/.env
+
+# Large Assets and Screenshot PDFs (>50MB)
+Dhalla Automotive Screenshots Pdfs/
+Dhalla Automotive Screenshots/
+*.pdf
+*.docx
+
+# System files
+.DS_Store
+Thumbs.db
+*.log

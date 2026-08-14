@@ -1,0 +1,129 @@
+
+<h2 class="sr-only">Entity relationship diagram for MechWise operations: appointments, service reminders, maintenance history, and accounting ledger</h2>
+<style>
+#erd4 svg { max-width: 100%; }
+#erd4 .divider path { stroke-opacity: 0.5; }
+#erd4 .row-rect-odd path, #erd4 .row-rect-odd rect,
+#erd4 .row-rect-even path, #erd4 .row-rect-even rect { stroke: none !important; }
+</style>
+<div id="erd4"></div>
+<script type="module">
+import mermaid from 'https://esm.sh/mermaid@11/dist/mermaid.esm.min.mjs';
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+await document.fonts.ready;
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'base',
+  fontFamily: '"anthropic-sans", sans-serif',
+  themeVariables: {
+    darkMode: dark,
+    fontSize: '13px',
+    fontFamily: '"anthropic-sans", sans-serif',
+    lineColor: dark ? '#9c9a92' : '#73726c',
+    textColor: dark ? '#c2c0b6' : '#3d3d3a',
+  },
+});
+const { svg } = await mermaid.render('erd4-svg', `erDiagram
+    CLIENTS ||--o{ APPOINTMENTS : books
+    VEHICLES ||--o{ APPOINTMENTS : "booked for"
+    STAFF ||--o{ APPOINTMENTS : "assigned to"
+    VEHICLES ||--o{ SERVICE_REMINDERS : "reminder for"
+    CLIENTS ||--o{ SERVICE_REMINDERS : "notify"
+    INVOICES ||--o{ SERVICE_REMINDERS : "created from"
+    VEHICLES ||--o{ MAINTENANCE_HISTORY : "history of"
+    STAFF ||--o{ MAINTENANCE_HISTORY : "performed by"
+    JOB_CARDS ||--o{ MAINTENANCE_HISTORY : "record of"
+    INVOICES ||--o{ ACCOUNTING_LEDGER : "generates txn"
+    PURCHASE_ORDERS ||--o{ ACCOUNTING_LEDGER : "generates txn"
+    PAYMENTS ||--o{ ACCOUNTING_LEDGER : "records payment"
+
+    APPOINTMENTS {
+        string appointment_id PK
+        string client_id FK
+        string vehicle_id FK
+        date booking_date
+        time booking_time
+        decimal estimated_duration_hrs
+        string bay_number
+        string staff_id FK
+        string services_requested
+        string source
+        string status
+        boolean reminder_sent
+        boolean confirmed_by_client
+        date created_date
+    }
+
+    SERVICE_REMINDERS {
+        string reminder_id PK
+        string vehicle_id FK
+        string client_id FK
+        string reminder_type
+        date due_date
+        int due_mileage_km
+        date last_service_date
+        string last_invoice_id FK
+        string reminder_status
+        date sms_sent_date
+        date email_sent_date
+        string client_response
+        boolean booking_created
+    }
+
+    MAINTENANCE_HISTORY {
+        string record_id PK
+        string vehicle_id FK
+        string jobcard_id FK
+        date service_date
+        string service_type
+        string description
+        string staff_id FK
+        int mileage_at_service
+        decimal total_cost
+        string invoice_id FK
+    }
+
+    ACCOUNTING_LEDGER {
+        string transaction_id PK
+        date transaction_date
+        string bas_period
+        string entity_type
+        string entity_id FK
+        string entity_name
+        string transaction_type
+        string direction
+        string related_doc_type
+        string related_doc_id FK
+        string description
+        decimal amount_ex_gst
+        decimal gst_amount
+        decimal amount_inc_gst
+        string payment_status
+        string payment_method
+        string entered_by FK
+    }
+`);
+document.getElementById('erd4').innerHTML = svg;
+document.querySelectorAll('#erd4 svg .node').forEach(node => {
+  const firstPath = node.querySelector('path[d]');
+  if (!firstPath) return;
+  const d = firstPath.getAttribute('d');
+  const nums = d.match(/-?[\d.]+/g)?.map(Number);
+  if (!nums || nums.length < 8) return;
+  const xs = [nums[0], nums[2], nums[4], nums[6]];
+  const ys = [nums[1], nums[3], nums[5], nums[7]];
+  const x = Math.min(...xs), y = Math.min(...ys);
+  const w = Math.max(...xs) - x, h = Math.max(...ys) - y;
+  const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  rect.setAttribute('x', x); rect.setAttribute('y', y);
+  rect.setAttribute('width', w); rect.setAttribute('height', h);
+  rect.setAttribute('rx', '8');
+  for (const a of ['fill', 'stroke', 'stroke-width', 'class', 'style']) {
+    if (firstPath.hasAttribute(a)) rect.setAttribute(a, firstPath.getAttribute(a));
+  }
+  firstPath.replaceWith(rect);
+});
+document.querySelectorAll('#erd4 svg .row-rect-odd path, #erd4 svg .row-rect-even path').forEach(p => {
+  p.setAttribute('stroke', 'none');
+});
+</script>

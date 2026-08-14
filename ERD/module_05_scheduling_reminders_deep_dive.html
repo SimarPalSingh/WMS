@@ -1,0 +1,431 @@
+
+<h2 class="sr-only">Deep dive into MechWise Module 5: Scheduling and Reminders covering appointments, bay management, service alerts, pink slip tracking, and SMS automation</h2>
+<style>
+.tabs{display:flex;gap:4px;border-bottom:0.5px solid var(--border);margin-bottom:1.5rem;overflow-x:auto}
+.tab{padding:8px 14px;font-size:13px;cursor:pointer;border:none;background:none;color:var(--text-secondary);border-bottom:2px solid transparent;white-space:nowrap;font-family:inherit}
+.tab.active{color:var(--text-primary);border-bottom-color:var(--text-accent);font-weight:500}
+.pnl{display:none}.pnl.active{display:block}
+.card{background:var(--surface-1);border-radius:12px;padding:1rem 1.25rem;margin-bottom:12px}
+.badge{display:inline-block;padding:2px 8px;border-radius:var(--radius);font-size:11px;font-weight:500;margin-right:4px}
+.b-pk{background:var(--bg-accent);color:var(--text-accent)}
+.b-fk{background:var(--bg-pro);color:var(--text-pro)}
+.b-req{background:var(--bg-danger);color:var(--text-danger)}
+.b-auto{background:var(--bg-success);color:var(--text-success)}
+.b-val{background:var(--bg-warning);color:var(--text-warning)}
+.b-calc{background:var(--bg-pro);color:var(--text-pro)}
+.b-new{background:var(--bg-success);color:var(--text-success)}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0}
+.tbl th{text-align:left;padding:6px 8px;border-bottom:0.5px solid var(--border-strong);color:var(--text-secondary);font-weight:500;font-size:12px}
+.tbl td{padding:6px 8px;border-bottom:0.5px solid var(--border);vertical-align:top;color:var(--text-primary)}
+.tbl tr:last-child td{border-bottom:none}
+.rule{background:var(--surface-1);border-radius:0;padding:10px 14px;margin:8px 0;font-size:13px;border-left:3px solid var(--border-accent)}
+.rule-warn{border-left-color:var(--border-warning)}
+.rule-err{border-left-color:var(--border-danger)}
+.rule-ok{border-left-color:var(--border-success)}
+.section{font-size:15px;font-weight:500;margin:1.5rem 0 0.75rem;color:var(--text-primary)}
+.sub{font-size:13px;font-weight:500;margin:1rem 0 0.5rem;color:var(--text-secondary)}
+p{margin:0 0 8px;line-height:1.6;font-size:13px;color:var(--text-primary)}
+.muted{color:var(--text-secondary)}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;font-size:12px}
+.flow{display:flex;align-items:center;gap:0;margin:16px 0;flex-wrap:wrap}
+.flow-box{padding:8px 14px;border-radius:var(--radius);font-size:12px;font-weight:500;text-align:center;min-width:80px}
+.flow-arrow{color:var(--text-muted);padding:0 6px;font-size:16px}
+.status-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--border)}
+.status-row:last-child{border-bottom:none}
+.status-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.metric-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:12px 0}
+.metric{background:var(--surface-1);border-radius:var(--radius);padding:10px;text-align:center}
+.metric-label{font-size:11px;color:var(--text-secondary);margin-bottom:2px}
+.metric-val{font-size:18px;font-weight:500}
+.bay{border:0.5px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:8px}
+.bay-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.bay-label{font-weight:500;font-size:13px}
+.bay-status{font-size:11px;padding:2px 8px;border-radius:var(--radius)}
+.timeline{position:relative;padding-left:24px;margin:12px 0}
+.timeline::before{content:'';position:absolute;left:8px;top:4px;bottom:4px;width:2px;background:var(--border)}
+.tl-item{position:relative;padding:8px 0 8px 12px;font-size:13px}
+.tl-item::before{content:'';position:absolute;left:-20px;top:12px;width:10px;height:10px;border-radius:50%;border:2px solid var(--border-strong);background:var(--surface-2)}
+.tl-active::before{background:var(--text-accent);border-color:var(--text-accent)}
+.tl-done::before{background:var(--text-success);border-color:var(--text-success)}
+.tl-pending::before{background:var(--surface-1);border-color:var(--border)}
+.sms-box{background:var(--surface-1);border-radius:12px;padding:12px 16px;margin:8px 0;font-size:12px;border:0.5px solid var(--border);max-width:400px;line-height:1.6}
+.sms-header{font-size:11px;color:var(--text-muted);margin-bottom:4px}
+</style>
+
+<div style="padding:0 0 4px">
+  <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Module 5 of 8</div>
+  <div style="font-size:18px;font-weight:500;margin-bottom:4px"><i class="ti ti-calendar" aria-hidden="true" style="color:var(--text-accent);margin-right:6px"></i>Scheduling and reminders</div>
+  <div style="font-size:13px;color:var(--text-secondary)">Appointments, bay management, service reminders, pink slip tracking, and the SMS automation engine</div>
+</div>
+
+<div class="tabs" id="tabs">
+  <button class="tab active" onclick="show(0)"><i class="ti ti-calendar-event" aria-hidden="true" style="margin-right:4px"></i>Appointments</button>
+  <button class="tab" onclick="show(1)"><i class="ti ti-layout-grid" aria-hidden="true" style="margin-right:4px"></i>Bay management</button>
+  <button class="tab" onclick="show(2)"><i class="ti ti-bell" aria-hidden="true" style="margin-right:4px"></i>Service reminders</button>
+  <button class="tab" onclick="show(3)"><i class="ti ti-certificate" aria-hidden="true" style="margin-right:4px"></i>Pink slip tracking</button>
+  <button class="tab" onclick="show(4)"><i class="ti ti-message" aria-hidden="true" style="margin-right:4px"></i>SMS engine</button>
+  <button class="tab" onclick="show(5)"><i class="ti ti-clock" aria-hidden="true" style="margin-right:4px"></i>Daily schedule</button>
+</div>
+
+<!-- ═══ APPOINTMENTS ═══ -->
+<div class="pnl active" id="p0">
+<div class="section">appointments table</div>
+<p>Every vehicle visit starts as a booking. Currently Dhalla has no appointment system — customers call and Tinku says "yeah bring it in tomorrow morning." MechWise replaces this with a structured calendar that prevents overbooking, assigns bays and mechanics, and auto-sends confirmation/reminder messages.</p>
+
+<table class="tbl">
+<tr><th>Field</th><th>Type</th><th>Tags</th><th>Validation and notes</th></tr>
+<tr><td>appointment_id</td><td>VARCHAR(10)</td><td><span class="badge b-pk">PK</span><span class="badge b-auto">Auto</span></td><td>Format: APT-0001.</td></tr>
+<tr><td>workshop_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span></td><td>Multi-tenancy key.</td></tr>
+<tr><td>client_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span><span class="badge b-req">Required</span></td><td>Who booked. If existing client, auto-fills contact details. If new, create client inline.</td></tr>
+<tr><td>vehicle_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span><span class="badge b-req">Required</span></td><td>Which vehicle. Rego entered → auto-lookup fills vehicle + client details together.</td></tr>
+<tr><td>booking_date</td><td>DATE</td><td><span class="badge b-req">Required</span><span class="badge b-val">Validated</span></td><td>Must be today or future. Cannot book on days the workshop is closed (checked against workshop.hours). Weekday and Saturday only — no Sundays unless configured.</td></tr>
+<tr><td>booking_time</td><td>TIME</td><td><span class="badge b-val">Validated</span></td><td>Must fall within workshop operating hours. Drop-off time, not job start time. Slots in 30-minute increments: 7:30, 8:00, 8:30... through to closing. NULL = "Anytime that day" (customer will call when they're on their way).</td></tr>
+<tr><td>estimated_duration_hrs</td><td>DECIMAL(4,2)</td><td><span class="badge b-auto">Auto</span></td><td>Auto-populated from the linked job's estimated_duration when services_requested matches a known job. Manual entry for general bookings ("Check engine light — unknown duration").</td></tr>
+<tr><td>bay_number</td><td>VARCHAR(20)</td><td></td><td>Which bay is reserved. Auto-assigned based on availability, or manually picked from the bay board. NULL = unassigned (assigned on arrival).</td></tr>
+<tr><td>staff_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span></td><td>Which mechanic is pre-assigned. Only mechanics available on booking_date shown in dropdown (checked against staff.availability_days). NULL = first available.</td></tr>
+<tr><td>services_requested</td><td>TEXT</td><td></td><td>Free text describing what the customer wants. e.g. "Minor service", "Brakes feel spongy", "Pink slip", "Check engine light on". Used to create the quote before the vehicle arrives.</td></tr>
+<tr><td>source</td><td>VARCHAR(30)</td><td><span class="badge b-req">Required</span></td><td>Enum: Phone, Walk-in, SMS Reply, Customer Portal, Website, Repeat Booking. Tracks how bookings come in — useful for marketing analysis.</td></tr>
+<tr><td>status</td><td>VARCHAR(20)</td><td><span class="badge b-req">Required</span></td><td>See lifecycle below.</td></tr>
+<tr><td>reminder_sent</td><td>BOOLEAN</td><td><span class="badge b-auto">Auto</span></td><td>Set to TRUE when the 24-hour reminder SMS is sent. Prevents duplicate sends.</td></tr>
+<tr><td>confirmed</td><td>BOOLEAN</td><td></td><td>Set to TRUE when customer confirms (reply to reminder SMS or clicks "Confirm" in portal). Unconfirmed bookings flagged on the morning schedule: "Peter — not yet confirmed, call to check."</td></tr>
+</table>
+
+<div class="sub">Appointment status lifecycle</div>
+<div class="card">
+<div class="status-row"><div class="status-dot" style="background:var(--text-accent)"></div><div><span style="font-weight:500">Booked</span> <span class="muted">— appointment created. Appears on calendar. 24-hour reminder scheduled. Bay and mechanic optionally pre-assigned.</span></div></div>
+<div class="status-row"><div class="status-dot" style="background:var(--text-success)"></div><div><span style="font-weight:500">Confirmed</span> <span class="muted">— customer confirmed via SMS reply or portal. Solid green on calendar. Staff can proceed with confidence.</span></div></div>
+<div class="status-row"><div class="status-dot" style="background:var(--text-warning)"></div><div><span style="font-weight:500">In progress</span> <span class="muted">— vehicle has arrived and a job card has been created from this appointment. Appointment is now linked to JC-xxxx. Status auto-set when job card is created.</span></div></div>
+<div class="status-row"><div class="status-dot" style="background:var(--text-success)"></div><div><span style="font-weight:500">Completed</span> <span class="muted">— linked job card is completed. Appointment archived.</span></div></div>
+<div class="status-row"><div class="status-dot" style="background:var(--text-danger)"></div><div><span style="font-weight:500">No show</span> <span class="muted">— customer didn't arrive and didn't call. Auto-set if no job card created by end of booking_date. Flag on client record for future reference: "1 previous no-show."</span></div></div>
+<div class="status-row"><div class="status-dot" style="background:var(--text-muted)"></div><div><span style="font-weight:500">Cancelled</span> <span class="muted">— customer cancelled before arriving. Reason field optional. Bay and mechanic freed up. Cancellation notification to staff.</span></div></div>
+<div class="status-row"><div class="status-dot" style="background:var(--text-secondary)"></div><div><span style="font-weight:500">Rescheduled</span> <span class="muted">— moved to a new date/time. Old appointment marked "Rescheduled → APT-xxxx". New appointment created with link to original.</span></div></div>
+</div>
+
+<div class="sub">Capacity calculation</div>
+<div class="rule">Available capacity per day = (number of bays) × (operating hours). Dhalla has 4 bays × 9.5 hours (7:30am–5:00pm) = 38 bay-hours per day. Each appointment consumes estimated_duration_hrs bay-hours. When total booked hours reaches 80% of capacity, the calendar shows "Nearly full" in orange. At 100%, no more bookings accepted for that day.</div>
+<div class="rule rule-warn">Buffer time: Add a configurable gap between appointments (default 15 minutes) for vehicle handover, cleaning, and moving cars. A 1-hour minor service actually blocks 1.25 hours in the schedule.</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">Walk-ins: Customer appears without a booking. Create an appointment with source = "Walk-in", booking_date = today, booking_time = now, status = "In progress" immediately. System checks bay availability — if full, show estimated wait time: "All bays occupied. Estimated wait: 45 minutes."</div>
+<div class="rule rule-err">Multi-day jobs: A clutch replacement takes 4+ hours — might span two days. The appointment blocks estimated_duration across both days. Bay remains assigned. Calendar shows a spanning bar across Mon-Tue.</div>
+<div class="rule rule-err">Repeat bookings: Fleet customer wants all 5 vehicles serviced one per week. Support a "Recurring booking" option that auto-creates the next appointment when the current one completes.</div>
+</div>
+
+<!-- ═══ BAY MANAGEMENT ═══ -->
+<div class="pnl" id="p1">
+<div class="section">Workshop floor board</div>
+<p>A live view of the workshop — which vehicle is in which bay, what stage the job is at, and who's working on it. Think of it as a kanban board for the workshop floor. Designed to run on a wall-mounted screen that the whole team can see.</p>
+
+<div class="sub">Bay configuration (Dhalla Automotive)</div>
+<div class="card">
+<div class="bay">
+  <div class="bay-header">
+    <div class="bay-label"><i class="ti ti-car" aria-hidden="true" style="margin-right:6px"></i>Bay 1 — Hoist</div>
+    <div class="bay-status" style="background:var(--bg-warning);color:var(--text-warning)">In progress</div>
+  </div>
+  <div style="font-size:12px"><span style="font-weight:500">BX35DW</span> · Toyota Corolla · Minor service</div>
+  <div style="font-size:11px;color:var(--text-secondary)"><i class="ti ti-user" aria-hidden="true"></i> Baljit · Started 8:15am · Est done 9:15am · 3/4 items done</div>
+  <div style="height:4px;border-radius:2px;background:var(--surface-0);margin-top:6px"><div style="height:100%;border-radius:2px;background:var(--text-success);width:75%"></div></div>
+</div>
+
+<div class="bay">
+  <div class="bay-header">
+    <div class="bay-label"><i class="ti ti-car" aria-hidden="true" style="margin-right:6px"></i>Bay 2 — Hoist</div>
+    <div class="bay-status" style="background:var(--bg-danger);color:var(--text-danger)">Waiting for parts</div>
+  </div>
+  <div style="font-size:12px"><span style="font-weight:500">CIM29R</span> · Hyundai i30 · Front brake replacement</div>
+  <div style="font-size:11px;color:var(--text-secondary)"><i class="ti ti-user" aria-hidden="true"></i> Tinku · Waiting: brake pads (ETA tomorrow) · 1/4 items done</div>
+  <div style="height:4px;border-radius:2px;background:var(--surface-0);margin-top:6px"><div style="height:100%;border-radius:2px;background:var(--text-warning);width:25%"></div></div>
+</div>
+
+<div class="bay">
+  <div class="bay-header">
+    <div class="bay-label"><i class="ti ti-car" aria-hidden="true" style="margin-right:6px"></i>Bay 3 — Ground level</div>
+    <div class="bay-status" style="background:var(--bg-success);color:var(--text-success)">Ready for pickup</div>
+  </div>
+  <div style="font-size:12px"><span style="font-weight:500">ZLF882</span> · Mazda 3 · Major service + AC regas</div>
+  <div style="font-size:11px;color:var(--text-secondary)"><i class="ti ti-user" aria-hidden="true"></i> Harman · Done 10:45am · INV-0087: $380 · Customer notified</div>
+  <div style="height:4px;border-radius:2px;background:var(--surface-0);margin-top:6px"><div style="height:100%;border-radius:2px;background:var(--text-success);width:100%"></div></div>
+</div>
+
+<div class="bay">
+  <div class="bay-header">
+    <div class="bay-label"><i class="ti ti-car" aria-hidden="true" style="margin-right:6px"></i>Bay 4 — Tyre bay</div>
+    <div class="bay-status" style="background:var(--bg-accent);color:var(--text-accent)">Waiting</div>
+  </div>
+  <div style="font-size:12px"><span style="font-weight:500">BGX18S</span> · Subaru WRX · Tyre replacement × 4</div>
+  <div style="font-size:11px;color:var(--text-secondary)"><i class="ti ti-user" aria-hidden="true"></i> Unassigned · Arrived 11:00am · Est 1.0 hr</div>
+  <div style="height:4px;border-radius:2px;background:var(--surface-0);margin-top:6px"><div style="height:100%;border-radius:2px;background:var(--border);width:0%"></div></div>
+</div>
+</div>
+
+<div class="sub">Bay table (workshop settings)</div>
+<table class="tbl">
+<tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+<tr><td>bay_id</td><td>VARCHAR(10)</td><td><span class="badge b-pk">PK</span> Format: BAY-01.</td></tr>
+<tr><td>bay_name</td><td>VARCHAR(30)</td><td>Display name. e.g. "Bay 1 — Hoist", "Bay 4 — Tyre bay".</td></tr>
+<tr><td>bay_type</td><td>VARCHAR(20)</td><td>Enum: Hoist, Ground Level, Tyre Bay, Inspection Pit, Yard. Determines which jobs can be assigned — brake replacements need a hoist, tyre swaps need the tyre bay.</td></tr>
+<tr><td>is_active</td><td>BOOLEAN</td><td>Inactive bays (e.g. hoist under repair) are excluded from scheduling.</td></tr>
+<tr><td>display_order</td><td>INTEGER</td><td>Left-to-right order on the floor board.</td></tr>
+</table>
+
+<div class="sub">Business rules</div>
+<div class="rule">The floor board auto-refreshes every 60 seconds (or on any status change). It's the primary operational view for the workshop owner — a single glance shows what's happening across all bays.</div>
+<div class="rule">When a "Ready for pickup" vehicle hasn't been collected within 2 hours, the bay turns yellow with "Awaiting collection — consider moving to yard" — freeing the bay for the next job.</div>
+<div class="rule rule-warn">Job type → bay type matching: Pink slip inspections need a hoist or pit. Tyre work needs the tyre bay. The system should suggest the appropriate bay when creating a booking, but allow override (small workshop, flexible setup).</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">More jobs than bays: 6 appointments today but only 4 bays. The scheduler should show "Overbooking warning: 2 jobs may need to queue." Front desk manages by staggering start times — 8:00am, 8:30am, 9:00am — so bays free up as minor services complete.</div>
+<div class="rule rule-err">Vehicle shuffle: Bay 2 is blocked waiting for parts, but another vehicle needs a hoist. The system should support "Move to yard" on the blocked vehicle, freeing Bay 2 and logging the move.</div>
+</div>
+
+<!-- ═══ SERVICE REMINDERS ═══ -->
+<div class="pnl" id="p2">
+<div class="section">service_reminders table</div>
+<p>The retention engine. Every completed invoice auto-creates a reminder for the next service. The system then auto-sends SMS/email at configurable intervals before the due date. This is the single biggest revenue driver for workshops — reminders bring customers back without the owner making a single phone call.</p>
+
+<table class="tbl">
+<tr><th>Field</th><th>Type</th><th>Tags</th><th>Validation and notes</th></tr>
+<tr><td>reminder_id</td><td>VARCHAR(10)</td><td><span class="badge b-pk">PK</span><span class="badge b-auto">Auto</span></td><td>Format: REM-001.</td></tr>
+<tr><td>vehicle_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span><span class="badge b-req">Required</span></td><td>Which vehicle needs servicing. Used to pull rego, make, model for the reminder message.</td></tr>
+<tr><td>client_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span><span class="badge b-req">Required</span></td><td>Primary owner — who receives the reminder. Uses client.preferred_contact to decide SMS vs email.</td></tr>
+<tr><td>reminder_type</td><td>VARCHAR(30)</td><td><span class="badge b-req">Required</span></td><td>Enum: Next Service, Pink Slip, Tyre Rotation, Timing Belt, Warranty Expiry. Each type has its own message template and cadence.</td></tr>
+<tr><td>due_date</td><td>DATE</td><td><span class="badge b-req">Required</span></td><td>When the service is due. For "Next Service": auto-set from invoice (e.g. 6 months from last service). For "Pink Slip": from vehicle.pink_slip_expiry.</td></tr>
+<tr><td>due_mileage_km</td><td>INTEGER</td><td></td><td>Mileage-based trigger. e.g. "Next service at 105,000km". Can't send a reminder based on mileage alone (don't know current reading), but it appears in the SMS: "Your Tucson is due for service at 105,000km or before 7 Apr."</td></tr>
+<tr><td>last_service_date</td><td>DATE</td><td><span class="badge b-auto">Auto</span></td><td>Date of the service that generated this reminder. Provides context in the message.</td></tr>
+<tr><td>last_invoice_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span></td><td>Links to the invoice that triggered this reminder. Traceability back to the source.</td></tr>
+<tr><td>status</td><td>VARCHAR(20)</td><td><span class="badge b-req">Required</span></td><td>See lifecycle below.</td></tr>
+<tr><td>sms_sent_date</td><td>DATE</td><td><span class="badge b-auto">Auto</span></td><td>When the most recent SMS was sent. Multiple sends are logged in a sub-table (reminder_sends) with timestamps.</td></tr>
+<tr><td>email_sent_date</td><td>DATE</td><td><span class="badge b-auto">Auto</span></td><td>When the most recent email was sent.</td></tr>
+<tr><td>client_response</td><td>VARCHAR(30)</td><td></td><td>Enum: Booked, Not Interested, No Reply, Call Back. Updated when customer responds to the reminder or front desk logs the outcome of a follow-up call.</td></tr>
+<tr><td>booking_created</td><td>BOOLEAN</td><td><span class="badge b-auto">Auto</span></td><td>TRUE when an appointment has been created from this reminder. Links to the appointment record. Prevents duplicate reminders after booking.</td></tr>
+</table>
+
+<div class="sub">Reminder status lifecycle</div>
+<div class="card">
+<div class="status-row"><div class="status-dot" style="background:var(--text-secondary)"></div><div><span style="font-weight:500">Pending</span> <span class="muted">— reminder created, no messages sent yet. Waiting for the first send window (typically 30 days before due_date).</span></div></div>
+<div class="status-row"><div class="status-dot" style="background:var(--text-accent)"></div><div><span style="font-weight:500">Sent</span> <span class="muted">— at least one reminder message has been sent. System continues sending at intervals until customer responds or reminder expires.</span></div></div>
+<div class="status-row"><div class="status-dot" style="background:var(--text-success)"></div><div><span style="font-weight:500">Booked</span> <span class="muted">— customer booked an appointment in response. Reminder stops sending. appointment_id linked.</span></div></div>
+<div class="status-row"><div class="status-dot" style="background:var(--text-success)"></div><div><span style="font-weight:500">Completed</span> <span class="muted">— service has been done. New reminder auto-created from the new invoice. Lifecycle restarts.</span></div></div>
+<div class="status-row"><div class="status-dot" style="background:var(--text-danger)"></div><div><span style="font-weight:500">Declined</span> <span class="muted">— customer said "not interested" or "going elsewhere." Stop sending. Flag on client record for awareness but no further action.</span></div></div>
+<div class="status-row"><div class="status-dot" style="background:var(--text-muted)"></div><div><span style="font-weight:500">Expired</span> <span class="muted">— due_date passed by 90+ days with no response or booking. Auto-archived. System stops sending. Vehicle may have been sold or customer has moved on.</span></div></div>
+</div>
+
+<div class="sub">Reminder send cadence (configurable)</div>
+<div class="card">
+<div class="timeline">
+<div class="tl-item tl-pending"><span style="font-weight:500;color:var(--text-accent)">30 days before</span> — first reminder. Friendly tone: "Hi Peter, your Hyundai Tucson NSW-PL1 is due for service on 7 Apr. Book online or reply to this message."</div>
+<div class="tl-item tl-pending"><span style="font-weight:500;color:var(--text-warning)">14 days before</span> — second reminder (only if no response). Slightly more direct: "Reminder: service due in 2 weeks for your Tucson. Call us on 0247 082 717 or reply BOOK."</div>
+<div class="tl-item tl-pending"><span style="font-weight:500;color:var(--text-danger)">7 days before</span> — final reminder (only if no response). Urgency: "Your Tucson service is due next week. Don't miss it — book now to avoid delays."</div>
+<div class="tl-item tl-pending"><span style="font-weight:500;color:var(--text-muted)">Due date passes</span> — one overdue notice (only if no response). "Your service was due on 7 Apr. It's not too late — call us to book."</div>
+<div class="tl-item tl-pending"><span style="font-weight:500;color:var(--text-muted)">30 days overdue</span> — final follow-up. After this, reminders stop automatically.</div>
+</div>
+</div>
+
+<div class="sub">Business rules</div>
+<div class="rule">When a customer replies "BOOK" or "YES" to a reminder SMS, the system creates a draft appointment (status: Booked, source: SMS Reply) and sends: "Great! We've pencilled you in. We'll call to confirm a time. — Dhalla Automotive"</div>
+<div class="rule">When a customer replies "STOP" or "NO", set status to Declined, client_response = "Not Interested". Add a note to the client record. Remove from future reminder sends but don't deactivate — they may come back for a different service.</div>
+<div class="rule rule-warn">Duplicate prevention: If a vehicle already has a "Pending" or "Sent" reminder of the same type, don't create another. When a new invoice generates a new reminder, it supersedes the old one (old set to Completed, new set to Pending).</div>
+
+<div class="sub">Current data: 212 service + 64 pink slip reminders migrated</div>
+<div class="rule">These are the reminders already imported from the Dhalla database. Many have due dates in the past (overdue). On first launch, the system should batch-process these: auto-send an SMS to all overdue reminders within the last 90 days, skip anything older (likely lost customers).</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">No phone or email: 88 of 300 clients have no phone number. These reminders can't be sent automatically. Flag them as "Manual follow-up needed" on the dashboard. As contact details are captured through progressive data entry, the reminders become sendable.</div>
+<div class="rule rule-err">Vehicle sold: If a vehicle ownership changes (client_vehicles.ownership_end is set), cancel all pending reminders for the old owner and create new ones for the new owner.</div>
+</div>
+
+<!-- ═══ PINK SLIP ═══ -->
+<div class="pnl" id="p3">
+<div class="section">Pink slip (e-safety) tracking</div>
+<p>NSW requires an annual safety inspection ("pink slip" or e-safety check) for vehicles over 5 years old. This is a revenue opportunity — every 12 months, every older car needs one, and the workshop earns $52 per inspection plus any repair work discovered. Dhalla already has 79 pink slip records with expiry dates.</p>
+
+<div class="sub">How pink slips work in NSW</div>
+<div class="rule rule-ok">1. Vehicle owner brings car for inspection. Workshop must hold an MVRL (Motor Vehicle Repairer Licence) to conduct e-safety checks.</div>
+<div class="rule rule-ok">2. Mechanic inspects against the RMS checklist: brakes, steering, suspension, tyres, lights, wipers, exhaust, body condition, windscreen.</div>
+<div class="rule rule-ok">3. If it passes: e-safety certificate issued via the DRIVES system (NSW government portal). Certificate number recorded.</div>
+<div class="rule rule-ok">4. If it fails: defect report issued listing what needs fixing. Customer must fix and return for re-inspection.</div>
+<div class="rule rule-ok">5. Certificate is valid for 6 months (for registration renewal purposes).</div>
+
+<div class="sub">Pink slip fields on the vehicle record</div>
+<table class="tbl">
+<tr><th>Field</th><th>On table</th><th>Notes</th></tr>
+<tr><td>pink_slip_expiry</td><td>vehicles</td><td>Date the current pink slip certificate expires. Auto-set when an e-safety job card is completed: inspection_date + 6 months (or 12 months for certain vehicle types).</td></tr>
+<tr><td>pink_slip_cert_no</td><td>job_card_lines (notes)</td><td><span class="badge b-new">New</span> The e-safety certificate number issued via DRIVES. Stored in the notes field of the pink slip job card line. e.g. "ES-2025-087654".</td></tr>
+<tr><td>pink_slip_result</td><td>job_card_lines (notes)</td><td><span class="badge b-new">New</span> Pass or Fail. If fail, defect items listed in the notes field. Customer returns for re-inspection.</td></tr>
+</table>
+
+<div class="sub">Pink slip reminder cadence</div>
+<div class="card">
+<div class="timeline">
+<div class="tl-item tl-pending"><span style="font-weight:500;color:var(--text-accent)">60 days before expiry</span> — "Hi [name], your pink slip for [rego] expires on [date]. Book your e-safety check early to avoid delays. Call us or reply BOOK."</div>
+<div class="tl-item tl-pending"><span style="font-weight:500;color:var(--text-warning)">30 days before</span> — "Reminder: [rego] pink slip expires in 30 days. You'll need a valid inspection to renew your registration."</div>
+<div class="tl-item tl-pending"><span style="font-weight:500;color:var(--text-danger)">14 days before</span> — "Urgent: [rego] pink slip expires on [date]. Book now to ensure you can renew your rego on time."</div>
+<div class="tl-item tl-pending"><span style="font-weight:500;color:var(--text-danger)">Expiry day</span> — "Your pink slip for [rego] has expired today. You cannot renew registration without a valid inspection. Call us on [phone]."</div>
+</div>
+</div>
+
+<div class="sub">Business rules</div>
+<div class="rule">Pink slip reminders start earlier (60 days) than service reminders (30 days) because registration renewal deadlines are hard — missing a pink slip means the car can't be legally driven.</div>
+<div class="rule">Only MVRL-certified staff (checked via staff.certifications) can be assigned to pink slip job cards. The system should enforce this — if a non-MVRL mechanic tries to complete a pink slip job, show: "Only MVRL-certified staff can sign off e-safety inspections."</div>
+<div class="rule rule-warn">Pink slip fail → repair → re-inspection is a two-visit workflow. The first visit generates a job card for the inspection ($52) plus a quote for repairs. After repairs, a second job card is created for the re-inspection (often free or reduced fee). The system should link these: "Re-inspection for JC-0045."</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">New vehicles: Cars under 5 years old don't need a pink slip in NSW (they have a "blue slip" exemption for new registrations). The system should suppress pink slip reminders for vehicles where vehicle_year is within the last 5 years, unless manually flagged.</div>
+<div class="rule rule-err">Interstate vehicles: VIC has a "roadworthy certificate," QLD has a "safety certificate." Different states, different requirements. The vehicle.state field determines which inspection regime applies. Phase 1 focuses on NSW pink slips; phase 2 adds state-specific logic.</div>
+</div>
+
+<!-- ═══ SMS ENGINE ═══ -->
+<div class="pnl" id="p4">
+<div class="section">SMS and email automation engine</div>
+<p>The backbone of all automated customer communication. Every reminder, booking confirmation, pickup notification, and quote delivery flows through this engine. This is the feature that makes MechWise a "set and forget" platform — the owner configures it once, and customer communication runs itself.</p>
+
+<div class="sub">Message types and templates</div>
+<div class="card">
+<table class="tbl" style="font-size:12px">
+<tr><th>Trigger</th><th>Channel</th><th>When</th><th>Template variables</th></tr>
+<tr><td style="font-weight:500">Booking confirmation</td><td>SMS</td><td>Immediately on booking</td><td>{client_name}, {rego}, {make_model}, {date}, {time}, {workshop_name}, {phone}</td></tr>
+<tr><td style="font-weight:500">Booking reminder</td><td>SMS</td><td>24 hours before appointment</td><td>{client_name}, {rego}, {make_model}, {date}, {time}</td></tr>
+<tr><td style="font-weight:500">Quote delivery</td><td>SMS + Email</td><td>When quote status → Sent</td><td>{client_name}, {rego}, {total_inc_gst}, {quote_link}</td></tr>
+<tr><td style="font-weight:500">Ready for pickup</td><td>SMS</td><td>When job card status → Ready</td><td>{client_name}, {rego}, {make_model}, {total_inc_gst}, {hours}</td></tr>
+<tr><td style="font-weight:500">Invoice delivery</td><td>Email</td><td>When invoice generated</td><td>{client_name}, PDF attachment, {invoice_link}</td></tr>
+<tr><td style="font-weight:500">Service reminder</td><td>SMS (pref) or Email</td><td>30/14/7 days before due</td><td>{client_name}, {rego}, {make_model}, {due_date}, {due_km}</td></tr>
+<tr><td style="font-weight:500">Pink slip reminder</td><td>SMS</td><td>60/30/14 days before expiry</td><td>{client_name}, {rego}, {expiry_date}</td></tr>
+<tr><td style="font-weight:500">Payment overdue</td><td>SMS + Email</td><td>7/14/30 days after due_date</td><td>{client_name}, {invoice_id}, {amount}, {days_overdue}</td></tr>
+<tr><td style="font-weight:500">Supplementary quote</td><td>SMS</td><td>When extra work found</td><td>{client_name}, {rego}, {description}, {extra_amount}</td></tr>
+</table>
+</div>
+
+<div class="sub">Example SMS messages</div>
+<div class="sms-box">
+<div class="sms-header">Booking confirmation</div>
+Hi Peter, your Hyundai Tucson (NSW-PL1) is booked at Dhalla Automotive on Tue 8 Oct at 8:00am. Reply C to confirm or R to reschedule. Ph: 0247 082 717
+</div>
+
+<div class="sms-box">
+<div class="sms-header">Service reminder (30 days before)</div>
+Hi Peter, your Hyundai Tucson (NSW-PL1) is due for service on 7 Apr or at 105,000km. Book now — reply BOOK or call 0247 082 717. — Dhalla Automotive
+</div>
+
+<div class="sms-box">
+<div class="sms-header">Ready for pickup</div>
+Hi Peter, your Hyundai Tucson (NSW-PL1) is ready for collection at Dhalla Automotive. Total: $194.00. We're open until 5pm. See you soon!
+</div>
+
+<div class="sms-box">
+<div class="sms-header">Additional work approval</div>
+Hi Peter, during your service we found worn front wiper blades. Replacement cost: $40 inc GST. Reply YES to approve or NO to skip. — Dhalla Automotive
+</div>
+
+<div class="sub">SMS provider integration</div>
+<div class="rule">Phase 1: Integrate with an Australian SMS gateway — MessageMedia, Sinch, or Twilio. Cost is approximately $0.06–$0.08 per SMS. At ~500 messages/month (reminders + confirmations + pickups), that's ~$35/month — easily justified by the extra bookings it generates.</div>
+<div class="rule">Sender ID: Messages appear from "Dhalla Auto" (or workshop name, max 11 chars) rather than a random phone number. Customer replies go to a virtual number that the system monitors for keywords: YES, NO, BOOK, STOP, C (confirm), R (reschedule).</div>
+<div class="rule rule-warn">Two-way SMS: When the customer replies, the system parses the response. "YES" or "BOOK" → create appointment. "NO" or "STOP" → decline and cease sends. "C" → confirm booking. "R" → flag for front desk to call back. Anything else → forward to front desk as an unrecognised reply to handle manually.</div>
+
+<div class="sub">SMS compliance (Australian regulations)</div>
+<div class="rule rule-err">ACMA Spam Act 2003: Every promotional SMS must include an opt-out mechanism. Service reminders are transactional (existing customer relationship), so they're exempt from some provisions, but customers must still be able to stop receiving them. Every message includes: "Reply STOP to opt out."</div>
+<div class="rule rule-err">Send window: SMS must be sent between 9:00am and 8:00pm local time (AEST/AEDT). The system uses the workshop.timezone field to enforce this. A reminder scheduled for 8:30pm is held until 9:00am the next morning.</div>
+<div class="rule rule-err">Frequency cap: No more than 1 SMS per customer per week (excluding direct replies to customer messages). Prevents annoyance. If a service reminder and a pink slip reminder are both due in the same week, combine them into one message.</div>
+
+<div class="sub">SMS audit log</div>
+<div class="rule">Every SMS sent is logged: timestamp, recipient phone, message text, delivery status (sent, delivered, failed, bounced), cost, related entity (reminder_id, appointment_id, quote_id). Monthly SMS cost shown on the dashboard.</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">Invalid phone numbers: Some migrated numbers are malformed (11 digits, 9 digits, missing leading 0). The SMS gateway will reject these. The system should pre-validate before sending and flag: "SMS to Peter failed — invalid number 04690813555. Please update."</div>
+<div class="rule rule-err">Customer with no phone but has email: Fall back to email for all reminder types. If neither phone nor email exists, flag as "No contact method — manual follow-up required."</div>
+</div>
+
+<!-- ═══ DAILY SCHEDULE ═══ -->
+<div class="pnl" id="p5">
+<div class="section">Daily schedule view</div>
+<p>The morning briefing. When the owner or front desk arrives at 7:30am, this screen shows everything happening today: who's booked in, which bays are assigned, which reminders went out overnight, and any alerts.</p>
+
+<div class="sub">Today's schedule — Tuesday 8 October 2025</div>
+<div class="card">
+<div class="metric-row">
+<div class="metric"><div class="metric-label">Booked today</div><div class="metric-val">6</div></div>
+<div class="metric"><div class="metric-label">Bays available</div><div class="metric-val">4</div></div>
+<div class="metric"><div class="metric-label">Est. revenue</div><div class="metric-val">$1,840</div></div>
+<div class="metric"><div class="metric-label">Reminders sent overnight</div><div class="metric-val">8</div></div>
+</div>
+
+<table class="tbl" style="font-size:12px">
+<tr><th>Time</th><th>Client</th><th>Vehicle</th><th>Job</th><th>Bay</th><th>Mechanic</th><th>Status</th></tr>
+<tr>
+<td>7:30am</td>
+<td style="font-weight:500">Ravinder Kaur</td>
+<td>BGX18S · Subaru WRX</td>
+<td>Tyre replacement × 4</td>
+<td>Bay 4</td>
+<td>Harman</td>
+<td><span class="badge" style="background:var(--bg-success);color:var(--text-success)">Confirmed</span></td>
+</tr>
+<tr>
+<td>8:00am</td>
+<td style="font-weight:500">Peter</td>
+<td>NSW-PL1 · Hyundai Tucson</td>
+<td>Minor service</td>
+<td>Bay 2</td>
+<td>Tinku</td>
+<td><span class="badge" style="background:var(--bg-success);color:var(--text-success)">Confirmed</span></td>
+</tr>
+<tr>
+<td>8:30am</td>
+<td style="font-weight:500">Amit</td>
+<td>YBI41V · Toyota Camry</td>
+<td>Pink slip</td>
+<td>Bay 1</td>
+<td>Baljit</td>
+<td><span class="badge" style="background:var(--bg-warning);color:var(--text-warning)">Unconfirmed</span></td>
+</tr>
+<tr>
+<td>9:00am</td>
+<td style="font-weight:500">Kang &amp; Gill Investments</td>
+<td>FCV93G · Ford Ranger</td>
+<td>Major service</td>
+<td>Bay 1</td>
+<td>Baljit</td>
+<td><span class="badge" style="background:var(--bg-success);color:var(--text-success)">Confirmed</span></td>
+</tr>
+<tr>
+<td>10:30am</td>
+<td style="font-weight:500">Girish</td>
+<td>CK66YW · Mazda CX-5</td>
+<td>Brake pads + fluid flush</td>
+<td>Bay 3</td>
+<td>Tinku</td>
+<td><span class="badge" style="background:var(--bg-accent);color:var(--text-accent)">Booked</span></td>
+</tr>
+<tr>
+<td>1:00pm</td>
+<td style="font-weight:500">Neeran</td>
+<td>BX53KO · Holden Commodore</td>
+<td>Diagnostic scan</td>
+<td>—</td>
+<td>—</td>
+<td><span class="badge" style="background:var(--bg-accent);color:var(--text-accent)">Booked</span></td>
+</tr>
+</table>
+</div>
+
+<div class="sub">Morning alerts panel</div>
+<div class="card">
+<div style="padding:6px 0;border-bottom:0.5px solid var(--border);font-size:12px"><i class="ti ti-alert-triangle" aria-hidden="true" style="color:var(--text-warning);margin-right:6px"></i><span style="font-weight:500">Unconfirmed booking:</span> Amit (YBI41V, 8:30am) hasn't confirmed. Call 0401 340 890 to check.</div>
+<div style="padding:6px 0;border-bottom:0.5px solid var(--border);font-size:12px"><i class="ti ti-alert-circle" aria-hidden="true" style="color:var(--text-danger);margin-right:6px"></i><span style="font-weight:500">Part shortage:</span> Oil filter Z456 at 4 units (below reorder level). Draft PO-0034 ready to send to CoolDrive.</div>
+<div style="padding:6px 0;border-bottom:0.5px solid var(--border);font-size:12px"><i class="ti ti-clock" aria-hidden="true" style="color:var(--text-danger);margin-right:6px"></i><span style="font-weight:500">Overdue invoice:</span> INV-0081 (Sandeep Kaur, $234) is 9 days overdue. Auto-reminder SMS sent this morning.</div>
+<div style="padding:6px 0;border-bottom:0.5px solid var(--border);font-size:12px"><i class="ti ti-message" aria-hidden="true" style="color:var(--text-success);margin-right:6px"></i><span style="font-weight:500">SMS replies overnight:</span> 2 customers replied BOOK to service reminders. Draft appointments created — review and assign times.</div>
+<div style="padding:6px 0;font-size:12px"><i class="ti ti-car" aria-hidden="true" style="color:var(--text-warning);margin-right:6px"></i><span style="font-weight:500">Carryover:</span> CIM29R (Bay 2) still waiting for brake pads. PO-0032 shows ETA tomorrow.</div>
+</div>
+
+<div class="sub">Business rules</div>
+<div class="rule">The daily schedule auto-generates at 6:00am from today's appointments. Pushed as a mobile notification to the workshop owner: "Today: 6 bookings, est. revenue $1,840. 1 unconfirmed, 1 part alert."</div>
+<div class="rule">Overbooking detection: If total estimated hours exceeds bay capacity (38 bay-hours for 4 bays), show a red warning at the top: "Today is overbooked by 1.5 hours. Consider rescheduling the 1:00pm diagnostic."</div>
+<div class="rule rule-warn">The schedule view respects user roles: mechanics see only their own assignments. Front desk sees all appointments but not financial details. Owner sees everything including estimated revenue and margin.</div>
+</div>
+
+<script>
+function show(i){
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',j===i));
+  document.querySelectorAll('.pnl').forEach((p,j)=>p.classList.toggle('active',j===i));
+}
+</script>

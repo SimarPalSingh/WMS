@@ -1,0 +1,155 @@
+
+<h2 class="sr-only">Entity relationship diagram for MechWise service catalogue: job categories, jobs, job sub-items, part categories, parts, and suppliers</h2>
+<style>
+#erd2 svg { max-width: 100%; }
+#erd2 .divider path { stroke-opacity: 0.5; }
+#erd2 .row-rect-odd path, #erd2 .row-rect-odd rect,
+#erd2 .row-rect-even path, #erd2 .row-rect-even rect { stroke: none !important; }
+</style>
+<div id="erd2"></div>
+<script type="module">
+import mermaid from 'https://esm.sh/mermaid@11/dist/mermaid.esm.min.mjs';
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+await document.fonts.ready;
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'base',
+  fontFamily: '"anthropic-sans", sans-serif',
+  themeVariables: {
+    darkMode: dark,
+    fontSize: '13px',
+    fontFamily: '"anthropic-sans", sans-serif',
+    lineColor: dark ? '#9c9a92' : '#73726c',
+    textColor: dark ? '#c2c0b6' : '#3d3d3a',
+  },
+});
+const { svg } = await mermaid.render('erd2-svg', `erDiagram
+    JOB_CATEGORIES ||--o{ JOBS : contains
+    JOBS ||--o{ JOB_SUB_ITEMS : "broken into"
+    JOB_CATEGORIES ||--o{ JOB_SUB_ITEMS : "categorised by"
+    PART_CATEGORIES ||--o{ PARTS : groups
+    SUPPLIERS ||--o{ PARTS : "primary supplier"
+    SUPPLIERS ||--o{ PURCHASE_ORDERS : "receives orders"
+    PURCHASE_ORDERS ||--o{ PO_LINES : contains
+    PARTS ||--o{ PO_LINES : ordered
+
+    JOB_CATEGORIES {
+        string category_id PK
+        string category_name
+        string description
+        int display_order
+        boolean is_active
+    }
+
+    JOBS {
+        string job_id PK
+        string job_name
+        string category_id FK
+        string description
+        decimal standard_total_price
+        decimal estimated_duration_hrs
+        boolean is_active
+    }
+
+    JOB_SUB_ITEMS {
+        string sub_item_id PK
+        string sub_item_name
+        string job_id FK
+        string category_id FK
+        decimal part_cost
+        decimal labour_time_hrs
+        decimal labour_rate_hr
+        decimal labour_cost
+        decimal standard_price
+        boolean is_active
+    }
+
+    PART_CATEGORIES {
+        string category_id PK
+        string category_name
+        string description
+        int display_order
+    }
+
+    PARTS {
+        string part_id PK
+        string item_name
+        string part_number
+        string category_id FK
+        string unit_of_measure
+        decimal cost_price_ex_gst
+        decimal sell_price_ex_gst
+        decimal gst_rate
+        decimal sell_price_inc_gst
+        int qty_in_stock
+        int reorder_level
+        int reorder_qty
+        string supplier_id FK
+        string barcode_sku
+        string location
+        boolean is_active
+    }
+
+    SUPPLIERS {
+        string supplier_id PK
+        string business_name
+        string contact_person
+        string phone
+        string email
+        string abn
+        string address
+        string state
+        string order_method
+        string account_number
+        int credit_terms_days
+        int delivery_lead_days
+        boolean is_active
+    }
+
+    PURCHASE_ORDERS {
+        string po_id PK
+        string supplier_id FK
+        date order_date
+        date expected_delivery
+        decimal total_ex_gst
+        decimal gst_amount
+        decimal total_inc_gst
+        string status
+        string ordered_by
+    }
+
+    PO_LINES {
+        string line_id PK
+        string po_id FK
+        string part_id FK
+        string description
+        int qty_ordered
+        int qty_received
+        decimal unit_cost_ex_gst
+        decimal line_total_ex_gst
+    }
+`);
+document.getElementById('erd2').innerHTML = svg;
+document.querySelectorAll('#erd2 svg .node').forEach(node => {
+  const firstPath = node.querySelector('path[d]');
+  if (!firstPath) return;
+  const d = firstPath.getAttribute('d');
+  const nums = d.match(/-?[\d.]+/g)?.map(Number);
+  if (!nums || nums.length < 8) return;
+  const xs = [nums[0], nums[2], nums[4], nums[6]];
+  const ys = [nums[1], nums[3], nums[5], nums[7]];
+  const x = Math.min(...xs), y = Math.min(...ys);
+  const w = Math.max(...xs) - x, h = Math.max(...ys) - y;
+  const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  rect.setAttribute('x', x); rect.setAttribute('y', y);
+  rect.setAttribute('width', w); rect.setAttribute('height', h);
+  rect.setAttribute('rx', '8');
+  for (const a of ['fill', 'stroke', 'stroke-width', 'class', 'style']) {
+    if (firstPath.hasAttribute(a)) rect.setAttribute(a, firstPath.getAttribute(a));
+  }
+  firstPath.replaceWith(rect);
+});
+document.querySelectorAll('#erd2 svg .row-rect-odd path, #erd2 svg .row-rect-even path').forEach(p => {
+  p.setAttribute('stroke', 'none');
+});
+</script>

@@ -1,0 +1,378 @@
+"use client"
+
+import { useEffect, useState, use } from "react"
+import Link from "next/link"
+import {
+  FileText,
+  Car,
+  User,
+  ArrowLeft,
+  DollarSign,
+  Printer,
+  Download,
+  CreditCard,
+  CheckCircle2,
+  AlertCircle,
+  Building2,
+  Phone,
+  Mail,
+  ShieldCheck,
+} from "lucide-react"
+import { formatAUD, formatDateAU } from "@/lib/utils"
+
+export default function InvoiceDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = use(params)
+  const [invoice, setInvoice] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [paying, setPaying] = useState(false)
+
+  const [paymentAmount, setPaymentAmount] = useState("")
+  const [paymentMethod, setPaymentMethod] = useState("EFTPOS")
+  const [paymentRef, setPaymentRef] = useState("")
+
+  const fetchInvoice = () => {
+    fetch(`/api/invoices/${id}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.invoice) {
+          setInvoice(data.invoice)
+          const remaining =
+            data.invoice.finalAmount -
+            data.invoice.payments.reduce((acc: number, p: any) => acc + p.amount, 0)
+          setPaymentAmount(remaining > 0 ? remaining.toFixed(2) : "0.00")
+        }
+        setLoading(false)
+      })
+      .catch((err) => {
+        console.error(err)
+        setLoading(false)
+      })
+  }
+
+  useEffect(() => {
+    fetchInvoice()
+  }, [id])
+
+  const handleRecordPayment = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPaying(true)
+    try {
+      const res = await fetch(`/api/invoices/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: parseFloat(paymentAmount),
+          paymentMethod,
+          paymentRef,
+        }),
+      })
+      if (res.ok) {
+        fetchInvoice()
+        setPaymentRef("")
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setPaying(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="p-12 text-center text-xs text-gray-400 font-mono">
+        Loading Tax Invoice document...
+      </div>
+    )
+  }
+
+  if (!invoice) {
+    return (
+      <div className="p-12 text-center text-xs text-gray-500">
+        Invoice not found.
+      </div>
+    )
+  }
+
+  const totalPaid = invoice.payments?.reduce((acc: number, p: any) => acc + p.amount, 0) || 0
+  const balanceDue = Math.max(0, invoice.finalAmount - totalPaid)
+  const isBusiness = invoice.client?.clientType === "Business"
+
+  return (
+    <div className="space-y-6 max-w-5xl mx-auto">
+      {/* Top Bar Navigation & Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <Link
+          href="/invoices"
+          className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-[#1B2A4A] font-medium"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to All Invoices</span>
+        </Link>
+
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => window.print()}
+            className="flex items-center space-x-1.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3.5 py-2 rounded-lg text-xs font-semibold shadow-xs"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>Print Invoice PDF</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 2-Column: Printable Tax Invoice on Left + Payment Panel on Right */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Printable Official Australian Tax Invoice */}
+        <div className="md:col-span-2 bg-white rounded-xl border border-[#E5E7EB] shadow-xs overflow-hidden print:border-none print:shadow-none">
+          {/* Navy Tax Invoice Header */}
+          <div className="bg-[#1B2A4A] text-white p-6 flex items-center justify-between border-b border-[#243656]">
+            <div>
+              <h1 className="text-xl font-black tracking-wider text-white">
+                {invoice.workshop?.businessName || "DHALLA AUTOMOTIVE PTY LTD"}
+              </h1>
+              <p className="text-xs text-amber-400 font-mono mt-0.5">
+                ABN: {invoice.workshop?.abn || "95 611 566 888"} • MVRL:{" "}
+                {invoice.workshop?.mvrlNumber || "MVRL58941"}
+              </p>
+              <p className="text-[11px] text-gray-300 mt-1">
+                {invoice.workshop?.address || "70A Cox Avenue, Kingswood NSW 2747"} •{" "}
+                {invoice.workshop?.phone || "(02) 4732 1199"}
+              </p>
+            </div>
+            <div className="text-right">
+              <span className="inline-block px-3 py-1 bg-white/10 rounded font-mono font-bold text-base tracking-widest border border-white/20">
+                TAX INVOICE
+              </span>
+              <p className="font-mono font-bold text-amber-400 text-sm mt-1">
+                {invoice.invoiceNumber}
+              </p>
+            </div>
+          </div>
+
+          <div className="p-6 space-y-6">
+            {/* Bill To & Vehicle Grid */}
+            <div className="grid grid-cols-2 gap-6 text-xs border-b border-gray-100 pb-5">
+              <div>
+                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-1">
+                  Tax Invoice Issued To:
+                </span>
+                <p className="font-bold text-gray-900 text-sm">
+                  {isBusiness
+                    ? invoice.client?.businessName
+                    : `${invoice.client?.firstName} ${invoice.client?.lastName}`}
+                </p>
+                {isBusiness && invoice.client?.abn && (
+                  <p className="font-mono text-gray-500">ABN: {invoice.client.abn}</p>
+                )}
+                <p className="text-gray-600 mt-0.5">{invoice.client?.address}</p>
+                <p className="text-gray-600">
+                  {invoice.client?.suburb} {invoice.client?.state} {invoice.client?.postcode}
+                </p>
+                <p className="font-mono text-gray-800 mt-1">{invoice.client?.mobilePhone}</p>
+              </div>
+
+              <div>
+                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-1">
+                  Vehicle Serviced:
+                </span>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-mono font-black text-xs bg-[#1B2A4A] text-amber-400 px-2 py-0.5 rounded border">
+                    {invoice.vehicle?.registration}
+                  </span>
+                  <span className="font-bold text-gray-900">
+                    {invoice.vehicle?.year} {invoice.vehicle?.make} {invoice.vehicle?.model}
+                  </span>
+                </div>
+                <div className="space-y-0.5 text-gray-600 font-mono text-[11px]">
+                  <p>Issue Date: {formatDateAU(invoice.invoiceDate)}</p>
+                  <p>Due Date: {formatDateAU(invoice.dueDate)}</p>
+                  {invoice.jobCard && <p>Job Card: {invoice.jobCard.jobCardNumber}</p>}
+                </div>
+              </div>
+            </div>
+
+            {/* Line Items Table */}
+            <div>
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b-2 border-gray-800 text-gray-800 font-bold">
+                    <th className="py-2 px-1">Description</th>
+                    <th className="py-2 px-1">Type</th>
+                    <th className="py-2 px-1 text-center">Qty / Hrs</th>
+                    <th className="py-2 px-1 text-right">Unit Ex-GST</th>
+                    <th className="py-2 px-1 text-right">Total Ex-GST</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {invoice.lines?.map((line: any) => (
+                    <tr key={line.id}>
+                      <td className="py-2.5 px-1 font-medium text-gray-900">
+                        {line.description}
+                      </td>
+                      <td className="py-2.5 px-1 text-gray-500">{line.lineType}</td>
+                      <td className="py-2.5 px-1 text-center font-mono">{line.qty}</td>
+                      <td className="py-2.5 px-1 text-right font-mono text-gray-700">
+                        {formatAUD(line.unitPriceExGst)}
+                      </td>
+                      <td className="py-2.5 px-1 text-right font-mono font-semibold text-gray-900">
+                        {formatAUD(line.lineTotalExGst)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Totals Summary */}
+            <div className="pt-4 border-t-2 border-gray-800 flex justify-end">
+              <div className="w-64 space-y-1.5 text-xs font-mono">
+                <div className="flex justify-between text-gray-700">
+                  <span>Subtotal (Ex-GST):</span>
+                  <span className="font-semibold">{formatAUD(invoice.subtotalExGst)}</span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                  <span>GST (10%):</span>
+                  <span>{formatAUD(invoice.gstAmount)}</span>
+                </div>
+                <div className="pt-2 border-t border-gray-300 flex justify-between text-sm font-bold text-[#1B2A4A]">
+                  <span>Total (Inc-GST):</span>
+                  <span className="text-emerald-700">{formatAUD(invoice.finalAmount)}</span>
+                </div>
+                <div className="flex justify-between text-xs text-gray-600">
+                  <span>Total Paid:</span>
+                  <span>{formatAUD(totalPaid)}</span>
+                </div>
+                <div className="pt-1.5 border-t border-gray-200 flex justify-between font-bold text-sm">
+                  <span>Balance Due:</span>
+                  <span className={balanceDue > 0 ? "text-red-600" : "text-emerald-600"}>
+                    {formatAUD(balanceDue)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Australian Payment Info Footer */}
+            <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 text-xs text-gray-600 space-y-1 font-mono">
+              <p className="font-bold text-gray-800 uppercase text-[10px]">
+                Electronic Funds Transfer (EFT) Payment Details:
+              </p>
+              <p>Bank: Commonwealth Bank of Australia</p>
+              <p>Account Name: Dhalla Automotive Pty Ltd</p>
+              <p>BSB: 062-589 • Account No: 1048 9201</p>
+              <p>Reference: {invoice.invoiceNumber} / {invoice.vehicle?.registration}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Payment Collection Panel */}
+        <div className="space-y-4">
+          <div className="bg-white rounded-xl border border-[#E5E7EB] p-5 shadow-xs">
+            <h3 className="text-sm font-bold text-[#1B2A4A] uppercase tracking-wider mb-3 flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-[#E8920D]" />
+              Record Customer Payment
+            </h3>
+
+            {balanceDue <= 0 ? (
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-center space-y-1">
+                <CheckCircle2 className="w-6 h-6 text-emerald-600 mx-auto" />
+                <p className="text-xs font-bold text-emerald-900">Invoice Fully Paid</p>
+                <p className="text-[11px] text-emerald-700 font-mono">
+                  Total {formatAUD(totalPaid)} received
+                </p>
+              </div>
+            ) : (
+              <form onSubmit={handleRecordPayment} className="space-y-3 text-xs">
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">
+                    Amount Received ($ AUD) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg font-mono font-bold text-gray-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">
+                    Payment Method *
+                  </label>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  >
+                    <option value="EFTPOS">EFTPOS / Terminal</option>
+                    <option value="CreditCard">Credit Card (Visa/Mastercard)</option>
+                    <option value="Cash">Cash</option>
+                    <option value="PayID">PayID</option>
+                    <option value="BankTransfer">Bank Transfer (EFT)</option>
+                    <option value="BPay">BPay</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">
+                    Transaction Reference
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. EFTPOS Auth #84920"
+                    value={paymentRef}
+                    onChange={(e) => setPaymentRef(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg font-mono"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={paying}
+                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold shadow-sm transition-all disabled:opacity-50"
+                >
+                  {paying ? "Recording..." : "Record Payment"}
+                </button>
+              </form>
+            )}
+          </div>
+
+          {/* Payment Receipts History */}
+          <div className="bg-white rounded-xl border border-[#E5E7EB] p-5 shadow-xs">
+            <h3 className="text-sm font-bold text-[#1B2A4A] uppercase tracking-wider mb-3">
+              Payment Receipts ({invoice.payments?.length || 0})
+            </h3>
+
+            {invoice.payments?.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center py-4">No payments recorded yet.</p>
+            ) : (
+              <div className="space-y-2 text-xs">
+                {invoice.payments?.map((p: any) => (
+                  <div
+                    key={p.id}
+                    className="p-3 bg-gray-50 rounded-lg border border-gray-200 flex justify-between items-center"
+                  >
+                    <div>
+                      <p className="font-semibold text-gray-900">{p.paymentMethod}</p>
+                      <p className="text-[10px] text-gray-400 font-mono">
+                        {formatDateAU(p.paymentDate)} {p.paymentRef && `• ${p.paymentRef}`}
+                      </p>
+                    </div>
+                    <span className="font-mono font-bold text-emerald-700 text-sm">
+                      {formatAUD(p.amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

@@ -1,0 +1,336 @@
+
+<h2 class="sr-only">MechWise production roadmap covering architecture, tech stack, development phases, team structure, timeline, and cost estimates</h2>
+<style>
+.tabs{display:flex;gap:4px;border-bottom:0.5px solid var(--border);margin-bottom:1.5rem;overflow-x:auto}
+.tab{padding:8px 14px;font-size:13px;cursor:pointer;border:none;background:none;color:var(--text-secondary);border-bottom:2px solid transparent;white-space:nowrap;font-family:inherit}
+.tab.active{color:var(--text-primary);border-bottom-color:var(--text-accent);font-weight:500}
+.pnl{display:none}.pnl.active{display:block}
+.card{background:var(--surface-1);border-radius:12px;padding:1rem 1.25rem;margin-bottom:12px}
+.badge{display:inline-block;padding:2px 8px;border-radius:var(--radius);font-size:11px;font-weight:500;margin-right:4px}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0}
+.tbl th{text-align:left;padding:6px 8px;border-bottom:0.5px solid var(--border-strong);color:var(--text-secondary);font-weight:500;font-size:12px}
+.tbl td{padding:6px 8px;border-bottom:0.5px solid var(--border);vertical-align:top;color:var(--text-primary)}
+.tbl tr:last-child td{border-bottom:none}
+.rule{background:var(--surface-1);border-radius:0;padding:10px 14px;margin:8px 0;font-size:13px;border-left:3px solid var(--border-accent)}
+.rule-ok{border-left-color:var(--border-success)}
+.rule-warn{border-left-color:var(--border-warning)}
+.section{font-size:15px;font-weight:500;margin:1.5rem 0 0.75rem;color:var(--text-primary)}
+.sub{font-size:13px;font-weight:500;margin:1rem 0 0.5rem;color:var(--text-secondary)}
+p{margin:0 0 8px;line-height:1.6;font-size:13px;color:var(--text-primary)}
+.muted{color:var(--text-secondary)}
+.metric-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:12px 0}
+.metric{background:var(--surface-1);border-radius:var(--radius);padding:10px;text-align:center}
+.metric-label{font-size:11px;color:var(--text-secondary);margin-bottom:2px}
+.metric-val{font-size:18px;font-weight:500}
+.phase{border:0.5px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:12px;position:relative}
+.phase-num{position:absolute;top:-10px;left:16px;background:var(--surface-2);padding:0 8px;font-size:11px;font-weight:500;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.06em}
+.gantt-row{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12px}
+.gantt-label{width:140px;flex-shrink:0;text-align:right;color:var(--text-secondary)}
+.gantt-track{flex:1;height:20px;background:var(--surface-0);border-radius:4px;position:relative;overflow:visible}
+.gantt-bar{height:100%;border-radius:4px;position:absolute;top:0;display:flex;align-items:center;padding:0 6px;font-size:10px;font-weight:500;color:#fff;white-space:nowrap;overflow:hidden}
+</style>
+
+<div style="padding:0 0 4px">
+  <div style="font-size:18px;font-weight:500;margin-bottom:4px"><i class="ti ti-rocket" aria-hidden="true" style="color:var(--text-accent);margin-right:6px"></i>Prototype to production</div>
+  <div style="font-size:13px;color:var(--text-secondary)">Architecture, stack, phases, team, timeline, and cost</div>
+</div>
+
+<div class="tabs" id="tabs">
+  <button class="tab active" onclick="show(0)">Architecture</button>
+  <button class="tab" onclick="show(1)">Tech stack</button>
+  <button class="tab" onclick="show(2)">Development phases</button>
+  <button class="tab" onclick="show(3)">Timeline</button>
+  <button class="tab" onclick="show(4)">Team and cost</button>
+  <button class="tab" onclick="show(5)">Launch checklist</button>
+</div>
+
+<!-- ═══ ARCHITECTURE ═══ -->
+<div class="pnl active" id="p0">
+<div class="section">System architecture</div>
+<p>Three-layer architecture: a React frontend served via CDN, a Node.js API backend with JWT auth and workshop-scoped queries, and a PostgreSQL database with Row-Level Security for multi-tenant isolation. All hosted in AWS Sydney (ap-southeast-2) for Australian data sovereignty compliance.</p>
+
+<div class="card">
+<table class="tbl" style="font-size:12px">
+<tr><th style="width:120px">Layer</th><th>Components</th><th>Responsibility</th></tr>
+<tr><td style="font-weight:500;color:var(--text-accent)">Frontend</td><td>Next.js 14 (App Router) + React 18 + Tailwind CSS</td><td>All 12 UI screens. Server-side rendering for customer portal (SEO + magic link access). Client-side rendering for the dashboard and workflow screens. Deployed to Vercel or CloudFront.</td></tr>
+<tr><td style="font-weight:500;color:var(--text-accent)">API</td><td>Node.js + Fastify + Prisma ORM</td><td>REST API serving JSON. JWT authentication. Workshop-scoped middleware (every query auto-filtered by workshop_id). File upload handling (S3). PDF generation (Puppeteer). Rate limiting. Deployed to AWS ECS or Railway.</td></tr>
+<tr><td style="font-weight:500;color:var(--text-accent)">Database</td><td>PostgreSQL 15 + pgvector (future)</td><td>20 tables, 30+ indexes, 6 views. Row-Level Security policies enforce tenant isolation at the DB level. Hosted on AWS RDS or Supabase.</td></tr>
+<tr><td style="font-weight:500;color:var(--text-accent)">Storage</td><td>AWS S3 / Cloudflare R2</td><td>Invoice PDFs, workshop logos, file uploads. Organised by workshop: /ws-001/invoices/, /ws-002/logos/. Served via CloudFront CDN.</td></tr>
+<tr><td style="font-weight:500;color:var(--text-accent)">SMS</td><td>MessageMedia or Twilio</td><td>Outbound SMS for reminders, confirmations, quote delivery. Inbound SMS webhook for keyword parsing (YES, BOOK, STOP). Australian sender ID support.</td></tr>
+<tr><td style="font-weight:500;color:var(--text-accent)">Email</td><td>Postmark or SendGrid</td><td>Transactional email: invoice PDFs, quote links, password resets. High deliverability. Bounce/complaint handling.</td></tr>
+<tr><td style="font-weight:500;color:var(--text-accent)">Payments</td><td>Stripe</td><td>Subscription billing (monthly/annual). Handles card processing, invoicing, plan changes, cancellations. Webhook for payment events.</td></tr>
+<tr><td style="font-weight:500;color:var(--text-accent)">Background jobs</td><td>BullMQ + Redis</td><td>Scheduled tasks: nightly reminder sends, quote expiry checks, overdue invoice flagging, BAS period rollover, stocktake reminders, daily report emails. Retry logic for failed SMS/email.</td></tr>
+<tr><td style="font-weight:500;color:var(--text-accent)">Monitoring</td><td>Sentry + Better Uptime</td><td>Error tracking, performance monitoring, uptime alerting. PagerDuty integration for critical failures (DB down, SMS provider outage).</td></tr>
+</table>
+</div>
+
+<div class="sub">Key architectural decisions</div>
+<div class="rule rule-ok"><span style="font-weight:500">Monolith first, microservices later.</span> At launch with 1-10 workshops, a single Node.js API server handles everything. Don't split into microservices until you have 50+ workshops and clear scaling bottlenecks. Premature decomposition is the number one cause of startup overengineering.</div>
+<div class="rule rule-ok"><span style="font-weight:500">Server-side rendering for the customer portal only.</span> The workshop dashboard is a private SPA — no SEO needed, fast client-side navigation. The customer portal is public-ish (magic links) and benefits from SSR for initial load speed and link preview metadata.</div>
+<div class="rule rule-ok"><span style="font-weight:500">Prisma ORM with raw SQL escape hatch.</span> Prisma handles 90% of queries cleanly (CRUD, relations, pagination). The 10% that need raw SQL (BAS aggregate queries, complex joins for reports, bulk operations) use Prisma.$queryRaw. Don't fight the ORM — use it where it helps, escape where it doesn't.</div>
+<div class="rule rule-warn"><span style="font-weight:500">No GraphQL.</span> The API has well-defined screens with known data shapes. REST endpoints mapped 1:1 to screens (GET /api/dashboard, GET /api/clients/:id) are simpler to build, debug, and cache than a GraphQL schema for this domain.</div>
+</div>
+
+<!-- ═══ TECH STACK ═══ -->
+<div class="pnl" id="p1">
+<div class="section">Detailed tech stack</div>
+
+<div class="card">
+<table class="tbl" style="font-size:12px">
+<tr><th style="width:140px">Category</th><th>Choice</th><th>Why this over alternatives</th></tr>
+<tr><td style="font-weight:500">Language</td><td>TypeScript (frontend + backend)</td><td>One language across the stack. Type safety catches bugs before production. Shared types between API responses and frontend components. Largest talent pool for hiring.</td></tr>
+<tr><td style="font-weight:500">Frontend framework</td><td>Next.js 14 (App Router)</td><td>React ecosystem (largest component library selection). Server components for portal. File-based routing. Built-in API routes for webhooks. Vercel deployment is one-click.</td></tr>
+<tr><td style="font-weight:500">CSS</td><td>Tailwind CSS 3</td><td>Utility-first matches the prototype style. Consistent spacing/color without custom CSS files. Purging keeps bundle small. Works perfectly with the design tokens from the prototypes.</td></tr>
+<tr><td style="font-weight:500">Component library</td><td>shadcn/ui + Radix primitives</td><td>Accessible, unstyled primitives (dialogs, dropdowns, tooltips) with Tailwind styling. Copy-paste components — no version dependency. Full control over appearance.</td></tr>
+<tr><td style="font-weight:500">State management</td><td>Zustand (global) + React Query (server)</td><td>Zustand for UI state (sidebar open, selected bay, active filters). React Query for server state (auto-caching, refetching, optimistic updates). No Redux boilerplate.</td></tr>
+<tr><td style="font-weight:500">Backend framework</td><td>Fastify 4</td><td>2-3× faster than Express. Built-in schema validation (JSON Schema). Plugin architecture for auth, CORS, rate limiting. TypeScript-first. Mature ecosystem.</td></tr>
+<tr><td style="font-weight:500">ORM</td><td>Prisma 5</td><td>Type-safe queries generated from schema. Migration system. Introspection (can generate schema from existing DB). Prisma Studio for visual data browsing during development.</td></tr>
+<tr><td style="font-weight:500">Database</td><td>PostgreSQL 15 on Supabase or AWS RDS</td><td>Row-Level Security for multi-tenancy. JSONB for flexible fields (audit log details, SMS template variables). Full-text search for client/vehicle lookups. Supabase adds real-time subscriptions for the floor board.</td></tr>
+<tr><td style="font-weight:500">Caching</td><td>Redis (Upstash or AWS ElastiCache)</td><td>Session storage. BullMQ job queue backend. Report result caching. Rate limiting counters. Upstash is serverless and cheap for early stage.</td></tr>
+<tr><td style="font-weight:500">PDF generation</td><td>React-PDF (@react-pdf/renderer)</td><td>Write invoice PDFs as React components — same JSX, same layout logic. Generates server-side. Cleaner than Puppeteer for structured documents. Falls back to Puppeteer for complex layouts.</td></tr>
+<tr><td style="font-weight:500">Charts</td><td>Recharts</td><td>React-native chart library. Responsive. Handles the revenue bar chart, job-type breakdown, and all dashboard visualisations. Lighter than D3 for this use case.</td></tr>
+<tr><td style="font-weight:500">Date/time</td><td>date-fns + Luxon (timezones)</td><td>date-fns for formatting and manipulation. Luxon for timezone-aware scheduling (SMS send windows, BAS period boundaries). Avoid moment.js (deprecated, heavy).</td></tr>
+<tr><td style="font-weight:500">Testing</td><td>Vitest + Playwright</td><td>Vitest for unit/integration (fast, ESM-native). Playwright for E2E (test the full quote-to-invoice flow in a real browser). Both run in CI.</td></tr>
+<tr><td style="font-weight:500">CI/CD</td><td>GitHub Actions</td><td>PR checks: lint, type-check, test. Deploy on merge to main. Preview deployments for PRs (Vercel does this automatically). Free for private repos.</td></tr>
+<tr><td style="font-weight:500">Hosting</td><td>Vercel (frontend) + Railway (API + DB)</td><td>Vercel: zero-config Next.js hosting, global CDN, preview deployments. Railway: managed Postgres + Redis, automatic deploys from Git, scales to production. Both have Sydney regions. Total cost: ~$40-80/month at launch.</td></tr>
+</table>
+</div>
+
+<div class="sub">Why not build as a mobile app?</div>
+<div class="rule rule-ok"><span style="font-weight:500">Web-first, mobile-responsive.</span> A responsive web app works on phones, tablets, and the wall-mounted screen — one codebase, no app store approval, instant updates. Mechanics use iPads or wall screens, not phones for primary work. The customer portal is a web page accessed via SMS link — no app install. A native iOS/Android app is a phase 3 consideration for mechanic-specific features (photo capture, barcode scanning via camera) — and even then, a Progressive Web App (PWA) may suffice.</div>
+</div>
+
+<!-- ═══ DEVELOPMENT PHASES ═══ -->
+<div class="pnl" id="p2">
+<div class="section">Development phases</div>
+<p>Four phases, each delivering a usable product. Phase 1 is MVP — enough to replace Dhalla's current system. Each subsequent phase adds features that justify a higher price tier or enable scaling to more customers.</p>
+
+<div class="phase">
+<div class="phase-num" style="color:var(--text-danger)">Phase 1 — MVP (8 weeks)</div>
+<div style="font-weight:500;font-size:14px;margin-bottom:6px;color:var(--text-primary)">Replace the current system</div>
+<p class="muted">Goal: Dhalla Automotive can stop using the old PHP system and run entirely on MechWise. Every feature the old system had, plus critical improvements.</p>
+<table class="tbl" style="font-size:12px">
+<tr><th style="width:160px">Deliverable</th><th>Screens</th><th>Est. effort</th></tr>
+<tr><td>Auth and multi-tenancy</td><td>Login, password reset, workshop switcher</td><td>1 week</td></tr>
+<tr><td>Client and vehicle CRUD</td><td>Client list, client detail, vehicle detail, search</td><td>1.5 weeks</td></tr>
+<tr><td>Service catalogue</td><td>Job categories, parent jobs, sub-items, pricing</td><td>1 week</td></tr>
+<tr><td>Quote → job card → invoice</td><td>Quote builder, job card, invoice view</td><td>2 weeks</td></tr>
+<tr><td>Payment recording</td><td>Payment modal, payment history</td><td>0.5 week</td></tr>
+<tr><td>Parts inventory</td><td>Inventory list, stock adjustment, alerts</td><td>1 week</td></tr>
+<tr><td>Data migration tool</td><td>CSV upload wizard (Dhalla data import)</td><td>0.5 week</td></tr>
+<tr><td>Invoice PDF generation</td><td>ATO-compliant PDF with ABN, GST, vehicle details</td><td>0.5 week</td></tr>
+</table>
+</div>
+
+<div class="phase">
+<div class="phase-num" style="color:var(--text-warning)">Phase 2 — Growth (6 weeks)</div>
+<div style="font-weight:500;font-size:14px;margin-bottom:6px;color:var(--text-primary)">Automate and retain</div>
+<p class="muted">Goal: Features that drive repeat business and save owner time. This is where MechWise becomes more valuable than a generic invoicing tool.</p>
+<table class="tbl" style="font-size:12px">
+<tr><td style="width:160px">SMS automation engine</td><td>Reminders screen, template editor, two-way SMS, keyword parsing</td><td>2 weeks</td></tr>
+<tr><td>Appointment calendar</td><td>Day/week/month calendar, bay columns, booking form</td><td>1.5 weeks</td></tr>
+<tr><td>Workshop floor board</td><td>Bay cards, status lifecycle, real-time updates</td><td>1 week</td></tr>
+<tr><td>Dashboard and KPIs</td><td>Full dashboard with revenue, jobs, alerts, schedule</td><td>1 week</td></tr>
+<tr><td>Supplier and PO management</td><td>Supplier list, PO creation, receipt workflow</td><td>0.5 week</td></tr>
+</table>
+</div>
+
+<div class="phase">
+<div class="phase-num" style="color:var(--text-success)">Phase 3 — Scale (6 weeks)</div>
+<div style="font-weight:500;font-size:14px;margin-bottom:6px;color:var(--text-primary)">Reports, portal, and integration</div>
+<p class="muted">Goal: Features that justify the Professional tier price. Analytics the owner can't get elsewhere, and a customer-facing portal that builds trust.</p>
+<table class="tbl" style="font-size:12px">
+<tr><td style="width:160px">Reports and analytics</td><td>Revenue, P&L, mechanic productivity, aged receivables, BAS summary</td><td>2 weeks</td></tr>
+<tr><td>Customer portal</td><td>Magic-link access, service history, invoice downloads, booking</td><td>1.5 weeks</td></tr>
+<tr><td>Settings panel</td><td>All workshop configuration screens</td><td>1 week</td></tr>
+<tr><td>Accounting export</td><td>CSV export for Xero/MYOB, BAS report PDF</td><td>0.5 week</td></tr>
+<tr><td>Onboarding wizard</td><td>Guided setup for new workshops</td><td>0.5 week</td></tr>
+<tr><td>Subscription billing</td><td>Stripe integration, plan management, usage tracking</td><td>0.5 week</td></tr>
+</table>
+</div>
+
+<div class="phase">
+<div class="phase-num" style="color:var(--text-accent)">Phase 4 — Enterprise (ongoing)</div>
+<div style="font-weight:500;font-size:14px;margin-bottom:6px;color:var(--text-primary)">Multi-workshop, integrations, and advanced features</div>
+<p class="muted">Goal: Features that unlock Enterprise pricing and franchise customers. Built incrementally based on customer demand.</p>
+<table class="tbl" style="font-size:12px">
+<tr><td style="width:160px">Multi-workshop</td><td>Workshop switcher, consolidated reporting, shared clients</td><td>2 weeks</td></tr>
+<tr><td>Xero API integration</td><td>Two-way sync of invoices, payments, contacts</td><td>2 weeks</td></tr>
+<tr><td>Rego lookup API</td><td>Auto-fill vehicle details from TfNSW/NEVDIS</td><td>1 week</td></tr>
+<tr><td>White-label and branding</td><td>Custom domain, custom login page, branded PDFs</td><td>1 week</td></tr>
+<tr><td>Mobile PWA optimisation</td><td>Mechanic-focused mobile views, camera barcode scan</td><td>2 weeks</td></tr>
+</table>
+</div>
+</div>
+
+<!-- ═══ TIMELINE ═══ -->
+<div class="pnl" id="p3">
+<div class="section">Development timeline</div>
+<p>Total build time: approximately 24 weeks (6 months) from kickoff to phase 3 completion. Phase 1 MVP launches at week 8, giving Dhalla a working system while you continue building phases 2 and 3.</p>
+
+<div class="card" style="overflow-x:auto">
+<div style="min-width:600px;padding:8px 0">
+<div style="display:flex;margin-bottom:4px;padding:0 8px">
+<div style="width:140px"></div>
+<div style="flex:1;display:flex;font-size:10px;color:var(--text-muted)">
+<div style="flex:1;text-align:center">Wk 1-2</div><div style="flex:1;text-align:center">Wk 3-4</div><div style="flex:1;text-align:center">Wk 5-6</div><div style="flex:1;text-align:center">Wk 7-8</div>
+<div style="flex:1;text-align:center">Wk 9-10</div><div style="flex:1;text-align:center">Wk 11-12</div><div style="flex:1;text-align:center">Wk 13-14</div>
+<div style="flex:1;text-align:center">Wk 15-16</div><div style="flex:1;text-align:center">Wk 17-18</div><div style="flex:1;text-align:center">Wk 19-20</div>
+<div style="flex:1;text-align:center">Wk 21-22</div><div style="flex:1;text-align:center">Wk 23-24</div>
+</div>
+</div>
+
+<div class="gantt-row"><div class="gantt-label">Auth + DB setup</div><div class="gantt-track"><div class="gantt-bar" style="left:0;width:8.3%;background:var(--text-danger)">1w</div></div></div>
+<div class="gantt-row"><div class="gantt-label">Clients + vehicles</div><div class="gantt-track"><div class="gantt-bar" style="left:4.2%;width:12.5%;background:var(--text-danger)">1.5w</div></div></div>
+<div class="gantt-row"><div class="gantt-label">Service catalogue</div><div class="gantt-track"><div class="gantt-bar" style="left:12.5%;width:8.3%;background:var(--text-danger)">1w</div></div></div>
+<div class="gantt-row"><div class="gantt-label">Quote → invoice flow</div><div class="gantt-track"><div class="gantt-bar" style="left:16.7%;width:16.7%;background:var(--text-danger)">2w</div></div></div>
+<div class="gantt-row"><div class="gantt-label">Payments + inventory</div><div class="gantt-track"><div class="gantt-bar" style="left:25%;width:12.5%;background:var(--text-danger)">1.5w</div></div></div>
+<div class="gantt-row"><div class="gantt-label">PDF + data migration</div><div class="gantt-track"><div class="gantt-bar" style="left:29.2%;width:8.3%;background:var(--text-danger)">1w</div></div></div>
+<div class="gantt-row"><div class="gantt-label" style="font-weight:500;color:var(--text-danger)">MVP LAUNCH</div><div class="gantt-track"><div style="position:absolute;left:33.3%;top:0;bottom:0;width:2px;background:var(--text-danger)"></div></div></div>
+
+<div class="gantt-row"><div class="gantt-label">SMS automation</div><div class="gantt-track"><div class="gantt-bar" style="left:33.3%;width:16.7%;background:var(--text-warning)">2w</div></div></div>
+<div class="gantt-row"><div class="gantt-label">Calendar + bays</div><div class="gantt-track"><div class="gantt-bar" style="left:41.7%;width:12.5%;background:var(--text-warning)">1.5w</div></div></div>
+<div class="gantt-row"><div class="gantt-label">Floor board</div><div class="gantt-track"><div class="gantt-bar" style="left:50%;width:8.3%;background:var(--text-warning)">1w</div></div></div>
+<div class="gantt-row"><div class="gantt-label">Dashboard + suppliers</div><div class="gantt-track"><div class="gantt-bar" style="left:54.2%;width:12.5%;background:var(--text-warning)">1.5w</div></div></div>
+
+<div class="gantt-row"><div class="gantt-label">Reports + analytics</div><div class="gantt-track"><div class="gantt-bar" style="left:62.5%;width:16.7%;background:var(--text-success)">2w</div></div></div>
+<div class="gantt-row"><div class="gantt-label">Customer portal</div><div class="gantt-track"><div class="gantt-bar" style="left:70.8%;width:12.5%;background:var(--text-success)">1.5w</div></div></div>
+<div class="gantt-row"><div class="gantt-label">Settings + onboard</div><div class="gantt-track"><div class="gantt-bar" style="left:79.2%;width:12.5%;background:var(--text-success)">1.5w</div></div></div>
+<div class="gantt-row"><div class="gantt-label">Billing + polish</div><div class="gantt-track"><div class="gantt-bar" style="left:87.5%;width:12.5%;background:var(--text-success)">1.5w</div></div></div>
+<div class="gantt-row"><div class="gantt-label" style="font-weight:500;color:var(--text-success)">FULL LAUNCH</div><div class="gantt-track"><div style="position:absolute;left:100%;top:0;bottom:0;width:2px;background:var(--text-success)"></div></div></div>
+</div>
+</div>
+
+<div class="sub">Key milestones</div>
+<table class="tbl" style="font-size:12px">
+<tr><td style="font-weight:500;width:100px">Week 8</td><td>MVP launch — Dhalla goes live on MechWise. Old PHP system decommissioned. Core workflow operational.</td></tr>
+<tr><td style="font-weight:500">Week 14</td><td>Phase 2 complete — SMS reminders running, calendar live, floor board on the wall screen. Start selling to second workshop.</td></tr>
+<tr><td style="font-weight:500">Week 20</td><td>Phase 3 complete — Reports, portal, settings, billing. Product ready for general sale. Launch marketing.</td></tr>
+<tr><td style="font-weight:500">Week 24</td><td>Stabilisation and refinement. First 3-5 paying customers onboarded. Feedback loop driving phase 4 priorities.</td></tr>
+</table>
+</div>
+
+<!-- ═══ TEAM AND COST ═══ -->
+<div class="pnl" id="p4">
+<div class="section">Team structure and cost</div>
+
+<div class="sub">Option A: Solo developer + AI (lowest cost)</div>
+<div class="card">
+<p>You (product owner + project manager) + one full-stack developer + Claude as the AI pair programmer. The developer writes code with Claude's assistance, you review and direct. This is the most cost-effective path if you find the right developer.</p>
+<table class="tbl" style="font-size:12px">
+<tr><th>Role</th><th>Who</th><th>Rate</th><th>Duration</th><th>Cost</th></tr>
+<tr><td>Full-stack dev</td><td>Senior contractor (React + Node + Postgres)</td><td>$80-120/hr</td><td>24 weeks, 40 hrs/wk</td><td>$77k-115k</td></tr>
+<tr><td>Product owner</td><td>You</td><td>Your time</td><td>10-15 hrs/week</td><td>$0 (sweat equity)</td></tr>
+<tr><td>AI tools</td><td>Claude Pro, GitHub Copilot</td><td>~$40/month</td><td>6 months</td><td>$240</td></tr>
+<tr><td>Infrastructure</td><td>Vercel, Railway, SMS, Stripe</td><td>~$100/month</td><td>6 months</td><td>$600</td></tr>
+<tr><td colspan="4" style="font-weight:500;text-align:right">Total estimate</td><td style="font-weight:500">$78k-116k</td></tr>
+</table>
+</div>
+
+<div class="sub">Option B: Small team (faster, higher quality)</div>
+<div class="card">
+<table class="tbl" style="font-size:12px">
+<tr><th>Role</th><th>Who</th><th>Rate</th><th>Duration</th><th>Cost</th></tr>
+<tr><td>Lead full-stack dev</td><td>Senior contractor</td><td>$100-140/hr</td><td>24 weeks, 40 hrs/wk</td><td>$96k-134k</td></tr>
+<tr><td>Junior frontend dev</td><td>Contractor or junior hire</td><td>$50-70/hr</td><td>20 weeks, 30 hrs/wk</td><td>$30k-42k</td></tr>
+<tr><td>UI/UX designer</td><td>Contractor (part-time)</td><td>$80-100/hr</td><td>8 weeks, 15 hrs/wk</td><td>$10k-12k</td></tr>
+<tr><td>Product owner</td><td>You</td><td>Your time</td><td>15-20 hrs/week</td><td>$0</td></tr>
+<tr><td>Infra + tools</td><td>All services</td><td>~$150/month</td><td>6 months</td><td>$900</td></tr>
+<tr><td colspan="4" style="font-weight:500;text-align:right">Total estimate</td><td style="font-weight:500">$137k-189k</td></tr>
+</table>
+</div>
+
+<div class="sub">Option C: Build with Claude Code (lowest cost, highest involvement)</div>
+<div class="card">
+<p>You drive the build yourself using Claude Code (Anthropic's coding agent) as your primary developer. Claude writes the code, you review, test, and deploy. This requires you to be comfortable reading code and making deployment decisions, but dramatically reduces cash outlay.</p>
+<table class="tbl" style="font-size:12px">
+<tr><td style="width:160px">Your time</td><td>30-40 hrs/week for 24 weeks</td><td>$0 (sweat equity)</td></tr>
+<tr><td>Claude Pro / API</td><td>Heavy usage for code generation</td><td>~$200/month = $1,200</td></tr>
+<tr><td>Designer (spot hire)</td><td>Polish the UI prototypes for production</td><td>$3k-5k</td></tr>
+<tr><td>Infrastructure</td><td>Vercel + Railway + SMS + Stripe</td><td>$600</td></tr>
+<tr><td colspan="2" style="font-weight:500;text-align:right">Total estimate</td><td style="font-weight:500">$5k-7k</td></tr>
+</table>
+<p class="muted" style="margin-top:8px">This is viable because the entire spec (8 modules, 20 tables, 12 screens) is already documented. Claude Code can scaffold the project from these specifications with high accuracy. You already have the domain knowledge.</p>
+</div>
+
+<div class="sub">Revenue projections</div>
+<div class="metric-row">
+<div class="metric"><div class="metric-label">Break-even (Option A)</div><div class="metric-val" style="font-size:16px">15-20 workshops</div></div>
+<div class="metric"><div class="metric-label">Year 1 target</div><div class="metric-val" style="font-size:16px">10 workshops</div></div>
+<div class="metric"><div class="metric-label">Year 1 ARR</div><div class="metric-val" style="font-size:16px">$24k-48k</div></div>
+<div class="metric"><div class="metric-label">Year 2 target</div><div class="metric-val" style="font-size:16px">30 workshops</div></div>
+<div class="metric"><div class="metric-label">Year 2 ARR</div><div class="metric-val" style="font-size:16px">$72k-144k</div></div>
+</div>
+<p class="muted">Based on $199/month average (mix of Starter and Professional). Plus $500-$1,500 setup fees per workshop. ARR = Annual Recurring Revenue.</p>
+</div>
+
+<!-- ═══ LAUNCH CHECKLIST ═══ -->
+<div class="pnl" id="p5">
+<div class="section">Pre-launch checklist</div>
+<p>Everything that needs to be done before Dhalla goes live on MechWise and before you start selling to other workshops.</p>
+
+<div class="sub">Technical prerequisites</div>
+<div class="card">
+<table class="tbl" style="font-size:12px">
+<tr><td style="width:30px"><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>SSL certificate on production domain (auto via Vercel/CloudFront)</td></tr>
+<tr><td><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>Database backups configured (daily automated, 30-day retention)</td></tr>
+<tr><td><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>Error monitoring active (Sentry) with alerts to your phone</td></tr>
+<tr><td><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>Uptime monitoring (Better Uptime or similar) with SMS alert on downtime</td></tr>
+<tr><td><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>SMS provider account verified, sender ID registered with carrier</td></tr>
+<tr><td><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>Stripe account connected, subscription plans created, webhook configured</td></tr>
+<tr><td><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>Email sending domain verified (SPF + DKIM for deliverability)</td></tr>
+<tr><td><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>Load testing completed — system handles 50 concurrent users without degradation</td></tr>
+</table>
+</div>
+
+<div class="sub">Data and compliance</div>
+<div class="card">
+<table class="tbl" style="font-size:12px">
+<tr><td style="width:30px"><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>Dhalla data migrated and verified (300 clients, 323 vehicles, 123 parts, 276 reminders)</td></tr>
+<tr><td><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>Privacy policy published (Australian Privacy Act compliant)</td></tr>
+<tr><td><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>Terms of service for SaaS subscription drafted and published</td></tr>
+<tr><td><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>ABN registered for your MechWise business entity</td></tr>
+<tr><td><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>Invoice PDF template verified against ATO tax invoice requirements</td></tr>
+<tr><td><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>ACMA compliance: opt-out mechanism in all SMS, send window enforced</td></tr>
+<tr><td><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>Data hosting confirmed in Australian region (ap-southeast-2)</td></tr>
+</table>
+</div>
+
+<div class="sub">Dhalla go-live</div>
+<div class="card">
+<table class="tbl" style="font-size:12px">
+<tr><td style="width:30px"><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>Tinku trained on all screens (2-3 hour walkthrough session)</td></tr>
+<tr><td><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>Staff accounts created for all mechanics (simple passwords, force change on first login)</td></tr>
+<tr><td><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>Workshop logo uploaded, business details confirmed on invoice template</td></tr>
+<tr><td><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>SMS templates customised and tested (send test to Tinku's phone)</td></tr>
+<tr><td><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>Run 5 test jobs end-to-end: quote → approve → job card → invoice → payment</td></tr>
+<tr><td><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>Parallel run for 1 week: use MechWise AND old system side by side</td></tr>
+<tr><td><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>Old system decommissioned after successful parallel run</td></tr>
+</table>
+</div>
+
+<div class="sub">Sales readiness (for second customer onwards)</div>
+<div class="card">
+<table class="tbl" style="font-size:12px">
+<tr><td style="width:30px"><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>Landing page / marketing website live (mechwise.com.au)</td></tr>
+<tr><td><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>Demo workspace with sample data (reset nightly)</td></tr>
+<tr><td><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>Pricing page with Starter / Professional / Enterprise tiers</td></tr>
+<tr><td><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>Onboarding wizard functional for self-service signup</td></tr>
+<tr><td><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>Dhalla testimonial / case study written ("how we moved from spreadsheets to MechWise")</td></tr>
+<tr><td><i class="ti ti-square" style="color:var(--text-muted)"></i></td><td>Identify 10 target workshops in Western Sydney for outreach</td></tr>
+</table>
+</div>
+
+<div class="sub">Recommended immediate next steps</div>
+<div class="rule rule-ok"><span style="font-weight:500">Step 1:</span> Decide on build approach — Option A (hire a developer), Option B (small team), or Option C (build with Claude Code yourself). This determines budget and timeline.</div>
+<div class="rule rule-ok"><span style="font-weight:500">Step 2:</span> Register the domain (mechwise.com.au) and set up the project repository on GitHub.</div>
+<div class="rule rule-ok"><span style="font-weight:500">Step 3:</span> Set up the development environment — Vercel account, Railway instance, Supabase database, Stripe test account.</div>
+<div class="rule rule-ok"><span style="font-weight:500">Step 4:</span> Start Phase 1 Sprint 1 — auth system + database schema deployment + client/vehicle CRUD. Use the SQL schema file and UI prototypes from this project as the blueprint.</div>
+</div>
+
+<script>
+function show(i){
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',j===i));
+  document.querySelectorAll('.pnl').forEach((p,j)=>p.classList.toggle('active',j===i));
+}
+</script>

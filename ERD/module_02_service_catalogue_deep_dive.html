@@ -1,0 +1,356 @@
+
+<h2 class="sr-only">Deep dive into MechWise Module 2: Service Catalogue covering job categories, parent jobs, job sub-items, and the pricing engine</h2>
+<style>
+.tabs{display:flex;gap:4px;border-bottom:0.5px solid var(--border);margin-bottom:1.5rem;overflow-x:auto}
+.tab{padding:8px 14px;font-size:13px;cursor:pointer;border:none;background:none;color:var(--text-secondary);border-bottom:2px solid transparent;white-space:nowrap;font-family:inherit}
+.tab.active{color:var(--text-primary);border-bottom-color:var(--text-accent);font-weight:500}
+.pnl{display:none}.pnl.active{display:block}
+.card{background:var(--surface-1);border-radius:12px;padding:1rem 1.25rem;margin-bottom:12px}
+.badge{display:inline-block;padding:2px 8px;border-radius:var(--radius);font-size:11px;font-weight:500;margin-right:4px}
+.b-pk{background:var(--bg-accent);color:var(--text-accent)}
+.b-fk{background:var(--bg-pro);color:var(--text-pro)}
+.b-req{background:var(--bg-danger);color:var(--text-danger)}
+.b-auto{background:var(--bg-success);color:var(--text-success)}
+.b-val{background:var(--bg-warning);color:var(--text-warning)}
+.b-new{background:var(--bg-success);color:var(--text-success)}
+.b-calc{background:var(--bg-pro);color:var(--text-pro)}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0}
+.tbl th{text-align:left;padding:6px 8px;border-bottom:0.5px solid var(--border-strong);color:var(--text-secondary);font-weight:500;font-size:12px}
+.tbl td{padding:6px 8px;border-bottom:0.5px solid var(--border);vertical-align:top;color:var(--text-primary)}
+.tbl tr:last-child td{border-bottom:none}
+.rule{background:var(--surface-1);border-radius:0;padding:10px 14px;margin:8px 0;font-size:13px;border-left:3px solid var(--border-accent)}
+.rule-warn{border-left-color:var(--border-warning)}
+.rule-err{border-left-color:var(--border-danger)}
+.rule-ok{border-left-color:var(--border-success)}
+.section{font-size:15px;font-weight:500;margin:1.5rem 0 0.75rem;color:var(--text-primary)}
+.sub{font-size:13px;font-weight:500;margin:1rem 0 0.5rem;color:var(--text-secondary)}
+p{margin:0 0 8px;line-height:1.6;font-size:13px;color:var(--text-primary)}
+.muted{color:var(--text-secondary)}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;font-size:12px}
+.flow{display:flex;align-items:center;gap:0;margin:16px 0;flex-wrap:wrap}
+.flow-box{padding:8px 14px;border-radius:var(--radius);font-size:12px;font-weight:500;text-align:center;min-width:90px}
+.flow-arrow{color:var(--text-muted);padding:0 6px;font-size:16px}
+.metric-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:12px 0}
+.metric{background:var(--surface-1);border-radius:var(--radius);padding:10px;text-align:center}
+.metric-label{font-size:11px;color:var(--text-secondary);margin-bottom:2px}
+.metric-val{font-size:18px;font-weight:500}
+.tree{margin:12px 0;font-size:13px}
+.tree-l1{padding:8px 12px;background:var(--surface-1);border-radius:var(--radius);margin:4px 0;font-weight:500;display:flex;justify-content:space-between}
+.tree-l2{padding:6px 12px 6px 32px;border-left:2px solid var(--border);margin-left:16px;font-size:12px;color:var(--text-secondary);display:flex;justify-content:space-between}
+</style>
+
+<div style="padding:0 0 4px">
+  <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Module 2 of 8</div>
+  <div style="font-size:18px;font-weight:500;margin-bottom:4px"><i class="ti ti-settings" aria-hidden="true" style="color:var(--text-accent);margin-right:6px"></i>Service catalogue</div>
+  <div style="font-size:13px;color:var(--text-secondary)">Job categories, parent jobs, sub-items, pricing engine, and job-to-parts linkage</div>
+</div>
+
+<div class="legend">
+  <span class="badge b-pk">PK</span>
+  <span class="badge b-fk">FK</span>
+  <span class="badge b-req">Required</span>
+  <span class="badge b-auto">Auto</span>
+  <span class="badge b-val">Validated</span>
+  <span class="badge b-calc">Calculated</span>
+  <span class="badge b-new">New</span>
+</div>
+
+<div class="tabs" id="tabs">
+  <button class="tab active" onclick="show(0)"><i class="ti ti-category" aria-hidden="true" style="margin-right:4px"></i>Categories</button>
+  <button class="tab" onclick="show(1)"><i class="ti ti-clipboard-list" aria-hidden="true" style="margin-right:4px"></i>Parent jobs</button>
+  <button class="tab" onclick="show(2)"><i class="ti ti-list-details" aria-hidden="true" style="margin-right:4px"></i>Sub-items</button>
+  <button class="tab" onclick="show(3)"><i class="ti ti-calculator" aria-hidden="true" style="margin-right:4px"></i>Pricing engine</button>
+  <button class="tab" onclick="show(4)"><i class="ti ti-arrows-right-left" aria-hidden="true" style="margin-right:4px"></i>Job ↔ parts</button>
+  <button class="tab" onclick="show(5)"><i class="ti ti-sitemap" aria-hidden="true" style="margin-right:4px"></i>Live example</button>
+</div>
+
+<!-- ═══ CATEGORIES ═══ -->
+<div class="pnl active" id="p0">
+<div class="section">job_categories table</div>
+<p>The top-level grouping. Every service the workshop offers falls into one of these buckets. Categories organise the job picker in quotes and job cards — the mechanic selects a category first, then drills into specific jobs.</p>
+
+<table class="tbl">
+<tr><th>Field</th><th>Type</th><th>Tags</th><th>Validation and notes</th></tr>
+<tr><td>category_id</td><td>VARCHAR(10)</td><td><span class="badge b-pk">PK</span><span class="badge b-auto">Auto</span></td><td>Format: CAT-01. Sequential.</td></tr>
+<tr><td>category_name</td><td>VARCHAR(50)</td><td><span class="badge b-req">Required</span><span class="badge b-val">Validated</span></td><td>Unique within the workshop. Sentence case. Max 50 chars. e.g. "Engine service", "Brake system".</td></tr>
+<tr><td>description</td><td>VARCHAR(200)</td><td></td><td>Internal description for staff. Not shown to customers. e.g. "Oil changes, tune-ups, filters, spark plugs, engine flushes".</td></tr>
+<tr><td>display_order</td><td>INTEGER</td><td></td><td>Controls the sort order in the job picker dropdown. Lower numbers appear first. Allows the workshop owner to put their most common categories at the top.</td></tr>
+<tr><td>is_active</td><td>BOOLEAN</td><td></td><td>Soft disable. Inactive categories and all their child jobs disappear from the job picker but historical job cards referencing them remain intact.</td></tr>
+</table>
+
+<div class="sub">The 12 categories</div>
+<div class="tree">
+<div class="tree-l1"><span><i class="ti ti-engine" aria-hidden="true" style="margin-right:6px;color:var(--text-accent)"></i>CAT-01: Engine service</span><span class="muted">Oil, filters, tune-ups</span></div>
+<div class="tree-l1"><span><i class="ti ti-circle-dot" aria-hidden="true" style="margin-right:6px;color:var(--text-danger)"></i>CAT-02: Brake system</span><span class="muted">Pads, rotors, fluid</span></div>
+<div class="tree-l1"><span><i class="ti ti-manual-gearbox" aria-hidden="true" style="margin-right:6px;color:var(--text-warning)"></i>CAT-03: Transmission</span><span class="muted">Clutch, gearbox, diff</span></div>
+<div class="tree-l1"><span><i class="ti ti-temperature" aria-hidden="true" style="margin-right:6px;color:var(--text-accent)"></i>CAT-04: Cooling system</span><span class="muted">Radiator, coolant, thermostat</span></div>
+<div class="tree-l1"><span><i class="ti ti-bolt" aria-hidden="true" style="margin-right:6px;color:var(--text-warning)"></i>CAT-05: Electrical</span><span class="muted">Battery, alternator, lights</span></div>
+<div class="tree-l1"><span><i class="ti ti-arrows-up-down" aria-hidden="true" style="margin-right:6px;color:var(--text-success)"></i>CAT-06: Suspension and steering</span><span class="muted">Shocks, alignment, bushings</span></div>
+<div class="tree-l1"><span><i class="ti ti-circle" aria-hidden="true" style="margin-right:6px;color:var(--text-primary)"></i>CAT-07: Tyres and wheels</span><span class="muted">Replace, rotate, balance</span></div>
+<div class="tree-l1"><span><i class="ti ti-cloud" aria-hidden="true" style="margin-right:6px;color:var(--text-secondary)"></i>CAT-08: Exhaust and emissions</span><span class="muted">Exhaust repair, catalytic converter</span></div>
+<div class="tree-l1"><span><i class="ti ti-snowflake" aria-hidden="true" style="margin-right:6px;color:var(--text-accent)"></i>CAT-09: HVAC / AC</span><span class="muted">Regas, compressor, cabin filter</span></div>
+<div class="tree-l1"><span><i class="ti ti-clipboard-check" aria-hidden="true" style="margin-right:6px;color:var(--text-success)"></i>CAT-10: Inspections and compliance</span><span class="muted">Pink slip, pre-purchase, logbook</span></div>
+<div class="tree-l1"><span><i class="ti ti-tool" aria-hidden="true" style="margin-right:6px;color:var(--text-secondary)"></i>CAT-11: General labour</span><span class="muted">Diagnostic, misc, owner-parts</span></div>
+<div class="tree-l1"><span><i class="ti ti-car" aria-hidden="true" style="margin-right:6px;color:var(--text-primary)"></i>CAT-12: Body and exterior</span><span class="muted">Wipers, mirrors, handles</span></div>
+</div>
+
+<div class="sub">Business rules</div>
+<div class="rule">Categories cannot be deleted if they have active jobs linked to them. The owner must first move or deactivate all child jobs before deactivating a category.</div>
+<div class="rule">The display_order is drag-and-drop reorderable in the settings page. The most-used category at this workshop is "Engine service" (minor/major services make up roughly 60% of all jobs), so it defaults to position 1.</div>
+<div class="rule rule-warn">Categories are workshop-level, not global. When you sell to a second workshop that specialises in 4WDs, they might want different categories like "Winch and recovery", "Diff locks", "Snorkel and air intake". The system should allow custom categories per workshop.</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">A job that spans two categories: replacing a timing belt (CAT-01 engine) might also require a water pump (CAT-04 cooling). The job belongs to the primary category — the parts and sub-items can reference any category. Don't force a 1:1 mapping.</div>
+</div>
+
+<!-- ═══ PARENT JOBS ═══ -->
+<div class="pnl" id="p1">
+<div class="section">jobs table (parent jobs)</div>
+<p>A parent job is what the customer sees on their quote: "Minor service — $154". Behind it sits a list of sub-items that define exactly what work is done, what parts are used, and how long it takes. The parent job is the package; the sub-items are the components.</p>
+
+<table class="tbl">
+<tr><th>Field</th><th>Type</th><th>Tags</th><th>Validation and notes</th></tr>
+<tr><td>job_id</td><td>VARCHAR(10)</td><td><span class="badge b-pk">PK</span><span class="badge b-auto">Auto</span></td><td>Format: JB-001. Sequential.</td></tr>
+<tr><td>job_name</td><td>VARCHAR(100)</td><td><span class="badge b-req">Required</span></td><td>What appears on the quote and invoice. Customer-facing — clear and descriptive. e.g. "Minor service", "Front brake replacement", "Timing belt kit".</td></tr>
+<tr><td>category_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span><span class="badge b-req">Required</span></td><td>Links to job_categories. Every job must belong to exactly one category.</td></tr>
+<tr><td>description</td><td>TEXT</td><td></td><td>Detailed scope of work. Shown as fine print on quotes. e.g. "Oil change, oil filter, 25-point check" or "Replace front pads, machine discs, inspect calipers".</td></tr>
+<tr><td>standard_total_price</td><td>DECIMAL(10,2)</td><td><span class="badge b-calc">Calculated</span></td><td>Sum of all sub-item standard_prices. This is the default quoted price — can be overridden per quote for special customers, fleet discounts, or vehicle-specific pricing.</td></tr>
+<tr><td>estimated_duration</td><td>DECIMAL(4,2)</td><td><span class="badge b-calc">Calculated</span></td><td>Sum of all sub-item labour_time_hrs. Used by the appointment scheduler to block out the right amount of time. e.g. minor service = 1.0 hr, major service = 2.5 hrs.</td></tr>
+<tr><td>is_active</td><td>BOOLEAN</td><td></td><td>Inactive jobs disappear from the job picker. Historical job cards are unaffected.</td></tr>
+</table>
+
+<div class="sub">The 25 parent jobs (from your Dhalla data, restructured)</div>
+<div class="metric-row">
+<div class="metric"><div class="metric-label">Engine service</div><div class="metric-val" style="font-size:14px">5 jobs</div></div>
+<div class="metric"><div class="metric-label">Brakes</div><div class="metric-val" style="font-size:14px">3 jobs</div></div>
+<div class="metric"><div class="metric-label">Transmission</div><div class="metric-val" style="font-size:14px">2 jobs</div></div>
+<div class="metric"><div class="metric-label">Cooling</div><div class="metric-val" style="font-size:14px">2 jobs</div></div>
+<div class="metric"><div class="metric-label">Electrical</div><div class="metric-val" style="font-size:14px">2 jobs</div></div>
+<div class="metric"><div class="metric-label">Suspension</div><div class="metric-val" style="font-size:14px">2 jobs</div></div>
+<div class="metric"><div class="metric-label">Tyres</div><div class="metric-val" style="font-size:14px">3 jobs</div></div>
+<div class="metric"><div class="metric-label">Inspections</div><div class="metric-val" style="font-size:14px">2 jobs</div></div>
+<div class="metric"><div class="metric-label">Other</div><div class="metric-val" style="font-size:14px">4 jobs</div></div>
+</div>
+
+<div class="sub">Business rules</div>
+<div class="rule">standard_total_price auto-recalculates whenever a sub-item's price changes. The owner can also hard-set an override price that "locks" the total (e.g. always quote minor service at $154 even if sub-item costs drift). When locked, a <i class="ti ti-lock" aria-hidden="true"></i> icon appears next to the price.</div>
+<div class="rule">estimated_duration is the sum of sub-item labour times but can be manually adjusted. A major service on a BMW 5 Series takes longer than on a Toyota Corolla — the system should support vehicle-make-specific duration overrides in v2.</div>
+<div class="rule rule-warn">The original Dhalla system had 58 flat job names mixing parent-level items ("Major Service") with sub-items ("Oil Filter", "Spark Plug"). In MechWise, these are properly nested. The 58 items have been restructured into 25 parent jobs containing 40+ sub-items.</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">Ad-hoc jobs: Sometimes the mechanic discovers extra work mid-job ("found a leaking radiator hose during the minor service"). The system needs an "Add line item" function on the job card that doesn't require creating a new parent job. These ad-hoc items belong to the "General labour" category with a custom description and price.</div>
+<div class="rule rule-err">Vehicle-specific pricing: A clutch replacement on a Subaru WRX costs more than on a Hyundai i30 (different labour hours, different parts). Phase 1 handles this by overriding the price per quote. Phase 2 should support vehicle-make pricing tables: "Clutch kit — Subaru: $1,200, Hyundai: $800, Default: $950".</div>
+</div>
+
+<!-- ═══ SUB-ITEMS ═══ -->
+<div class="pnl" id="p2">
+<div class="section">job_sub_items table</div>
+<p>The atomic unit of work. Each sub-item answers three questions: what part does it use, how long does it take, and what does it cost? This is the pricing engine of the entire platform — every quote, job card, and invoice is built from sub-items.</p>
+
+<table class="tbl">
+<tr><th>Field</th><th>Type</th><th>Tags</th><th>Validation and notes</th></tr>
+<tr><td>sub_item_id</td><td>VARCHAR(10)</td><td><span class="badge b-pk">PK</span><span class="badge b-auto">Auto</span></td><td>Format: JS-001. Sequential.</td></tr>
+<tr><td>sub_item_name</td><td>VARCHAR(150)</td><td><span class="badge b-req">Required</span></td><td>Descriptive name shown on invoices. e.g. "Engine oil change (10W-40 semi-synthetic 5L)". Include enough detail that the customer knows what they got.</td></tr>
+<tr><td>job_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span><span class="badge b-req">Required</span></td><td>Which parent job this belongs to. A sub-item always belongs to exactly one parent. If the same task appears in multiple parent jobs (e.g. "25-point check" in both minor and major service), create separate sub-item records for each.</td></tr>
+<tr><td>category_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span></td><td>Inherited from parent job but can be overridden. Useful when a sub-item crosses categories (e.g. water pump replacement under a timing belt job).</td></tr>
+<tr><td>part_cost</td><td>DECIMAL(10,2)</td><td><span class="badge b-req">Required</span></td><td>The sell price of parts consumed by this sub-item. Set to 0 for labour-only items (e.g. "25-point check"). Can link to a specific part_id for auto-pricing — see the "Job ↔ parts" tab.</td></tr>
+<tr><td>labour_time_hrs</td><td>DECIMAL(4,2)</td><td><span class="badge b-req">Required</span><span class="badge b-val">Validated</span></td><td>Estimated time in decimal hours. 0.25 = 15 min, 0.5 = 30 min, 1.0 = 60 min. Must be ≥ 0. Used for scheduling, time tracking, and labour cost calculation.</td></tr>
+<tr><td>labour_rate_hr</td><td>DECIMAL(8,2)</td><td></td><td>The rate charged to the customer per hour. Defaults to the workshop's standard rate (typically $80-$120/hr in Western Sydney). Can be overridden per sub-item for specialist work (e.g. diagnostic at $100/hr).</td></tr>
+<tr><td>labour_cost</td><td>DECIMAL(10,2)</td><td><span class="badge b-calc">Calculated</span></td><td>= labour_time_hrs × labour_rate_hr. Auto-calculated, not manually entered. e.g. 0.3 hrs × $80/hr = $24.</td></tr>
+<tr><td>standard_price</td><td>DECIMAL(10,2)</td><td><span class="badge b-calc">Calculated</span></td><td>= part_cost + labour_cost. This is the line item total on a quote. e.g. $50 (oil) + $24 (labour) = $74.</td></tr>
+<tr><td>is_active</td><td>BOOLEAN</td><td></td><td>Inactive sub-items are excluded from future quotes but remain on historical records.</td></tr>
+</table>
+
+<div class="sub">Calculation chain</div>
+<div class="flow">
+<div class="flow-box" style="background:var(--bg-accent);color:var(--text-accent)">labour_time_hrs</div>
+<div class="flow-arrow">×</div>
+<div class="flow-box" style="background:var(--bg-accent);color:var(--text-accent)">labour_rate_hr</div>
+<div class="flow-arrow">=</div>
+<div class="flow-box" style="background:var(--bg-warning);color:var(--text-warning)">labour_cost</div>
+<div class="flow-arrow">+</div>
+<div class="flow-box" style="background:var(--bg-success);color:var(--text-success)">part_cost</div>
+<div class="flow-arrow">=</div>
+<div class="flow-box" style="background:var(--bg-pro);color:var(--text-pro)">standard_price</div>
+</div>
+<div class="flow">
+<div class="flow-box" style="background:var(--bg-pro);color:var(--text-pro)">Σ sub-item standard_prices</div>
+<div class="flow-arrow">=</div>
+<div class="flow-box" style="background:var(--bg-danger);color:var(--text-danger)">parent job standard_total_price</div>
+</div>
+
+<div class="sub">Business rules</div>
+<div class="rule">When the workshop owner changes the labour_rate_hr in workshop settings (e.g. from $80 to $90), all sub-items should recalculate. Prompt: "Update labour rate to $90/hr across all jobs? This will change prices on future quotes but not existing ones."</div>
+<div class="rule">Part_cost can be manually set OR auto-linked to a part in inventory. When linked, the part_cost updates automatically if the sell price of that part changes. See the "Job ↔ parts" tab for details.</div>
+<div class="rule rule-warn">Sub-items with labour_time = 0 and part_cost = 0 are valid — they represent included items (e.g. "Complimentary vehicle wash" or "Courtesy check"). They appear on the invoice at $0.00 to show the customer they got something extra.</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">Variable-quantity parts: An oil change uses 1 × 5L bottle on a 4-cylinder but 2 × 5L on a V8. The sub-item has a default quantity of 1, but the mechanic should be able to adjust the quantity when building the job card. The price recalculates: 2 × $50 = $100 part cost instead of $50.</div>
+<div class="rule rule-err">Sub-items shared across parent jobs: "Oil filter replacement" exists under both minor and major service. These are deliberately separate records (JS-002 under JB-001, JS-006 under JB-002) even though the name is identical. This avoids cascade issues — changing the minor service oil filter shouldn't affect the major service.</div>
+<div class="rule rule-err">Flat-rate vs time-and-materials: Some workshops quote flat-rate (fixed price per job regardless of actual time), others bill by actual hours. MechWise supports both — standard_price is the flat rate; if the workshop prefers T&M billing, the job card tracks actual_labour_hrs and recalculates at invoice time.</div>
+</div>
+
+<!-- ═══ PRICING ENGINE ═══ -->
+<div class="pnl" id="p3">
+<div class="section">Pricing engine logic</div>
+<p>How prices flow from the catalogue through to the customer's invoice. There are five layers where price can be set or overridden, each more specific than the last.</p>
+
+<div class="sub">Price hierarchy (most general → most specific)</div>
+<div class="card" style="margin:12px 0">
+<table class="tbl">
+<tr><th style="width:30px">#</th><th>Layer</th><th>Where it's set</th><th>Who can change it</th><th>Example</th></tr>
+<tr><td style="font-weight:500;color:var(--text-accent)">1</td><td>Workshop default labour rate</td><td>Workshop settings</td><td>Owner only</td><td>$80/hr applies to all sub-items unless overridden</td></tr>
+<tr><td style="font-weight:500;color:var(--text-accent)">2</td><td>Sub-item standard price</td><td>Job sub-items table</td><td>Owner, Manager</td><td>JS-001 "Engine oil change" = $74 (includes $50 parts + $24 labour)</td></tr>
+<tr><td style="font-weight:500;color:var(--text-accent)">3</td><td>Parent job package price</td><td>Jobs table</td><td>Owner, Manager</td><td>JB-001 "Minor service" = $154 (sum of 4 sub-items, but can be locked to a round number)</td></tr>
+<tr><td style="font-weight:500;color:var(--text-accent)">4</td><td>Quote-level override</td><td>Quotation</td><td>Owner, Manager, Front desk</td><td>"10% fleet discount for Revo Kitchens" or "Round down to $140 for a regular customer"</td></tr>
+<tr><td style="font-weight:500;color:var(--text-accent)">5</td><td>Invoice adjustment</td><td>Invoice</td><td>Owner only</td><td>Extra work discovered during service — add line items or adjust after the fact</td></tr>
+</table>
+</div>
+
+<div class="sub">GST calculation rules (Australian Tax Office requirements)</div>
+<div class="rule rule-ok">All prices in the catalogue are stored ex-GST (exclusive of GST). GST is calculated at the line-item level on quotes and invoices: line_total_ex_gst × 0.10 = gst_amount. The customer sees the inc-GST total. This is the correct approach for BAS reporting.</div>
+<div class="rule">Tax type options: "GST inclusive" (default — most workshops), "GST exclusive" (for business-to-business), "GST free" (for exported services or GST-exempt items). Set per invoice, not per line item.</div>
+<div class="rule rule-warn">Some items are GST-free: certain insurance repair work, some government fleet contracts. The system should allow a GST override per line item (0% instead of 10%) with a mandatory reason field.</div>
+
+<div class="sub">Discount logic</div>
+<div class="rule">Discount types: "Percentage" (10% off total), "Fixed amount" ($50 off), "None". Applied at the quote/invoice header level, not per line item. Discount reduces the ex-GST subtotal before GST is calculated.</div>
+<div class="rule">Maximum discount without owner approval: configurable in settings. Default 15%. If front desk tries to apply a 20% discount, the system requires owner PIN or approval notification.</div>
+<div class="rule rule-warn">Discounts must never take a line item below cost. The system should warn: "This discount takes the total below cost price. Margin: -$23. Apply anyway?" Only the owner can override.</div>
+
+<div class="sub">Margin visibility</div>
+<div class="rule">For users with can_view_financials = TRUE, every quote and invoice shows a hidden margin row: (sell price − cost price) ÷ sell price = margin %. This helps the owner make pricing decisions without switching to a separate report.</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">Insurance jobs: The insurer has a pre-agreed rate schedule that may differ from the workshop's standard pricing. Support an "Insurance rate" price list — when the job card is flagged as "Insurance claim", prices auto-switch to the insurer's schedule.</div>
+<div class="rule rule-err">Warranty work: If a part fails within warranty period (e.g. 12 months or 20,000km), the replacement labour and parts should be at $0 to the customer but still tracked for supplier warranty claims. The system needs a "Warranty" line type that records the normal cost internally but shows $0.00 on the customer invoice.</div>
+</div>
+
+<!-- ═══ JOB ↔ PARTS LINKAGE ═══ -->
+<div class="pnl" id="p4">
+<div class="section">job_item_parts table (new linking table)</div>
+<p>This is the glue between the service catalogue and inventory. It answers: "When we do this sub-item, which parts do we typically use?" This enables two critical automations: auto-populating the parts list on a job card, and auto-deducting stock when a job is completed.</p>
+
+<table class="tbl">
+<tr><th>Field</th><th>Type</th><th>Tags</th><th>Validation and notes</th></tr>
+<tr><td>link_id</td><td>VARCHAR(10)</td><td><span class="badge b-pk">PK</span><span class="badge b-auto">Auto</span></td><td>Format: JPL-001.</td></tr>
+<tr><td>sub_item_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span><span class="badge b-req">Required</span></td><td>Which job sub-item this part is for.</td></tr>
+<tr><td>part_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span><span class="badge b-req">Required</span></td><td>Which part from inventory. e.g. PT-001 "Penrite 10W-40 5L".</td></tr>
+<tr><td>default_qty</td><td>INTEGER</td><td><span class="badge b-req">Required</span></td><td>How many units are typically used. e.g. 1 oil filter, 4 spark plugs, 2 brake pads. Mechanic can adjust on the actual job card.</td></tr>
+<tr><td>is_required</td><td>BOOLEAN</td><td></td><td>TRUE = always included (e.g. oil filter in an oil change). FALSE = optional/conditional (e.g. cabin filter may be skipped if recently replaced).</td></tr>
+<tr><td>notes</td><td>TEXT</td><td></td><td>e.g. "Use Z432 for Toyota, Z436 for Mazda" or "Check VIN for correct spec".</td></tr>
+</table>
+
+<div class="sub">How it works in practice</div>
+<div class="flow">
+<div class="flow-box" style="background:var(--bg-accent);color:var(--text-accent)">Front desk selects "Minor service"</div>
+<div class="flow-arrow">→</div>
+<div class="flow-box" style="background:var(--bg-warning);color:var(--text-warning)">System loads 4 sub-items</div>
+<div class="flow-arrow">→</div>
+<div class="flow-box" style="background:var(--bg-success);color:var(--text-success)">Each sub-item pulls linked parts</div>
+<div class="flow-arrow">→</div>
+<div class="flow-box" style="background:var(--bg-pro);color:var(--text-pro)">Quote auto-populated</div>
+</div>
+
+<div class="rule rule-ok">When a parent job is selected on a new quote, the system pre-populates all sub-items and their linked parts. The mechanic reviews and adjusts (swap Z432 filter for Z436 based on the vehicle, change oil quantity from 5L to 6L for a larger engine).</div>
+<div class="rule">When a job card is marked "Completed", every linked part with is_required = TRUE auto-deducts from parts.qty_in_stock. If stock would go negative, the system warns: "Oil filter Z432 is out of stock. 0 remaining."</div>
+<div class="rule rule-warn">Multiple compatible parts: A sub-item like "Oil filter replacement" might accept Z432 OR Z436 OR Z456 depending on the vehicle. The link table supports multiple part options per sub-item — the mechanic picks the right one, or the system auto-suggests based on vehicle make if that mapping exists.</div>
+
+<div class="sub">Stock impact workflow</div>
+<div class="flow">
+<div class="flow-box" style="background:var(--bg-accent);color:var(--text-accent)">Job card completed</div>
+<div class="flow-arrow">→</div>
+<div class="flow-box" style="background:var(--bg-warning);color:var(--text-warning)">Parts auto-deducted</div>
+<div class="flow-arrow">→</div>
+<div class="flow-box" style="background:var(--bg-danger);color:var(--text-danger)">Stock ≤ reorder level?</div>
+<div class="flow-arrow">→</div>
+<div class="flow-box" style="background:var(--bg-success);color:var(--text-success)">Trigger reorder alert</div>
+</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">Customer-supplied parts: The customer brings their own oil or filter. The sub-item still appears on the job card (for labour tracking) but part_cost is set to $0 and no stock is deducted. The "Owner parts — labour only" parent job (JB-021) handles this scenario.</div>
+<div class="rule rule-err">Parts not in inventory: A one-off special-order part (e.g. a specific gasket for a rare vehicle). The mechanic should be able to add an ad-hoc line item with a manual description and price, without creating a permanent inventory record. Flag it as "Non-stock item".</div>
+</div>
+
+<!-- ═══ LIVE EXAMPLE ═══ -->
+<div class="pnl" id="p5">
+<div class="section">Live example: minor service breakdown</div>
+<p>How a single parent job decomposes into sub-items, links to parts, and calculates pricing. This is what happens behind the scenes when front desk selects "Minor service" on a new quote.</p>
+
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+<div>
+<div style="font-weight:500;font-size:15px">JB-001: Minor service</div>
+<div class="muted" style="font-size:12px">CAT-01: Engine service · Est. 1.0 hr</div>
+</div>
+<div style="font-size:20px;font-weight:500;color:var(--text-accent)">$154.00</div>
+</div>
+
+<table class="tbl" style="font-size:12px">
+<tr><th>Sub-item</th><th>Linked part</th><th style="text-align:right">Part $</th><th style="text-align:right">Time</th><th style="text-align:right">Labour $</th><th style="text-align:right">Total</th></tr>
+<tr>
+<td><span style="font-weight:500">JS-001:</span> Engine oil change (10W-40 5L)</td>
+<td style="color:var(--text-secondary)">PT-001: Penrite 10W-40 5L</td>
+<td style="text-align:right">$50.00</td>
+<td style="text-align:right">0.3 hr</td>
+<td style="text-align:right">$24.00</td>
+<td style="text-align:right;font-weight:500">$74.00</td>
+</tr>
+<tr>
+<td><span style="font-weight:500">JS-002:</span> Oil filter replacement</td>
+<td style="color:var(--text-secondary)">PT-008: Z432 <span class="muted">(or Z436, Z456)</span></td>
+<td style="text-align:right">$10.00</td>
+<td style="text-align:right">0.1 hr</td>
+<td style="text-align:right">$8.00</td>
+<td style="text-align:right;font-weight:500">$18.00</td>
+</tr>
+<tr>
+<td><span style="font-weight:500">JS-003:</span> Engine flush</td>
+<td style="color:var(--text-secondary)">PT-029: Engine flush additive</td>
+<td style="text-align:right">$20.00</td>
+<td style="text-align:right">0.1 hr</td>
+<td style="text-align:right">$8.00</td>
+<td style="text-align:right;font-weight:500">$28.00</td>
+</tr>
+<tr>
+<td><span style="font-weight:500">JS-004:</span> 25-point safety check</td>
+<td style="color:var(--text-muted)">No parts — labour only</td>
+<td style="text-align:right">$0.00</td>
+<td style="text-align:right">0.5 hr</td>
+<td style="text-align:right">$40.00</td>
+<td style="text-align:right;font-weight:500">$40.00</td>
+</tr>
+<tr style="border-top:2px solid var(--border-strong)">
+<td colspan="2" style="font-weight:500;border-top:2px solid var(--border-strong)">Totals</td>
+<td style="text-align:right;font-weight:500;border-top:2px solid var(--border-strong)">$80.00</td>
+<td style="text-align:right;font-weight:500;border-top:2px solid var(--border-strong)">1.0 hr</td>
+<td style="text-align:right;font-weight:500;border-top:2px solid var(--border-strong)">$80.00</td>
+<td style="text-align:right;font-weight:500;border-top:2px solid var(--border-strong)">$160.00</td>
+</tr>
+</table>
+<div style="display:flex;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:0.5px solid var(--border)">
+<div class="muted" style="font-size:12px">Sum of sub-items: $160.00 · Package price: $154.00 (owner locked at round number)</div>
+<div style="font-size:12px">
+<span class="muted">Margin:</span> <span style="font-weight:500;color:var(--text-success)">47%</span>
+</div>
+</div>
+</div>
+
+<div class="sub">What happens when this is quoted</div>
+<div class="rule rule-ok">1. Front desk selects client (CL-005: Peter), vehicle (VH-001: NSW-PL1 Hyundai Tucson), and job (JB-001: Minor service).</div>
+<div class="rule rule-ok">2. System auto-loads 4 sub-items with linked parts. Front desk sees the oil filter has 3 options — selects Z456 (Hyundai-specific).</div>
+<div class="rule rule-ok">3. Quote total shows $154.00 (package price). System auto-calculates GST: $154 × 10% = $15.40 → Total inc GST: $169.40.</div>
+<div class="rule rule-ok">4. Quote is sent to Peter via SMS. He replies "YES". Status changes to "Approved". System auto-creates a job card for the next available slot.</div>
+
+<div class="sub">What happens when this is completed</div>
+<div class="rule rule-ok">5. Mechanic marks each sub-item as done. Actual labour logged: 0.9 hrs (faster than estimated 1.0 hr — good efficiency).</div>
+<div class="rule rule-ok">6. On "Complete job", 3 parts auto-deduct from inventory: PT-001 (1 unit), PT-010 Z456 (1 unit), PT-029 flush (1 unit). Z456 drops to 4 remaining (above reorder level of 5? triggers alert).</div>
+<div class="rule rule-ok">7. Invoice auto-generates from job card lines. PDF generated with ABN, GST breakdown, vehicle details. Emailed to Peter (if email captured) or printed.</div>
+<div class="rule rule-ok">8. Next service due auto-set: current date + 6 months = 2026-04-02, current mileage 92,500 + 10,000 = 102,500 km. Service reminder created in reminders table.</div>
+</div>
+
+<script>
+function show(i){
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',j===i));
+  document.querySelectorAll('.pnl').forEach((p,j)=>p.classList.toggle('active',j===i));
+}
+</script>

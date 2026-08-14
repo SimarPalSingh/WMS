@@ -1,0 +1,180 @@
+
+<h2 class="sr-only">Entity relationship diagram for MechWise workflow: quotations, job cards, invoices, and payments pipeline</h2>
+<style>
+#erd3 svg { max-width: 100%; }
+#erd3 .divider path { stroke-opacity: 0.5; }
+#erd3 .row-rect-odd path, #erd3 .row-rect-odd rect,
+#erd3 .row-rect-even path, #erd3 .row-rect-even rect { stroke: none !important; }
+</style>
+<div id="erd3"></div>
+<script type="module">
+import mermaid from 'https://esm.sh/mermaid@11/dist/mermaid.esm.min.mjs';
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+await document.fonts.ready;
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'base',
+  fontFamily: '"anthropic-sans", sans-serif',
+  themeVariables: {
+    darkMode: dark,
+    fontSize: '13px',
+    fontFamily: '"anthropic-sans", sans-serif',
+    lineColor: dark ? '#9c9a92' : '#73726c',
+    textColor: dark ? '#c2c0b6' : '#3d3d3a',
+  },
+});
+const { svg } = await mermaid.render('erd3-svg', `erDiagram
+    CLIENTS ||--o{ QUOTATIONS : "quoted to"
+    VEHICLES ||--o{ QUOTATIONS : "for vehicle"
+    QUOTATIONS ||--o{ QUOTE_LINES : contains
+    QUOTATIONS ||--o| JOB_CARDS : "converts to"
+    JOB_CARDS ||--o{ JOB_CARD_LINES : contains
+    JOB_CARDS ||--o| INVOICES : "generates"
+    INVOICES ||--o{ INVOICE_LINES : contains
+    INVOICES ||--o{ PAYMENTS : "paid by"
+    CLIENTS ||--o{ JOB_CARDS : "work for"
+    VEHICLES ||--o{ JOB_CARDS : "serviced"
+    STAFF ||--o{ JOB_CARDS : "assigned to"
+    STAFF ||--o{ JOB_CARD_LINES : "worked by"
+    JOB_SUB_ITEMS ||--o{ QUOTE_LINES : "priced from"
+    PARTS ||--o{ QUOTE_LINES : "uses part"
+    JOB_SUB_ITEMS ||--o{ JOB_CARD_LINES : "work item"
+    PARTS ||--o{ JOB_CARD_LINES : "part used"
+    JOB_SUB_ITEMS ||--o{ INVOICE_LINES : "billed for"
+    PARTS ||--o{ INVOICE_LINES : "billed part"
+
+    QUOTATIONS {
+        string quote_id PK
+        string client_id FK
+        string vehicle_id FK
+        date quote_date
+        date valid_until
+        decimal total_ex_gst
+        decimal gst_amount
+        decimal total_inc_gst
+        decimal discount_amount
+        decimal final_amount
+        string status
+        date approved_date
+        string approved_method
+        string created_by FK
+    }
+
+    QUOTE_LINES {
+        string line_id PK
+        string quote_id FK
+        string line_type
+        string job_sub_item_id FK
+        string part_id FK
+        string description
+        int qty
+        decimal unit_price_ex_gst
+        decimal line_total_ex_gst
+        decimal gst_amount
+        decimal line_total_inc_gst
+    }
+
+    JOB_CARDS {
+        string jobcard_id PK
+        string quote_id FK
+        string client_id FK
+        string vehicle_id FK
+        string staff_id FK
+        date date_in
+        date date_due
+        date date_completed
+        int mileage_at_service
+        string bay_number
+        string status
+        string priority
+        decimal total_ex_gst
+        decimal gst_amount
+        decimal total_inc_gst
+    }
+
+    JOB_CARD_LINES {
+        string line_id PK
+        string jobcard_id FK
+        string line_type
+        string job_sub_item_id FK
+        string part_id FK
+        string description
+        int qty
+        decimal unit_price_ex_gst
+        decimal line_total_ex_gst
+        decimal actual_labour_hrs
+        string staff_id FK
+        boolean completed
+    }
+
+    INVOICES {
+        string invoice_id PK
+        string jobcard_id FK
+        string client_id FK
+        string vehicle_id FK
+        date invoice_date
+        date due_date
+        decimal subtotal_ex_gst
+        decimal gst_amount
+        decimal total_inc_gst
+        string discount_type
+        decimal discount_amount
+        decimal final_amount
+        string payment_status
+        string payment_method
+        date next_service_due
+        int next_service_km
+    }
+
+    INVOICE_LINES {
+        string line_id PK
+        string invoice_id FK
+        string line_type
+        string job_sub_item_id FK
+        string part_id FK
+        string description
+        int qty
+        decimal unit_price_ex_gst
+        decimal line_total_ex_gst
+        decimal gst_rate
+        decimal gst_amount
+        decimal line_total_inc_gst
+    }
+
+    PAYMENTS {
+        string payment_id PK
+        string payment_type
+        string invoice_id FK
+        string client_id FK
+        string supplier_id FK
+        decimal amount
+        string payment_method
+        date payment_date
+        string payment_reference
+        string received_by FK
+    }
+`);
+document.getElementById('erd3').innerHTML = svg;
+document.querySelectorAll('#erd3 svg .node').forEach(node => {
+  const firstPath = node.querySelector('path[d]');
+  if (!firstPath) return;
+  const d = firstPath.getAttribute('d');
+  const nums = d.match(/-?[\d.]+/g)?.map(Number);
+  if (!nums || nums.length < 8) return;
+  const xs = [nums[0], nums[2], nums[4], nums[6]];
+  const ys = [nums[1], nums[3], nums[5], nums[7]];
+  const x = Math.min(...xs), y = Math.min(...ys);
+  const w = Math.max(...xs) - x, h = Math.max(...ys) - y;
+  const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  rect.setAttribute('x', x); rect.setAttribute('y', y);
+  rect.setAttribute('width', w); rect.setAttribute('height', h);
+  rect.setAttribute('rx', '8');
+  for (const a of ['fill', 'stroke', 'stroke-width', 'class', 'style']) {
+    if (firstPath.hasAttribute(a)) rect.setAttribute(a, firstPath.getAttribute(a));
+  }
+  firstPath.replaceWith(rect);
+});
+document.querySelectorAll('#erd3 svg .row-rect-odd path, #erd3 svg .row-rect-even path').forEach(p => {
+  p.setAttribute('stroke', 'none');
+});
+</script>

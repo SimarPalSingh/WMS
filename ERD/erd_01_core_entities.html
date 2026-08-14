@@ -1,0 +1,158 @@
+
+<h2 class="sr-only">Entity relationship diagram for MechWise core entities: workshops, users, clients, vehicles, staff, and their relationships</h2>
+<style>
+#erd1 svg { max-width: 100%; }
+#erd1 .divider path { stroke-opacity: 0.5; }
+#erd1 .row-rect-odd path, #erd1 .row-rect-odd rect,
+#erd1 .row-rect-even path, #erd1 .row-rect-even rect { stroke: none !important; }
+</style>
+<div id="erd1"></div>
+<script type="module">
+import mermaid from 'https://esm.sh/mermaid@11/dist/mermaid.esm.min.mjs';
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+await document.fonts.ready;
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'base',
+  fontFamily: '"anthropic-sans", sans-serif',
+  themeVariables: {
+    darkMode: dark,
+    fontSize: '13px',
+    fontFamily: '"anthropic-sans", sans-serif',
+    lineColor: dark ? '#9c9a92' : '#73726c',
+    textColor: dark ? '#c2c0b6' : '#3d3d3a',
+  },
+});
+const { svg } = await mermaid.render('erd1-svg', `erDiagram
+    WORKSHOPS ||--o{ USERS : "has staff"
+    WORKSHOPS ||--o{ STAFF : employs
+    CLIENTS ||--o{ CLIENT_VEHICLES : owns
+    VEHICLES ||--o{ CLIENT_VEHICLES : "owned by"
+    VEHICLE_MAKES ||--o{ VEHICLES : "make of"
+
+    WORKSHOPS {
+        string workshop_id PK
+        string business_name
+        string abn
+        string mvrl_no
+        string arc_no
+        string address
+        string suburb
+        string state
+        string postcode
+        string phone
+        string mobile
+        string email
+        string owner_name
+        string operating_hours
+        string timezone
+    }
+
+    USERS {
+        string user_id PK
+        string staff_id FK
+        string workshop_id FK
+        string username
+        string email
+        string role
+        boolean can_view_financials
+        boolean can_edit_pricing
+        boolean can_delete_records
+        boolean is_active
+    }
+
+    CLIENTS {
+        string client_id PK
+        string client_type
+        string business_name
+        string first_name
+        string last_name
+        string mobile
+        string email
+        string abn
+        string address
+        string suburb
+        string state
+        string postcode
+        string preferred_contact
+        date created_date
+        boolean is_active
+    }
+
+    VEHICLES {
+        string vehicle_id PK
+        string registration_no
+        string make_id FK
+        string vehicle_model
+        int vehicle_year
+        string vehicle_color
+        string body_type
+        string vin
+        string engine_no
+        string fuel_type
+        string transmission
+        int current_mileage_km
+        date pink_slip_expiry
+        date next_service_due
+        int next_service_km
+        boolean is_active
+    }
+
+    CLIENT_VEHICLES {
+        string link_id PK
+        string client_id FK
+        string vehicle_id FK
+        date ownership_start
+        date ownership_end
+        boolean is_primary_owner
+        string relationship
+    }
+
+    VEHICLE_MAKES {
+        string make_id PK
+        string brand
+        string country_of_origin
+        boolean is_active
+    }
+
+    STAFF {
+        string staff_id PK
+        string workshop_id FK
+        string first_name
+        string last_name
+        string role
+        string mobile
+        string email
+        string specialty
+        string certifications
+        decimal hourly_rate
+        string employment_type
+        string availability_days
+        string availability_hours
+        boolean is_active
+    }
+`);
+document.getElementById('erd1').innerHTML = svg;
+document.querySelectorAll('#erd1 svg .node').forEach(node => {
+  const firstPath = node.querySelector('path[d]');
+  if (!firstPath) return;
+  const d = firstPath.getAttribute('d');
+  const nums = d.match(/-?[\d.]+/g)?.map(Number);
+  if (!nums || nums.length < 8) return;
+  const xs = [nums[0], nums[2], nums[4], nums[6]];
+  const ys = [nums[1], nums[3], nums[5], nums[7]];
+  const x = Math.min(...xs), y = Math.min(...ys);
+  const w = Math.max(...xs) - x, h = Math.max(...ys) - y;
+  const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  rect.setAttribute('x', x); rect.setAttribute('y', y);
+  rect.setAttribute('width', w); rect.setAttribute('height', h);
+  rect.setAttribute('rx', '8');
+  for (const a of ['fill', 'stroke', 'stroke-width', 'class', 'style']) {
+    if (firstPath.hasAttribute(a)) rect.setAttribute(a, firstPath.getAttribute(a));
+  }
+  firstPath.replaceWith(rect);
+});
+document.querySelectorAll('#erd1 svg .row-rect-odd path, #erd1 svg .row-rect-even path').forEach(p => {
+  p.setAttribute('stroke', 'none');
+});
+</script>

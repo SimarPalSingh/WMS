@@ -1,0 +1,347 @@
+
+<h2 class="sr-only">Deep dive into MechWise Module 3: Parts and Inventory covering part categories, stock management, reorder logic, supplier linkage, and purchase orders</h2>
+<style>
+.tabs{display:flex;gap:4px;border-bottom:0.5px solid var(--border);margin-bottom:1.5rem;overflow-x:auto}
+.tab{padding:8px 14px;font-size:13px;cursor:pointer;border:none;background:none;color:var(--text-secondary);border-bottom:2px solid transparent;white-space:nowrap;font-family:inherit}
+.tab.active{color:var(--text-primary);border-bottom-color:var(--text-accent);font-weight:500}
+.pnl{display:none}.pnl.active{display:block}
+.card{background:var(--surface-1);border-radius:12px;padding:1rem 1.25rem;margin-bottom:12px}
+.badge{display:inline-block;padding:2px 8px;border-radius:var(--radius);font-size:11px;font-weight:500;margin-right:4px}
+.b-pk{background:var(--bg-accent);color:var(--text-accent)}
+.b-fk{background:var(--bg-pro);color:var(--text-pro)}
+.b-req{background:var(--bg-danger);color:var(--text-danger)}
+.b-auto{background:var(--bg-success);color:var(--text-success)}
+.b-val{background:var(--bg-warning);color:var(--text-warning)}
+.b-calc{background:var(--bg-pro);color:var(--text-pro)}
+.b-new{background:var(--bg-success);color:var(--text-success)}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0}
+.tbl th{text-align:left;padding:6px 8px;border-bottom:0.5px solid var(--border-strong);color:var(--text-secondary);font-weight:500;font-size:12px}
+.tbl td{padding:6px 8px;border-bottom:0.5px solid var(--border);vertical-align:top;color:var(--text-primary)}
+.tbl tr:last-child td{border-bottom:none}
+.rule{background:var(--surface-1);border-radius:0;padding:10px 14px;margin:8px 0;font-size:13px;border-left:3px solid var(--border-accent)}
+.rule-warn{border-left-color:var(--border-warning)}
+.rule-err{border-left-color:var(--border-danger)}
+.rule-ok{border-left-color:var(--border-success)}
+.section{font-size:15px;font-weight:500;margin:1.5rem 0 0.75rem;color:var(--text-primary)}
+.sub{font-size:13px;font-weight:500;margin:1rem 0 0.5rem;color:var(--text-secondary)}
+p{margin:0 0 8px;line-height:1.6;font-size:13px;color:var(--text-primary)}
+.muted{color:var(--text-secondary)}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;font-size:12px}
+.flow{display:flex;align-items:center;gap:0;margin:16px 0;flex-wrap:wrap}
+.flow-box{padding:8px 14px;border-radius:var(--radius);font-size:12px;font-weight:500;text-align:center;min-width:80px}
+.flow-arrow{color:var(--text-muted);padding:0 6px;font-size:16px}
+.metric-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:12px 0}
+.metric{background:var(--surface-1);border-radius:var(--radius);padding:10px;text-align:center}
+.metric-label{font-size:11px;color:var(--text-secondary);margin-bottom:2px}
+.metric-val{font-size:18px;font-weight:500}
+.stock-bar{height:8px;border-radius:4px;background:var(--surface-0);margin:4px 0;overflow:hidden;position:relative}
+.stock-fill{height:100%;border-radius:4px;transition:width 0.3s}
+</style>
+
+<div style="padding:0 0 4px">
+  <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Module 3 of 8</div>
+  <div style="font-size:18px;font-weight:500;margin-bottom:4px"><i class="ti ti-package" aria-hidden="true" style="color:var(--text-accent);margin-right:6px"></i>Parts and inventory</div>
+  <div style="font-size:13px;color:var(--text-secondary)">Part categories, stock management, pricing, reorder engine, supplier linkage, and purchase orders</div>
+</div>
+
+<div class="legend">
+  <span class="badge b-pk">PK</span>
+  <span class="badge b-fk">FK</span>
+  <span class="badge b-req">Required</span>
+  <span class="badge b-auto">Auto</span>
+  <span class="badge b-val">Validated</span>
+  <span class="badge b-calc">Calculated</span>
+  <span class="badge b-new">New</span>
+</div>
+
+<div class="tabs" id="tabs">
+  <button class="tab active" onclick="show(0)"><i class="ti ti-category" aria-hidden="true" style="margin-right:4px"></i>Categories</button>
+  <button class="tab" onclick="show(1)"><i class="ti ti-box" aria-hidden="true" style="margin-right:4px"></i>Parts table</button>
+  <button class="tab" onclick="show(2)"><i class="ti ti-arrows-sort" aria-hidden="true" style="margin-right:4px"></i>Stock lifecycle</button>
+  <button class="tab" onclick="show(3)"><i class="ti ti-alert-circle" aria-hidden="true" style="margin-right:4px"></i>Reorder engine</button>
+  <button class="tab" onclick="show(4)"><i class="ti ti-truck" aria-hidden="true" style="margin-right:4px"></i>Suppliers and POs</button>
+  <button class="tab" onclick="show(5)"><i class="ti ti-barcode" aria-hidden="true" style="margin-right:4px"></i>Location and barcode</button>
+</div>
+
+<!-- ═══ CATEGORIES ═══ -->
+<div class="pnl active" id="p0">
+<div class="section">part_categories table</div>
+<p>Organises the 123+ inventory items into logical groups. This is separate from job_categories — a job category is what the customer sees ("Brake system"), a part category is how the workshop organises its shelves ("Brake and suspension parts").</p>
+
+<table class="tbl">
+<tr><th>Field</th><th>Type</th><th>Tags</th><th>Validation and notes</th></tr>
+<tr><td>category_id</td><td>VARCHAR(10)</td><td><span class="badge b-pk">PK</span></td><td>Format: PC-01. Sequential.</td></tr>
+<tr><td>category_name</td><td>VARCHAR(50)</td><td><span class="badge b-req">Required</span></td><td>Unique. Sentence case. Used in inventory list filters and stock reports.</td></tr>
+<tr><td>description</td><td>VARCHAR(200)</td><td></td><td>What falls into this bucket. Helps new staff categorise items correctly.</td></tr>
+<tr><td>display_order</td><td>INTEGER</td><td></td><td>Sort order in the inventory screen. Most-used categories first.</td></tr>
+</table>
+
+<div class="sub">The 11 part categories</div>
+<div class="card">
+<table class="tbl" style="font-size:12px">
+<tr><th>ID</th><th>Category</th><th>Items in Dhalla data</th><th>Typical stock value</th></tr>
+<tr><td>PC-01</td><td>Fluids and lubricants</td><td>~25 items (oils, ATF, coolant, brake fluid, gear oil)</td><td>High volume — the biggest spend category</td></tr>
+<tr><td>PC-02</td><td>Filters</td><td>~30 items (oil filters Z-series, air filters A-series, cabin filters)</td><td>High turnover — used on almost every service</td></tr>
+<tr><td>PC-03</td><td>Engine service parts</td><td>~15 items (spark plugs, timing belts, drive belts, throttle cleaner)</td><td>Medium turnover — major services and specific repairs</td></tr>
+<tr><td>PC-04</td><td>Brake and suspension</td><td>~12 items (pads, rotors, shoes, shocks, bushings, CV joints)</td><td>Higher per-unit cost — fewer units but bigger spend</td></tr>
+<tr><td>PC-05</td><td>Electrical</td><td>~10 items (batteries, alternators, starters, bulbs, wiper blades)</td><td>Mixed — batteries high-value, bulbs low-value</td></tr>
+<tr><td>PC-06</td><td>Cooling system</td><td>~5 items (radiators, hoses, thermostats, water pumps)</td><td>Low turnover — repair-driven, not routine</td></tr>
+<tr><td>PC-07</td><td>HVAC / AC</td><td>~3 items (AC gas, compressor, condenser)</td><td>Seasonal — peaks in summer</td></tr>
+<tr><td>PC-08</td><td>Tyres and wheels</td><td>~8 items (various tyre sizes, valve stems)</td><td>High per-unit cost, often ordered per-job</td></tr>
+<tr><td>PC-09</td><td>General hardware</td><td>~5 items (bolts, washers, clamps, clips)</td><td>Low cost — consumables, rarely tracked individually</td></tr>
+<tr><td>PC-10</td><td>Consumables</td><td>~8 items (brake cleaner, grease, sealant, gloves, wipes)</td><td>Internal use — not billed to customer directly</td></tr>
+<tr><td>PC-11</td><td>Body and exterior</td><td>~3 items (mirrors, light housings, door handles)</td><td>Low turnover — special order only</td></tr>
+</table>
+</div>
+
+<div class="sub">Business rules</div>
+<div class="rule">Categories drive the inventory filter on the stock screen. When the mechanic is looking for an oil filter, they click "Filters" and see only PC-02 items — not all 123.</div>
+<div class="rule rule-warn">The current Dhalla system mixes physical parts and service bundles in the same list (e.g. "REPLACED ENGINE OIL 10W/40 PENRITE SAMI SYNTHETIC OIL & OIL FILTER & ENGINE FLUSH & 25 POINT CHECK" at $154 is an entire minor service listed as an "item"). In MechWise, service bundles are parent jobs in the catalogue — only physical parts go in inventory. This distinction is enforced by the category structure.</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">Uncategorised items: When importing from the Dhalla system, some items don't clearly fit a category (e.g. "R2605", "R2606" — these are part numbers without descriptions). The system should have a "Needs review" auto-flag for items imported without a category, shown as a task on the dashboard.</div>
+</div>
+
+<!-- ═══ PARTS TABLE ═══ -->
+<div class="pnl" id="p1">
+<div class="section">parts table</div>
+<p>Every physical item the workshop buys, stocks, uses, and sells. This is the largest and most field-heavy table in the system — it tracks what you have, what it's worth, where it is, who supplies it, and when to reorder.</p>
+
+<table class="tbl">
+<tr><th>Field</th><th>Type</th><th>Tags</th><th>Validation and notes</th></tr>
+<tr><td>part_id</td><td>VARCHAR(10)</td><td><span class="badge b-pk">PK</span><span class="badge b-auto">Auto</span></td><td>Format: PT-001. Sequential.</td></tr>
+<tr><td>item_name</td><td>VARCHAR(200)</td><td><span class="badge b-req">Required</span></td><td>Descriptive name. Include brand and spec where relevant. e.g. "Penrite 10W-40 semi-synthetic 5L", not just "Engine oil". This appears on invoices and purchase orders.</td></tr>
+<tr><td>part_number</td><td>VARCHAR(50)</td><td><span class="badge b-val">Validated</span></td><td>Manufacturer or OEM part number. e.g. "Z432", "A1215", "PEN-10W40-5". Used for ordering from suppliers and cross-referencing. Should be unique per workshop but can be blank for generic items.</td></tr>
+<tr><td>category_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span><span class="badge b-req">Required</span></td><td>Links to part_categories. Every part must be categorised.</td></tr>
+<tr><td>unit_of_measure</td><td>VARCHAR(20)</td><td><span class="badge b-req">Required</span></td><td>Enum: Each, Litre, Set, Box, Metre, Pair, Kit. Determines how quantity is counted and displayed. "Each" for individual items (filters, batteries), "Litre" for bulk fluids, "Set" for brake pad sets, "Box" for consumables.</td></tr>
+<tr><td>cost_price_ex_gst</td><td>DECIMAL(10,2)</td><td><span class="badge b-new">New</span></td><td>What you pay the supplier, excluding GST. Currently not tracked in the Dhalla system — this is the key missing field for margin analysis. Must be populated during stocktake or from supplier invoices.</td></tr>
+<tr><td>sell_price_ex_gst</td><td>DECIMAL(10,2)</td><td><span class="badge b-req">Required</span></td><td>What you charge the customer, excluding GST. This is the price that flows into quotes and invoices via the job-to-parts link.</td></tr>
+<tr><td>gst_rate</td><td>DECIMAL(4,2)</td><td></td><td>Default 0.10 (10% Australian GST). Set to 0 for GST-free items (some insurance repair parts). Rarely changed.</td></tr>
+<tr><td>sell_price_inc_gst</td><td>DECIMAL(10,2)</td><td><span class="badge b-calc">Calculated</span></td><td>= sell_price_ex_gst × (1 + gst_rate). Auto-calculated. Displayed in customer-facing contexts.</td></tr>
+<tr><td>qty_in_stock</td><td>INTEGER</td><td><span class="badge b-val">Validated</span></td><td>Current stock level. Must be ≥ 0. Decremented when job card completed. Incremented when PO received. Can be manually adjusted via stocktake with a reason field.</td></tr>
+<tr><td>reorder_level</td><td>INTEGER</td><td></td><td>When qty_in_stock drops to or below this number, trigger a reorder alert. e.g. oil filter Z432 reorder_level = 5 means "alert me when I have 5 or fewer".</td></tr>
+<tr><td>reorder_qty</td><td>INTEGER</td><td><span class="badge b-new">New</span></td><td>How many to order when restocking. e.g. reorder_qty = 10 means "order 10 at a time". Pre-populates the PO quantity field.</td></tr>
+<tr><td>primary_supplier_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span></td><td>Default supplier for this part. Pre-selects the supplier when creating a PO. A part can be ordered from any supplier, but this is the preferred one.</td></tr>
+<tr><td>barcode_sku</td><td>VARCHAR(50)</td><td><span class="badge b-new">New</span></td><td>Barcode or internal SKU. Supports barcode scanner input on stock screen — scan a part to instantly pull up its record, adjust quantity, or add to a job card.</td></tr>
+<tr><td>location</td><td>VARCHAR(50)</td><td><span class="badge b-new">New</span></td><td>Physical location in workshop. e.g. "Shelf A1", "Tyre rack", "Order on demand". Helps mechanics find parts without asking. See the "Location and barcode" tab.</td></tr>
+<tr><td>last_ordered</td><td>DATE</td><td><span class="badge b-auto">Auto</span></td><td>Auto-updated when a PO containing this part is created. Useful for identifying stale stock (items not reordered in 12+ months may be obsolete).</td></tr>
+<tr><td>lead_time_days</td><td>INTEGER</td><td></td><td>Typical delivery time from supplier. Used by the reorder engine to calculate when to trigger an alert — if lead time is 5 days and reorder level is 2, the alert should fire earlier to avoid stockout.</td></tr>
+<tr><td>is_active</td><td>BOOLEAN</td><td></td><td>Soft delete. Inactive parts disappear from inventory search and job card pickers. Set qty to 0 and deactivate when a part is discontinued.</td></tr>
+</table>
+
+<div class="sub">Pricing model: cost vs sell vs margin</div>
+<div class="card">
+<table class="tbl" style="font-size:12px">
+<tr><th>Part</th><th style="text-align:right">Cost (ex-GST)</th><th style="text-align:right">Sell (ex-GST)</th><th style="text-align:right">Sell (inc-GST)</th><th style="text-align:right">Markup</th><th style="text-align:right">Margin</th></tr>
+<tr><td>Penrite 10W-40 5L</td><td style="text-align:right">$38.00</td><td style="text-align:right">$50.00</td><td style="text-align:right">$55.00</td><td style="text-align:right">32%</td><td style="text-align:right;color:var(--text-success)">24%</td></tr>
+<tr><td>Oil filter Z432</td><td style="text-align:right">$5.00</td><td style="text-align:right">$10.00</td><td style="text-align:right">$11.00</td><td style="text-align:right">100%</td><td style="text-align:right;color:var(--text-success)">50%</td></tr>
+<tr><td>Front brake pads (set)</td><td style="text-align:right">$40.00</td><td style="text-align:right">$90.00</td><td style="text-align:right">$99.00</td><td style="text-align:right">125%</td><td style="text-align:right;color:var(--text-success)">56%</td></tr>
+<tr><td>Battery NS40ZL SMF</td><td style="text-align:right">$90.00</td><td style="text-align:right">$150.00</td><td style="text-align:right">$165.00</td><td style="text-align:right">67%</td><td style="text-align:right;color:var(--text-success)">40%</td></tr>
+<tr><td>Tyre 205/55R16</td><td style="text-align:right">$55.00</td><td style="text-align:right">$90.00</td><td style="text-align:right">$99.00</td><td style="text-align:right">64%</td><td style="text-align:right;color:var(--text-success)">39%</td></tr>
+</table>
+<div class="muted" style="font-size:11px;margin-top:8px">Markup = (sell − cost) ÷ cost. Margin = (sell − cost) ÷ sell. The workshop owner cares about margin — it's the profit percentage on each sale.</div>
+</div>
+
+<div class="sub">Business rules</div>
+<div class="rule">cost_price_ex_gst is never shown to mechanics or front desk — only visible to Owner and Manager roles. This prevents staff from seeing supplier pricing.</div>
+<div class="rule">When sell_price_ex_gst is changed, the system recalculates sell_price_inc_gst immediately. It also warns if any job sub-items are linked to this part: "This price change will affect 3 job sub-items. Update their standard prices too?"</div>
+<div class="rule rule-warn">Negative margin alert: If cost_price exceeds sell_price (e.g. supplier raised prices but sell price wasn't updated), the system shows a red warning on the part record and in the dashboard: "5 parts are currently selling below cost."</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">Service items masquerading as parts: The Dhalla system has items like "Replace Coolant" at $20 and "Service" at $154. These are services, not physical stock items. During migration, flag these as "Service bundle — move to jobs catalogue" and exclude from inventory.</div>
+<div class="rule rule-err">Variable pricing by vehicle: A timing belt for a Subaru might cost $80 from the supplier vs $45 for a Toyota. The parts table stores the default cost/sell, but the system should allow a price override when the part is added to a specific job card. The override doesn't change the catalogue — just that job.</div>
+<div class="rule rule-err">Pack sizes vs unit pricing: Spark plugs come in boxes of 4 but are used individually. The unit_of_measure should be "Each" with qty tracked per plug, even though the purchase order quantity is in multiples of 4. PO lines handle the pack-to-unit conversion.</div>
+</div>
+
+<!-- ═══ STOCK LIFECYCLE ═══ -->
+<div class="pnl" id="p2">
+<div class="section">Stock lifecycle</div>
+<p>How qty_in_stock changes over time. There are exactly five events that move stock levels — two that add, two that subtract, and one that corrects.</p>
+
+<div class="sub">Stock movements</div>
+<div class="card">
+<table class="tbl" style="font-size:12px">
+<tr><th style="width:30px"><i class="ti ti-arrow-up" aria-hidden="true" style="color:var(--text-success)"></i></th><th>Event</th><th>Trigger</th><th>Effect on qty_in_stock</th></tr>
+<tr><td><i class="ti ti-arrow-up" aria-hidden="true" style="color:var(--text-success)"></i></td><td style="font-weight:500">PO received</td><td>Purchase order status changes to "Received" or "Partially received"</td><td>+ qty_received from PO line. e.g. received 10 oil filters → stock goes from 2 to 12.</td></tr>
+<tr><td><i class="ti ti-arrow-up" aria-hidden="true" style="color:var(--text-success)"></i></td><td style="font-weight:500">Return to stock</td><td>Part removed from a job card before completion, or job card cancelled</td><td>+ qty that was reserved. Mechanic pulled a wrong filter, put it back.</td></tr>
+<tr><td><i class="ti ti-arrow-down" aria-hidden="true" style="color:var(--text-danger)"></i></td><td style="font-weight:500">Job card completed</td><td>Job card status changes to "Completed" and parts are confirmed as used</td><td>− qty from each job card part line. 1 oil filter used → stock drops by 1.</td></tr>
+<tr><td><i class="ti ti-arrow-down" aria-hidden="true" style="color:var(--text-danger)"></i></td><td style="font-weight:500">Wastage/damage</td><td>Manual stock adjustment with reason "Damaged", "Expired", or "Lost"</td><td>− qty written off. Requires a reason field and manager approval.</td></tr>
+<tr><td><i class="ti ti-arrows-up-down" aria-hidden="true" style="color:var(--text-warning)"></i></td><td style="font-weight:500">Stocktake adjustment</td><td>Physical count differs from system count during stocktake</td><td>Set to actual counted quantity. Difference logged as variance. e.g. system says 8 filters, physical count is 6 → adjust to 6, log -2 variance.</td></tr>
+</table>
+</div>
+
+<div class="sub">Stock movement audit log</div>
+<div class="rule">Every stock change writes a row to a stock_movements audit table: part_id, movement_type (received, used, adjusted, wasted), qty_change (+/-), previous_qty, new_qty, related_doc (PO-0001 or JC-0015), performed_by (staff_id), timestamp, reason.</div>
+<div class="rule">This audit trail is immutable — no edits, no deletes. It provides a complete history of where every unit of stock came from and where it went. Essential for shrinkage detection and supplier dispute resolution.</div>
+
+<div class="sub">Stocktake workflow</div>
+<div class="rule rule-ok">1. Owner triggers "Start stocktake" from inventory screen. System generates a printable stocktake sheet grouped by location (Shelf A1, Shelf B1, Tyre rack, etc.).</div>
+<div class="rule rule-ok">2. Staff walks through the workshop counting physical items, writes the actual count on the sheet (or enters directly on a tablet).</div>
+<div class="rule rule-ok">3. System compares actual vs system counts. Highlights discrepancies in red. Shows total variance value (e.g. "12 items differ, total variance value: -$234").</div>
+<div class="rule rule-ok">4. Owner reviews and approves adjustments. Each adjustment requires a reason: "Damaged", "Used but not logged", "Supplier short-delivered", or "Count error".</div>
+<div class="rule rule-ok">5. System updates all qty_in_stock values and writes audit records. Dashboard shows "Last stocktake: 15 Jun 2025" and alerts if overdue (configurable: monthly or quarterly).</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">Bulk fluids: Engine oil is bought in 20L drums but dispensed in litres. Track in litres as unit_of_measure. When a PO for "1 × 20L drum" is received, stock increases by 20 litres. When a minor service uses 5L, stock decreases by 5. The PO line needs a unit conversion field: "1 drum = 20 litres".</div>
+<div class="rule rule-err">Serialised high-value parts: Batteries and alternators might need individual serial numbers for warranty tracking. Phase 1 doesn't need full serial tracking, but the notes field on the job card line should capture the serial/batch number of the specific unit installed.</div>
+</div>
+
+<!-- ═══ REORDER ENGINE ═══ -->
+<div class="pnl" id="p3">
+<div class="section">Reorder engine</div>
+<p>The logic that tells the workshop owner "you're running low on oil filters — order more." The current Dhalla system has basic alerts (red flag when stock hits the alert number). MechWise makes this smarter with lead-time awareness, suggested PO generation, and usage-rate forecasting.</p>
+
+<div class="sub">Alert levels</div>
+<div class="card">
+<div style="margin-bottom:16px">
+<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="font-weight:500">Oil filter Z432</span><span>5 in stock · reorder at 5 · order 10</span></div>
+<div class="stock-bar"><div class="stock-fill" style="width:50%;background:var(--border-warning)"></div></div>
+<div class="muted" style="font-size:11px"><i class="ti ti-alert-triangle" aria-hidden="true" style="color:var(--text-warning)"></i> At reorder level — suggest PO to CoolDrive Auto Parts</div>
+</div>
+<div style="margin-bottom:16px">
+<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="font-weight:500">Air filter A1215</span><span>1 in stock · reorder at 1 · order 2</span></div>
+<div class="stock-bar"><div class="stock-fill" style="width:15%;background:var(--border-danger)"></div></div>
+<div class="muted" style="font-size:11px"><i class="ti ti-alert-circle" aria-hidden="true" style="color:var(--text-danger)"></i> Critical — only 1 unit remaining, lead time 3 days</div>
+</div>
+<div style="margin-bottom:16px">
+<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="font-weight:500">Penrite 10W-40 5L</span><span>12 in stock · reorder at 5 · order 10</span></div>
+<div class="stock-bar"><div class="stock-fill" style="width:80%;background:var(--border-success)"></div></div>
+<div class="muted" style="font-size:11px"><i class="ti ti-check" aria-hidden="true" style="color:var(--text-success)"></i> Healthy stock level</div>
+</div>
+<div>
+<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="font-weight:500">Alternator (reconditioned)</span><span>0 in stock · reorder at 0 · order 1</span></div>
+<div class="stock-bar"><div class="stock-fill" style="width:0%;background:var(--border-danger)"></div></div>
+<div class="muted" style="font-size:11px"><i class="ti ti-info-circle" aria-hidden="true" style="color:var(--text-secondary)"></i> Order on demand — no standing stock (reorder_level = 0 suppresses alerts)</div>
+</div>
+</div>
+
+<div class="sub">Alert logic</div>
+<table class="tbl" style="font-size:12px">
+<tr><th>Condition</th><th>Status</th><th>Action</th></tr>
+<tr><td>qty_in_stock > reorder_level × 2</td><td style="color:var(--text-success)"><i class="ti ti-check" aria-hidden="true"></i> Healthy</td><td>No action needed.</td></tr>
+<tr><td>reorder_level < qty_in_stock ≤ reorder_level × 2</td><td style="color:var(--text-accent)"><i class="ti ti-info-circle" aria-hidden="true"></i> Getting low</td><td>Yellow dot on inventory screen. No notification.</td></tr>
+<tr><td>qty_in_stock = reorder_level</td><td style="color:var(--text-warning)"><i class="ti ti-alert-triangle" aria-hidden="true"></i> Reorder now</td><td>Orange alert on dashboard. Suggested PO auto-generated in draft. Notification to owner/manager.</td></tr>
+<tr><td>0 < qty_in_stock < reorder_level</td><td style="color:var(--text-danger)"><i class="ti ti-alert-circle" aria-hidden="true"></i> Critical</td><td>Red alert on dashboard. Push notification. Affected upcoming job cards flagged with "Part low" warning.</td></tr>
+<tr><td>qty_in_stock = 0</td><td style="color:var(--text-danger)"><i class="ti ti-x" aria-hidden="true"></i> Out of stock</td><td>Red badge on part record. When mechanic tries to add this part to a job card: "Out of stock — order required. Create PO?" Job card status can be changed to "Waiting for parts".</td></tr>
+<tr><td>reorder_level = 0</td><td style="color:var(--text-secondary)"><i class="ti ti-minus" aria-hidden="true"></i> No alert</td><td>Suppressed — item is order-on-demand (e.g. alternators, special-order parts). No alerts regardless of qty.</td></tr>
+</table>
+
+<div class="sub">Smart reorder (phase 2 enhancement)</div>
+<div class="rule">Usage-rate calculation: Track how many units of each part are consumed per month (from job card completions). If oil filters average 15/month and current stock is 18 with lead time of 2 days, the system knows stock will last ~5 weeks — no urgency. But if lead time is 7 days and stock is 5 (2-week supply), trigger the alert earlier.</div>
+<div class="rule rule-warn">Seasonal adjustment: AC gas usage spikes in summer (Nov-Feb in Australia). If the system sees a 3× usage rate for AC-related parts in December, it should adjust reorder timing accordingly. This is a phase 2 ML feature — phase 1 uses fixed reorder levels.</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">Supplier out of stock: The PO is created but the supplier can't deliver for 2 weeks. The system should support a "Backorder" status on PO lines and show affected job cards that are waiting for this part.</div>
+<div class="rule rule-err">Price change on reorder: The supplier raised the oil price from $38 to $42. The PO line should show the new cost, and the system should prompt: "Cost price has increased by 11%. Update sell price from $50 to $55 to maintain margin?"</div>
+</div>
+
+<!-- ═══ SUPPLIERS AND POs ═══ -->
+<div class="pnl" id="p4">
+<div class="section">suppliers table</div>
+<p>Where parts come from. Currently 5 known suppliers for Dhalla (Penrite, CoolDrive, National Tyre Group, AutoGuru Parts, Newbee Tyre). This table tracks who they are, how to order, and what terms they offer.</p>
+
+<table class="tbl">
+<tr><th>Field</th><th>Type</th><th>Tags</th><th>Validation and notes</th></tr>
+<tr><td>supplier_id</td><td>VARCHAR(10)</td><td><span class="badge b-pk">PK</span><span class="badge b-auto">Auto</span></td><td>Format: SP-001.</td></tr>
+<tr><td>business_name</td><td>VARCHAR(200)</td><td><span class="badge b-req">Required</span></td><td>e.g. "CoolDrive Auto Parts", "National Tyre Group".</td></tr>
+<tr><td>contact_person</td><td>VARCHAR(100)</td><td></td><td>Primary contact name. e.g. "Sales team" or a specific rep name.</td></tr>
+<tr><td>phone</td><td>VARCHAR(20)</td><td><span class="badge b-val">Validated</span></td><td>Order line phone number. Auto-format Australian number.</td></tr>
+<tr><td>email</td><td>VARCHAR(150)</td><td><span class="badge b-val">Validated</span></td><td>For sending POs via email. Some suppliers accept email orders directly.</td></tr>
+<tr><td>abn</td><td>VARCHAR(20)</td><td><span class="badge b-val">Validated</span><span class="badge b-new">New</span></td><td>Supplier's ABN. Required for accurate GST input credits on BAS. Without the supplier's ABN, the workshop can't claim GST credits on purchases.</td></tr>
+<tr><td>order_method</td><td>VARCHAR(30)</td><td></td><td>Enum: Phone, Email, Online Portal, In-Person. Determines how the PO is transmitted — email generates a PDF attachment, phone shows a formatted call script with items and quantities.</td></tr>
+<tr><td>account_number</td><td>VARCHAR(50)</td><td><span class="badge b-new">New</span></td><td>The workshop's account number with this supplier. Include on POs for faster processing.</td></tr>
+<tr><td>credit_terms</td><td>INTEGER</td><td><span class="badge b-new">New</span></td><td>Payment terms in days. Typically 14 or 30. Drives accounts payable tracking: a PO received on the 1st with 30-day terms is due by the 31st. Late payments flagged on dashboard.</td></tr>
+<tr><td>delivery_lead</td><td>INTEGER</td><td></td><td>Typical delivery time in business days. Used by the reorder engine to calculate when to order. CoolDrive delivers next-day (1 day), Penrite delivers in 3 days.</td></tr>
+</table>
+
+<div class="section">purchase_orders and po_lines tables</div>
+<p>The formal ordering workflow. Currently Dhalla orders by phone or walks into CoolDrive — no record of what was ordered. MechWise tracks every purchase from draft through receipt.</p>
+
+<div class="sub">PO lifecycle</div>
+<div class="flow">
+<div class="flow-box" style="background:var(--bg-accent);color:var(--text-accent)">Draft</div>
+<div class="flow-arrow">→</div>
+<div class="flow-box" style="background:var(--bg-warning);color:var(--text-warning)">Ordered</div>
+<div class="flow-arrow">→</div>
+<div class="flow-box" style="background:var(--bg-pro);color:var(--text-pro)">Partially received</div>
+<div class="flow-arrow">→</div>
+<div class="flow-box" style="background:var(--bg-success);color:var(--text-success)">Received</div>
+</div>
+
+<div class="card">
+<table class="tbl" style="font-size:12px">
+<tr><th>Status</th><th>Trigger</th><th>What happens</th></tr>
+<tr><td style="font-weight:500">Draft</td><td>Auto-generated from reorder alerts, or manually created</td><td>PO exists but hasn't been sent. Lines can be added, edited, or removed. No stock impact.</td></tr>
+<tr><td style="font-weight:500">Ordered</td><td>User clicks "Send order" (email/phone confirmation)</td><td>PO is locked — no further edits without manager override. Expected delivery date auto-calculated from lead time. Supplier is notified (if email order).</td></tr>
+<tr><td style="font-weight:500">Partially received</td><td>Some PO lines received, others still pending</td><td>qty_received updated on received lines. Stock incremented for received items only. Remaining items shown as "Awaiting delivery".</td></tr>
+<tr><td style="font-weight:500">Received</td><td>All PO lines fully received</td><td>All stock incremented. PO auto-closed. Accounting ledger entry created (outgoing, GST paid). Payment due date set from credit terms.</td></tr>
+<tr><td style="font-weight:500">Cancelled</td><td>Manual cancellation with reason</td><td>No stock impact. PO marked cancelled. Reason logged. Reorder alert re-triggered if stock is still low.</td></tr>
+</table>
+</div>
+
+<div class="sub">po_lines table fields</div>
+<table class="tbl">
+<tr><th>Field</th><th>Type</th><th>Tags</th><th>Notes</th></tr>
+<tr><td>line_id</td><td>VARCHAR(10)</td><td><span class="badge b-pk">PK</span></td><td>Format: POL-001.</td></tr>
+<tr><td>po_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span></td><td>Which purchase order this line belongs to.</td></tr>
+<tr><td>part_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span></td><td>Which part is being ordered. Auto-fills item name and part number.</td></tr>
+<tr><td>qty_ordered</td><td>INTEGER</td><td><span class="badge b-req">Required</span></td><td>Pre-populated from part.reorder_qty. Adjustable.</td></tr>
+<tr><td>qty_received</td><td>INTEGER</td><td></td><td>Updated on receipt. Cannot exceed qty_ordered. If less, PO stays "Partially received".</td></tr>
+<tr><td>unit_cost_ex_gst</td><td>DECIMAL</td><td></td><td>Pre-populated from part.cost_price_ex_gst. Editable — supplier may have changed price since last order.</td></tr>
+<tr><td>line_total</td><td>DECIMAL</td><td><span class="badge b-calc">Calculated</span></td><td>= qty_ordered × unit_cost_ex_gst. Sums to PO header total.</td></tr>
+</table>
+
+<div class="sub">Business rules</div>
+<div class="rule">Suggested PO generation: When a reorder alert fires, the system auto-creates a draft PO to the primary supplier with the part, reorder_qty, and current cost price pre-filled. Owner reviews, adjusts, and sends.</div>
+<div class="rule">Multi-part PO: If 4 parts from the same supplier hit reorder level in the same week, combine them into a single draft PO. Reduces ordering overhead and may unlock volume discounts.</div>
+<div class="rule rule-warn">Receipt price check: When receiving a PO, if the actual cost differs from the PO line cost, the system prompts: "CoolDrive charged $12 for Z432, PO says $10. Accept new price and update catalogue cost?" This keeps cost prices current without manual maintenance.</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">Supplier substitution: Ordered Z432 oil filter but supplier sends Z436 as a compatible substitute. The system should allow receiving a different part_id against a PO line with a "Substituted" flag and notes field.</div>
+<div class="rule rule-err">Damaged on delivery: 10 filters ordered, 2 arrive damaged. Receive 8, log 2 as "Damaged on delivery" with a claim reference. PO stays at "Partially received" until the supplier sends replacements or issues a credit.</div>
+</div>
+
+<!-- ═══ LOCATION AND BARCODE ═══ -->
+<div class="pnl" id="p5">
+<div class="section">Workshop layout and part locations</div>
+<p>A simple but high-impact feature: telling the mechanic exactly where to find a part. Currently at Dhalla, the mechanic either knows where things are from memory or asks Tinku. A location system means any mechanic — including new hires — can find any part in under 30 seconds.</p>
+
+<div class="sub">Location naming convention</div>
+<div class="card">
+<table class="tbl" style="font-size:12px">
+<tr><th>Zone</th><th>Format</th><th>Examples</th><th>What's stored there</th></tr>
+<tr><td style="font-weight:500">Shelving unit A</td><td>Shelf A[row]</td><td>Shelf A1, Shelf A2, Shelf A3</td><td>A1: Engine oils. A2: Transmission/brake/coolant fluids. A3: Gear oils and additives.</td></tr>
+<tr><td style="font-weight:500">Shelving unit B</td><td>Shelf B[row]</td><td>Shelf B1, Shelf B2, Shelf B3</td><td>B1: Oil filters. B2: Air and cabin filters. B3: Fuel filters.</td></tr>
+<tr><td style="font-weight:500">Shelving unit C</td><td>Shelf C[row]</td><td>Shelf C1, Shelf C2</td><td>C1: Brake pads and shoes. C2: Rotors, calipers, brake hardware.</td></tr>
+<tr><td style="font-weight:500">Shelving unit D</td><td>Shelf D[row]</td><td>Shelf D1, Shelf D2</td><td>D1: Spark plugs, ignition parts. D2: Drive belts, timing components.</td></tr>
+<tr><td style="font-weight:500">Shelving unit E</td><td>Shelf E[row]</td><td>Shelf E1, Shelf E2</td><td>E1: Batteries. E2: Alternators, starters.</td></tr>
+<tr><td style="font-weight:500">Shelving unit F</td><td>Shelf F[row]</td><td>Shelf F1, Shelf F2</td><td>F1: Consumables (brake cleaner, grease). F2: Workshop supplies (gloves, wipes).</td></tr>
+<tr><td style="font-weight:500">Tyre rack</td><td>Tyre rack</td><td>Tyre rack</td><td>All tyre sizes. Organised by size, not brand.</td></tr>
+<tr><td style="font-weight:500">Special order</td><td>Order on demand</td><td>Order on demand</td><td>Not stocked — ordered per job. Alternators, specialist parts.</td></tr>
+</table>
+</div>
+
+<div class="sub">Barcode scanning workflow</div>
+<div class="rule rule-ok">1. Workshop owner prints barcode labels from the inventory screen (using a standard thermal label printer). Each label shows: part number, item name (shortened), location, and barcode.</div>
+<div class="rule rule-ok">2. Labels are stuck to the shelf edge next to each item.</div>
+<div class="rule rule-ok">3. When the mechanic needs to log a part used on a job: open job card on tablet → tap "Add part" → scan the barcode with the tablet camera → part is added to the job card with correct price and qty = 1.</div>
+<div class="rule rule-ok">4. During stocktake: scan each item, enter actual count. Much faster than scrolling through a list of 123 items.</div>
+
+<div class="sub">Barcode format</div>
+<div class="rule">Use Code 128 barcode format — it's compact, supports alphanumeric, and every scanner reads it. The barcode_sku field stores the encoded value, which can be the part_number (e.g. "Z432") or an internal SKU (e.g. "PT-008"). Generate the barcode image server-side and embed it in the printable label.</div>
+
+<div class="sub">Phase 1 vs Phase 2</div>
+<div class="rule">Phase 1: Location is a free-text field on the part record. Display it next to the part name on job card screens so mechanics can find stock. No barcode hardware required.</div>
+<div class="rule rule-warn">Phase 2: Barcode scanner integration. Print labels, scan to add parts to job cards, scan during stocktake. Requires a thermal label printer (~$150) and using the tablet camera as a scanner (no dedicated hardware needed).</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">Multiple locations: A popular oil filter might be stocked on Shelf B1 (primary) and also kept in a bulk storage area. Support a primary_location and a notes field for overflow locations. The display shows the primary location.</div>
+<div class="rule rule-err">Location changes: When the workshop reorganises shelving, they need to bulk-update locations. A "Relocate" function in the inventory screen lets the owner select all parts on "Shelf A1" and move them to "Shelf A2" in one action.</div>
+</div>
+
+<script>
+function show(i){
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',j===i));
+  document.querySelectorAll('.pnl').forEach((p,j)=>p.classList.toggle('active',j===i));
+}
+</script>

@@ -1,0 +1,264 @@
+
+<h2 class="sr-only">Deep dive into MechWise Module 1: Core Entities covering workshops, clients, vehicles, staff, and user access</h2>
+<style>
+.tabs{display:flex;gap:4px;border-bottom:0.5px solid var(--border);margin-bottom:1.5rem;overflow-x:auto}
+.tab{padding:8px 14px;font-size:13px;cursor:pointer;border:none;background:none;color:var(--text-secondary);border-bottom:2px solid transparent;white-space:nowrap;font-family:inherit}
+.tab.active{color:var(--text-primary);border-bottom-color:var(--text-accent);font-weight:500}
+.pnl{display:none}.pnl.active{display:block}
+.card{background:var(--surface-1);border-radius:12px;padding:1rem 1.25rem;margin-bottom:12px}
+.badge{display:inline-block;padding:2px 8px;border-radius:var(--radius);font-size:11px;font-weight:500;margin-right:4px}
+.b-pk{background:var(--bg-accent);color:var(--text-accent)}
+.b-fk{background:var(--bg-pro);color:var(--text-pro)}
+.b-req{background:var(--bg-danger);color:var(--text-danger)}
+.b-auto{background:var(--bg-success);color:var(--text-success)}
+.b-val{background:var(--bg-warning);color:var(--text-warning)}
+.b-new{background:var(--bg-success);color:var(--text-success)}
+.tbl{width:100%;border-collapse:collapse;font-size:13px;margin:8px 0}
+.tbl th{text-align:left;padding:6px 8px;border-bottom:0.5px solid var(--border-strong);color:var(--text-secondary);font-weight:500;font-size:12px}
+.tbl td{padding:6px 8px;border-bottom:0.5px solid var(--border);vertical-align:top;color:var(--text-primary)}
+.tbl tr:last-child td{border-bottom:none}
+.rule{background:var(--surface-1);border-radius:var(--radius);padding:10px 14px;margin:8px 0;font-size:13px;border-left:3px solid var(--border-accent);border-radius:0}
+.rule-warn{border-left-color:var(--border-warning)}
+.rule-err{border-left-color:var(--border-danger)}
+.section{font-size:15px;font-weight:500;margin:1.5rem 0 0.75rem;color:var(--text-primary)}
+.sub{font-size:13px;font-weight:500;margin:1rem 0 0.5rem;color:var(--text-secondary)}
+p{margin:0 0 8px;line-height:1.6;font-size:13px;color:var(--text-primary)}
+.muted{color:var(--text-secondary)}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;font-size:12px}
+</style>
+
+<div style="padding:0 0 4px">
+  <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Module 1 of 8</div>
+  <div style="font-size:18px;font-weight:500;margin-bottom:4px"><i class="ti ti-building" aria-hidden="true" style="color:var(--text-accent);margin-right:6px"></i>Core entities</div>
+  <div style="font-size:13px;color:var(--text-secondary)">Workshops, clients, vehicles, ownership, staff, and user access</div>
+</div>
+
+<div class="legend">
+  <span class="badge b-pk">PK primary key</span>
+  <span class="badge b-fk">FK foreign key</span>
+  <span class="badge b-req">Required</span>
+  <span class="badge b-auto">Auto-generated</span>
+  <span class="badge b-val">Validated</span>
+  <span class="badge b-new">New field</span>
+</div>
+
+<div class="tabs" id="tabs">
+  <button class="tab active" onclick="show(0)"><i class="ti ti-building" aria-hidden="true" style="margin-right:4px"></i>Workshop</button>
+  <button class="tab" onclick="show(1)"><i class="ti ti-users" aria-hidden="true" style="margin-right:4px"></i>Clients</button>
+  <button class="tab" onclick="show(2)"><i class="ti ti-car" aria-hidden="true" style="margin-right:4px"></i>Vehicles</button>
+  <button class="tab" onclick="show(3)"><i class="ti ti-link" aria-hidden="true" style="margin-right:4px"></i>Ownership</button>
+  <button class="tab" onclick="show(4)"><i class="ti ti-tool" aria-hidden="true" style="margin-right:4px"></i>Staff</button>
+  <button class="tab" onclick="show(5)"><i class="ti ti-lock" aria-hidden="true" style="margin-right:4px"></i>Users</button>
+</div>
+
+<!-- ═══ WORKSHOPS ═══ -->
+<div class="pnl active" id="p0">
+<div class="section">workshops table</div>
+<p>The root entity. Everything in MechWise belongs to a workshop. This enables multi-tenancy from day one — when you sell to a second customer, their data is completely isolated.</p>
+
+<table class="tbl">
+<tr><th>Field</th><th>Type</th><th>Tags</th><th>Validation and notes</th></tr>
+<tr><td>workshop_id</td><td>VARCHAR(10)</td><td><span class="badge b-pk">PK</span><span class="badge b-auto">Auto</span></td><td>Format: WS-001. Auto-incremented on creation.</td></tr>
+<tr><td>business_name</td><td>VARCHAR(200)</td><td><span class="badge b-req">Required</span></td><td>Appears on invoice headers, PDF letterhead, SMS sender name. e.g. "Dhalla Automotive Pty Ltd"</td></tr>
+<tr><td>abn</td><td>VARCHAR(20)</td><td><span class="badge b-val">Validated</span></td><td>Australian Business Number. Must pass ABN checksum algorithm (11-digit weighted sum mod 89 = 0). Appears on all invoices — ATO requirement.</td></tr>
+<tr><td>mvrl_no</td><td>VARCHAR(20)</td><td></td><td>Motor Vehicle Repairer Licence number. NSW-specific. Required for pink slip issuing workshops.</td></tr>
+<tr><td>arc_no</td><td>VARCHAR(20)</td><td></td><td>Air conditioning Refrigerant Certificate. Required if workshop does AC work.</td></tr>
+<tr><td>address</td><td>VARCHAR(200)</td><td><span class="badge b-req">Required</span></td><td>Street address. Used on invoices and for Google Maps embedding in customer portal.</td></tr>
+<tr><td>suburb</td><td>VARCHAR(100)</td><td><span class="badge b-req">Required</span></td><td></td></tr>
+<tr><td>state</td><td>VARCHAR(10)</td><td><span class="badge b-req">Required</span></td><td>Dropdown: NSW, VIC, QLD, SA, WA, TAS, NT, ACT. Defaults to NSW.</td></tr>
+<tr><td>postcode</td><td>VARCHAR(10)</td><td><span class="badge b-val">Validated</span></td><td>Must be 4 digits. Auto-validated against Australia Post postcode database.</td></tr>
+<tr><td>phone</td><td>VARCHAR(20)</td><td><span class="badge b-val">Validated</span></td><td>Primary contact. Format: 02 XXXX XXXX or 04XX XXX XXX. Displayed on invoices.</td></tr>
+<tr><td>mobile</td><td>VARCHAR(20)</td><td><span class="badge b-val">Validated</span></td><td>Owner's mobile. Used as SMS sender for customer reminders.</td></tr>
+<tr><td>email</td><td>VARCHAR(150)</td><td><span class="badge b-val">Validated</span></td><td>Must be valid email format. Used as reply-to on automated emails and invoice PDFs.</td></tr>
+<tr><td>owner_name</td><td>VARCHAR(100)</td><td></td><td>For display on invoices and correspondence.</td></tr>
+<tr><td>hours_weekday</td><td>VARCHAR(100)</td><td></td><td>Free text. e.g. "Mon-Fri 7:30AM-5:00PM". Shown on customer portal and booking page.</td></tr>
+<tr><td>hours_saturday</td><td>VARCHAR(100)</td><td></td><td>e.g. "Sat 8:00AM-1:00PM" or blank if closed.</td></tr>
+<tr><td>logo_url</td><td>VARCHAR(500)</td><td><span class="badge b-new">New</span></td><td>URL to workshop logo image. Rendered on invoice PDFs, customer portal, and login page. Upload via settings page.</td></tr>
+<tr><td>timezone</td><td>VARCHAR(50)</td><td><span class="badge b-auto">Auto</span></td><td>Defaults to "Australia/Sydney". Critical for SMS scheduling — a reminder set for 9am must fire at 9am local time.</td></tr>
+</table>
+
+<div class="sub">Business rules</div>
+<div class="rule">ABN must be provided before any invoice can be generated. The system should warn on setup if ABN is missing: "Add your ABN to start invoicing."</div>
+<div class="rule">Workshop hours drive the appointment booking calendar — time slots outside operating hours should be greyed out and unbookable.</div>
+<div class="rule rule-warn">Multi-workshop: When workshop_id is present on every table, a franchise owner can switch between locations in the same login. Data never leaks across workshops.</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">Some workshops operate from home without a formal shopfront. Address is still required for invoice compliance, but "Garage_Location" on vehicles should be optional.</div>
+<div class="rule rule-err">Mobile workshops (those that go to the customer) may not have a fixed address. Support a "Mobile" checkbox that replaces address with a service area description.</div>
+</div>
+
+<!-- ═══ CLIENTS ═══ -->
+<div class="pnl" id="p1">
+<div class="section">clients table</div>
+<p>Separated from vehicles. One client can own 1, 5, or 50 vehicles. The client record captures who pays and who to contact — the vehicle record captures what gets serviced.</p>
+
+<table class="tbl">
+<tr><th>Field</th><th>Type</th><th>Tags</th><th>Validation and notes</th></tr>
+<tr><td>client_id</td><td>VARCHAR(10)</td><td><span class="badge b-pk">PK</span><span class="badge b-auto">Auto</span></td><td>Format: CL-001. Auto-incremented.</td></tr>
+<tr><td>client_type</td><td>VARCHAR(20)</td><td><span class="badge b-req">Required</span></td><td>Enum: "Individual" or "Business". Drives which name fields are shown — Individual shows first/last, Business shows business_name.</td></tr>
+<tr><td>business_name</td><td>VARCHAR(200)</td><td></td><td>Required when client_type = "Business". Used on invoices. e.g. "Revo Kitchens Pty Ltd", "Akay Enterprises Aus Pty Ltd"</td></tr>
+<tr><td>first_name</td><td>VARCHAR(50)</td><td></td><td>Required when client_type = "Individual". Minimum 2 characters.</td></tr>
+<tr><td>last_name</td><td>VARCHAR(50)</td><td></td><td>Optional — many existing customers only have first names ("Kuku", "Jassi", "Bittu").</td></tr>
+<tr><td>mobile</td><td>VARCHAR(20)</td><td><span class="badge b-val">Validated</span></td><td>Australian mobile: must start with 04 and be 10 digits. Auto-format on save: "0430117807" becomes "0430 117 807". Strips spaces/dashes on input.</td></tr>
+<tr><td>landline</td><td>VARCHAR(20)</td><td><span class="badge b-val">Validated</span></td><td>Australian landline: starts with 02/03/07/08, 10 digits total.</td></tr>
+<tr><td>email</td><td>VARCHAR(150)</td><td><span class="badge b-val">Validated</span><span class="badge b-new">New</span></td><td>Standard email regex. Currently 0% populated — the system prompts for email at every touchpoint: quote approval, invoice delivery, booking confirmation.</td></tr>
+<tr><td>abn</td><td>VARCHAR(20)</td><td><span class="badge b-val">Validated</span><span class="badge b-new">New</span></td><td>Only for business clients. ABN checksum validation. Enables accurate BAS reporting when client is also a supplier.</td></tr>
+<tr><td>address</td><td>VARCHAR(200)</td><td><span class="badge b-new">New</span></td><td>Street address. Optional but needed for mailing invoices and for insurance claims.</td></tr>
+<tr><td>suburb</td><td>VARCHAR(100)</td><td></td><td></td></tr>
+<tr><td>state</td><td>VARCHAR(10)</td><td></td><td>Dropdown. Defaults to NSW.</td></tr>
+<tr><td>postcode</td><td>VARCHAR(10)</td><td><span class="badge b-val">Validated</span></td><td>4-digit Australian postcode.</td></tr>
+<tr><td>preferred_contact</td><td>VARCHAR(20)</td><td><span class="badge b-new">New</span></td><td>Enum: SMS | Email | Phone | WhatsApp. Determines how automated reminders are sent. Default: SMS (most mechanics prefer texting).</td></tr>
+<tr><td>notes</td><td>TEXT</td><td></td><td>Free text. e.g. "Fleet account", "Always pays cash", "Prefers morning appointments".</td></tr>
+<tr><td>is_active</td><td>BOOLEAN</td><td></td><td>Soft delete. Inactive clients don't appear in search or dropdowns but their history is preserved.</td></tr>
+</table>
+
+<div class="sub">Business rules</div>
+<div class="rule">At least one of mobile, landline, or email must be provided. A client with no contact method can't receive reminders, quotes, or invoices.</div>
+<div class="rule">Duplicate detection on save: if another client has the same mobile number, show a warning: "A client with this number already exists: [Name]. Link this vehicle to them instead?" This prevents the Satnam Randava x3 problem.</div>
+<div class="rule rule-warn">Progressive data capture: The first time a client visits, you might only have a name and phone. The system shouldn't block on missing fields — instead, it shows a "Profile 40% complete" bar and prompts for email/address at natural touchpoints (sending a quote, generating an invoice).</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">Same person, different phones: "Simon" appears with 0466286977 (DQB61Y), 0469700288 (DN24GZ and AY81BW), and 0402110194 (SML034). Might be same or different people. The system should flag but not auto-merge — let the front desk decide.</div>
+<div class="rule rule-err">Business clients with authorised contacts: "Harpal Kahlon Pty Ltd" might send different drivers each time. Support a "contacts" sub-list on business accounts — multiple names/phones tied to the same CL-ID.</div>
+<div class="rule rule-err">Privacy: Client data is PII under Australian Privacy Act. The system must support data export (right of access) and data deletion (right to erasure) requests. Soft delete first, hard delete after 7-year retention period for tax records.</div>
+</div>
+
+<!-- ═══ VEHICLES ═══ -->
+<div class="pnl" id="p2">
+<div class="section">vehicles table</div>
+<p>The thing that gets serviced. Separated from the client who owns it. Currently 323 vehicles with only rego numbers — all other fields are empty. The rego lookup API is the key to filling this automatically.</p>
+
+<table class="tbl">
+<tr><th>Field</th><th>Type</th><th>Tags</th><th>Validation and notes</th></tr>
+<tr><td>vehicle_id</td><td>VARCHAR(10)</td><td><span class="badge b-pk">PK</span><span class="badge b-auto">Auto</span></td><td>Format: VH-001. Auto-incremented.</td></tr>
+<tr><td>registration_no</td><td>VARCHAR(20)</td><td><span class="badge b-req">Required</span><span class="badge b-val">Validated</span></td><td>Must be unique per workshop. Auto-uppercase on input. Strip spaces. NSW regos are typically 6 chars (e.g. "DFG45Z") but custom plates vary ("02REVO", "BADWAL", "MRKANG").</td></tr>
+<tr><td>state</td><td>VARCHAR(10)</td><td></td><td>Which state the vehicle is registered in. Defaults to NSW. Determines which rego lookup API to call.</td></tr>
+<tr><td>make_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span><span class="badge b-auto">Auto</span></td><td>Links to vehicle_makes lookup. Auto-populated by rego lookup API. Dropdown with type-ahead search for manual entry.</td></tr>
+<tr><td>vehicle_model</td><td>VARCHAR(50)</td><td><span class="badge b-auto">Auto</span></td><td>Auto-populated by rego lookup. e.g. "Tucson", "Corolla", "CRV".</td></tr>
+<tr><td>vehicle_year</td><td>INTEGER</td><td><span class="badge b-auto">Auto</span><span class="badge b-val">Validated</span></td><td>4-digit year. Must be between 1950 and current year + 1. Auto-populated by rego lookup.</td></tr>
+<tr><td>vehicle_color</td><td>VARCHAR(30)</td><td><span class="badge b-auto">Auto</span></td><td>Auto-populated. Standard color names: White, Black, Silver, Grey, Red, Blue, etc.</td></tr>
+<tr><td>body_type</td><td>VARCHAR(30)</td><td><span class="badge b-new">New</span></td><td>Enum: Sedan, SUV, Hatch, Ute, Van, Wagon, Coupe, Convertible, Truck, Bus, Trailer.</td></tr>
+<tr><td>vin</td><td>VARCHAR(20)</td><td><span class="badge b-auto">Auto</span><span class="badge b-val">Validated</span></td><td>Vehicle Identification Number. 17 characters. Must pass VIN checksum (position 9 check digit). Auto-populated by rego lookup. Critical for warranty claims and part ordering.</td></tr>
+<tr><td>engine_no</td><td>VARCHAR(30)</td><td><span class="badge b-new">New</span></td><td>Stamped on engine block. Useful for insurance claims and theft recovery. Manual entry only.</td></tr>
+<tr><td>engine_capacity</td><td>VARCHAR(20)</td><td><span class="badge b-auto">Auto</span></td><td>e.g. "2.0L", "3.5L", "Electric". Auto-populated.</td></tr>
+<tr><td>fuel_type</td><td>VARCHAR(20)</td><td><span class="badge b-auto">Auto</span></td><td>Enum: Petrol, Diesel, LPG, LPG/Petrol, Electric, Hybrid, Hydrogen. Determines which oil types and service kits apply.</td></tr>
+<tr><td>transmission</td><td>VARCHAR(10)</td><td><span class="badge b-auto">Auto</span></td><td>Enum: Auto, Manual, CVT, DCT. Determines transmission fluid type and clutch applicability.</td></tr>
+<tr><td>current_mileage_km</td><td>INTEGER</td><td><span class="badge b-val">Validated</span></td><td>Updated each time vehicle is serviced (from job card mileage_in field). Must never decrease — if a lower value is entered, show warning: "Mileage is lower than last recorded. Check odometer reading."</td></tr>
+<tr><td>pink_slip_expiry</td><td>DATE</td><td></td><td>NSW e-safety check expiry. Auto-calculated: last inspection date + 6 months (or 12 months for newer vehicles). Drives Pink Slip reminder alerts.</td></tr>
+<tr><td>next_service_due</td><td>DATE</td><td><span class="badge b-auto">Auto</span></td><td>Auto-populated from the latest invoice's next_service_due field. Drives Service Reminder alerts.</td></tr>
+<tr><td>next_service_km</td><td>INTEGER</td><td><span class="badge b-auto">Auto</span></td><td>Auto-populated from invoice. e.g. current 92,500km + 10,000km interval = 102,500km.</td></tr>
+</table>
+
+<div class="sub">Business rules</div>
+<div class="rule">Rego lookup API workflow: (1) User types rego, (2) system calls TfNSW/NEVDIS API, (3) auto-fills make, model, year, VIN, color, fuel, transmission, engine capacity, (4) user confirms or edits. This alone saves 2-3 minutes per new vehicle entry.</div>
+<div class="rule">When mileage is updated via a job card, auto-check: if current_mileage_km is within 1,000km of next_service_km, trigger a "service due soon" notification.</div>
+<div class="rule rule-warn">Electric vehicles: fuel_type = "Electric" should hide oil-related service items from the job catalogue picker. No oil filter, no engine oil, no spark plugs. Different service schedule.</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">Unregistered vehicles: Trailers, farm equipment, or vehicles being repaired before re-registration may not have a valid rego. Allow a "No Rego" or placeholder entry but still require a VIN or description.</div>
+<div class="rule rule-err">Interstate vehicles: A VIC-registered car serviced in NSW. The rego lookup API differs by state. Support state selection before rego lookup.</div>
+<div class="rule rule-err">Personalised plates: "02REVO", "MRKANG", "BADWAL" won't follow standard rego patterns. Don't reject based on format — let any alphanumeric string through.</div>
+</div>
+
+<!-- ═══ CLIENT_VEHICLES ═══ -->
+<div class="pnl" id="p3">
+<div class="section">client_vehicles table (junction)</div>
+<p>The relationship bridge. This is what makes the data model flexible — one client can own many vehicles, one vehicle can have ownership history, and fleet companies work properly.</p>
+
+<table class="tbl">
+<tr><th>Field</th><th>Type</th><th>Tags</th><th>Validation and notes</th></tr>
+<tr><td>link_id</td><td>VARCHAR(10)</td><td><span class="badge b-pk">PK</span><span class="badge b-auto">Auto</span></td><td>Format: LK-001.</td></tr>
+<tr><td>client_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span><span class="badge b-req">Required</span></td><td>References clients.client_id. Cascading soft-delete: if client is deactivated, links remain for history.</td></tr>
+<tr><td>vehicle_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span><span class="badge b-req">Required</span></td><td>References vehicles.vehicle_id.</td></tr>
+<tr><td>ownership_start</td><td>DATE</td><td></td><td>When the client acquired this vehicle. Optional but useful for service history context.</td></tr>
+<tr><td>ownership_end</td><td>DATE</td><td></td><td>NULL = currently owned. Filled when vehicle is sold or transferred. Past-owned vehicles still show in client history but are greyed out.</td></tr>
+<tr><td>is_primary_owner</td><td>BOOLEAN</td><td></td><td>Only one primary owner per vehicle at any time. The primary owner is who gets service reminders and invoices. Enforced by DB constraint.</td></tr>
+<tr><td>relationship</td><td>VARCHAR(30)</td><td></td><td>Enum: Owner, Authorised Driver, Fleet Manager, Family Member. Fleet Manager can approve quotes and view all fleet vehicles.</td></tr>
+</table>
+
+<div class="sub">Business rules</div>
+<div class="rule">When a new vehicle is created, auto-create a client_vehicles link with is_primary_owner = TRUE and ownership_start = today.</div>
+<div class="rule">When searching for a vehicle by rego, show the current primary owner's details (name, phone) alongside it. If the person dropping off is different, offer: "Is [name] still the owner? Or link to a different client."</div>
+<div class="rule rule-warn">Fleet scenario: "Insite Care" (CL-XXX) owns both 718JC2 and 2BN5ST. When front desk types either rego, the system shows "Insite Care" as the client and lists all fleet vehicles in a sidebar. The fleet manager can view service history and costs across all vehicles.</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">Vehicle sold to another existing client: Set ownership_end on old link, create new link with new client. Service reminders switch to the new owner. Old owner's history for that vehicle remains accessible but marked as "previous owner".</div>
+<div class="rule rule-err">Shared vehicles (family car): Two clients can both be linked to the same vehicle — e.g. husband and wife. One is primary (gets reminders), the other is "Family Member" (can drop off and approve work).</div>
+<div class="rule rule-err">Vehicle with no known owner (e.g. tow-in, insurance job): Create a placeholder client "Unknown / Insurance Job" and link. Update when the real owner is identified.</div>
+</div>
+
+<!-- ═══ STAFF ═══ -->
+<div class="pnl" id="p4">
+<div class="section">staff table</div>
+<p>Everyone who works at the workshop. Not just mechanics — also front desk, apprentices, and the owner. Staff records drive job assignment, time tracking, labour costing, and the workshop floor board.</p>
+
+<table class="tbl">
+<tr><th>Field</th><th>Type</th><th>Tags</th><th>Validation and notes</th></tr>
+<tr><td>staff_id</td><td>VARCHAR(10)</td><td><span class="badge b-pk">PK</span><span class="badge b-auto">Auto</span></td><td>Format: ST-001.</td></tr>
+<tr><td>first_name</td><td>VARCHAR(50)</td><td><span class="badge b-req">Required</span></td><td>Minimum 2 characters.</td></tr>
+<tr><td>last_name</td><td>VARCHAR(50)</td><td></td><td>Optional — some existing mechanics are single-name ("Ash", "Smile", "Joen").</td></tr>
+<tr><td>role</td><td>VARCHAR(30)</td><td><span class="badge b-req">Required</span></td><td>Enum: Owner/Mechanic, Manager, Mechanic, Apprentice, Front Desk, Read-Only. Determines default permissions when creating a user account.</td></tr>
+<tr><td>mobile</td><td>VARCHAR(20)</td><td><span class="badge b-val">Validated</span></td><td>For rostering notifications and emergency contact.</td></tr>
+<tr><td>hourly_rate</td><td>DECIMAL(8,2)</td><td><span class="badge b-new">New</span></td><td>Internal cost rate. NOT the rate charged to customers (that's the job_sub_items.labour_rate). Used for profitability analysis: if mechanic costs $35/hr and you charge $80/hr, gross margin on labour is 56%.</td></tr>
+<tr><td>employment_type</td><td>VARCHAR(20)</td><td><span class="badge b-new">New</span></td><td>Enum: Full-Time, Part-Time, Casual, Contractor. Affects availability scheduling and leave tracking.</td></tr>
+<tr><td>certifications</td><td>VARCHAR(200)</td><td><span class="badge b-new">New</span></td><td>Comma-separated: "MVRL, ARC, ASE". Pink slip inspections require MVRL certification — the system should only allow MVRL-certified staff to be assigned to pink slip jobs.</td></tr>
+<tr><td>availability_days</td><td>VARCHAR(50)</td><td></td><td>e.g. "Mon-Fri", "Mon-Sat", "Wed,Thu,Fri". Drives the appointment scheduler — can't book a mechanic on their day off.</td></tr>
+<tr><td>availability_hrs</td><td>VARCHAR(50)</td><td></td><td>e.g. "7:30AM-5:00PM", "8:00AM-4:30PM". Drives time slot availability in booking calendar.</td></tr>
+</table>
+
+<div class="sub">Business rules</div>
+<div class="rule">When assigning a mechanic to a job card, the dropdown should only show staff who are: (a) available on the job date, (b) have the right certifications for that job type, and (c) are not already at capacity (check existing job cards for that day).</div>
+<div class="rule">Hourly rate is hidden from all roles except Owner and Manager. Mechanics should not see each other's pay rates.</div>
+<div class="rule rule-warn">Apprentice supervision: If a job is assigned to an Apprentice, the system should require a supervising Mechanic to be co-assigned. This is an Australian legal requirement for apprentice work.</div>
+
+<div class="sub">Edge cases</div>
+<div class="rule rule-err">Owner doing everything: In Dhalla's case, Tinku is owner, mechanic, and front desk. His staff record should have role "Owner/Mechanic" with full permissions, but the system should still support proper separation when he hires dedicated front desk staff.</div>
+<div class="rule rule-err">Subcontractors: A mobile auto-electrician or tow truck driver who does occasional work. Employment_type "Contractor" — they don't appear on the roster but can be assigned to specific jobs.</div>
+</div>
+
+<!-- ═══ USERS ═══ -->
+<div class="pnl" id="p5">
+<div class="section">users table</div>
+<p>Authentication and access control. Linked to staff but separate — a staff member exists even without a login, and you might have system-level users (like an admin account) that aren't tied to a specific staff member.</p>
+
+<table class="tbl">
+<tr><th>Field</th><th>Type</th><th>Tags</th><th>Validation and notes</th></tr>
+<tr><td>user_id</td><td>VARCHAR(10)</td><td><span class="badge b-pk">PK</span><span class="badge b-auto">Auto</span></td><td>Format: USR-001.</td></tr>
+<tr><td>staff_id</td><td>VARCHAR(10)</td><td><span class="badge b-fk">FK</span></td><td>Links to staff record. NULL for system accounts.</td></tr>
+<tr><td>username</td><td>VARCHAR(50)</td><td><span class="badge b-req">Required</span><span class="badge b-val">Validated</span></td><td>Unique across the workshop. Lowercase, no spaces. e.g. "dhalla", "baljit", "frontdesk".</td></tr>
+<tr><td>password_hash</td><td>VARCHAR(255)</td><td><span class="badge b-req">Required</span></td><td>bcrypt hash. Never store plaintext. Minimum 8 characters, at least one number. Force password change on first login.</td></tr>
+<tr><td>role</td><td>VARCHAR(30)</td><td><span class="badge b-req">Required</span></td><td>Enum: Owner, Manager, Front Desk, Mechanic, Apprentice, Read-Only. Determines permission defaults.</td></tr>
+<tr><td>can_view_financials</td><td>BOOLEAN</td><td></td><td>See revenue, costs, margins, payment details. Default: Yes for Owner/Manager, No for Mechanic.</td></tr>
+<tr><td>can_edit_pricing</td><td>BOOLEAN</td><td></td><td>Change job prices, part prices, discount amounts. Default: Yes for Owner, No for others.</td></tr>
+<tr><td>can_delete_records</td><td>BOOLEAN</td><td></td><td>Delete clients, vehicles, invoices. Default: Yes for Owner only. All deletes are soft-delete with audit trail.</td></tr>
+<tr><td>can_manage_users</td><td>BOOLEAN</td><td></td><td>Create/edit/deactivate other user accounts. Owner only.</td></tr>
+<tr><td>can_export_data</td><td>BOOLEAN</td><td></td><td>Export CSV/Excel data. Owner and Manager. Prevents unauthorized data extraction.</td></tr>
+</table>
+
+<div class="sub">Permission matrix by role</div>
+<table class="tbl">
+<tr><th>Capability</th><th>Owner</th><th>Manager</th><th>Front desk</th><th>Mechanic</th><th>Read-only</th></tr>
+<tr><td>View dashboard</td><td>Full</td><td>Full</td><td>Bookings only</td><td>Job board only</td><td>View only</td></tr>
+<tr><td>Create/edit clients</td><td>Yes</td><td>Yes</td><td>Yes</td><td>No</td><td>No</td></tr>
+<tr><td>Create/edit job cards</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Own jobs only</td><td>No</td></tr>
+<tr><td>Create/edit invoices</td><td>Yes</td><td>Yes</td><td>Yes</td><td>No</td><td>No</td></tr>
+<tr><td>View financials</td><td>Yes</td><td>Yes</td><td>Limited</td><td>No</td><td>No</td></tr>
+<tr><td>Edit prices</td><td>Yes</td><td>No</td><td>No</td><td>No</td><td>No</td></tr>
+<tr><td>Manage stock</td><td>Yes</td><td>Yes</td><td>View only</td><td>View only</td><td>No</td></tr>
+<tr><td>Send SMS/email</td><td>Yes</td><td>Yes</td><td>Yes</td><td>No</td><td>No</td></tr>
+<tr><td>Delete records</td><td>Yes</td><td>No</td><td>No</td><td>No</td><td>No</td></tr>
+<tr><td>Export data</td><td>Yes</td><td>Yes</td><td>No</td><td>No</td><td>No</td></tr>
+</table>
+
+<div class="sub">Business rules</div>
+<div class="rule">Session timeout: 8 hours for workshop staff (they're logged in all day). 30 minutes for customer portal.</div>
+<div class="rule">Audit log: Every create, update, and delete action records who, when, and what changed. Stored in a separate audit_log table. Retained for 7 years (ATO requirement).</div>
+<div class="rule rule-warn">Current system uses "dhalla@tinku" as username with a simple password. Migration should force a password reset for all users on first login to the new platform.</div>
+</div>
+
+<script>
+function show(i){
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',j===i));
+  document.querySelectorAll('.pnl').forEach((p,j)=>p.classList.toggle('active',j===i));
+}
+</script>
