@@ -127,8 +127,8 @@ export default function InvoicesPage() {
                   <th className="py-3 px-4">Client / Company</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4 text-right">Subtotal (Ex-GST)</th>
-                  <th className="py-3 px-4 text-right">GST (10%)</th>
-                  <th className="py-3 px-4 text-right">Total (Inc-GST)</th>
+                  <th className="py-3 px-4 text-right">GST</th>
+                  <th className="py-3 px-4 text-right">Total Payable</th>
                   <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
@@ -147,6 +147,11 @@ export default function InvoicesPage() {
                         >
                           {inv.invoiceNumber}
                         </Link>
+                        {inv.isGstFree && (
+                          <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 border">
+                            GST-Free
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 px-4 font-mono text-gray-600">
                         {formatDateAU(inv.invoiceDate)}
@@ -179,7 +184,11 @@ export default function InvoicesPage() {
                         {formatAUD(inv.subtotalExGst)}
                       </td>
                       <td className="py-3 px-4 text-right font-mono text-gray-500">
-                        {formatAUD(inv.gstAmount)}
+                        {inv.isGstFree ? (
+                          <span className="text-gray-400">$0.00</span>
+                        ) : (
+                          formatAUD(inv.gstAmount)
+                        )}
                       </td>
                       <td className="py-3 px-4 text-right font-mono font-bold text-gray-900">
                         {formatAUD(inv.finalAmount)}

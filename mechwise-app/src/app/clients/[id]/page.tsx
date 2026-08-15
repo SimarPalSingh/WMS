@@ -232,14 +232,21 @@ export default function ClientDetailPage({
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {client.jobCards?.map((job: any) => (
-                      <tr key={job.id} className="hover:bg-gray-50/80 transition-colors">
+                      <tr key={job.id} className="hover:bg-amber-50/20 transition-colors">
                         <td className="py-3 px-3 font-mono font-semibold text-gray-900">
-                          {job.jobCardNumber}
+                          <Link
+                            href={`/jobs/${job.id}`}
+                            className="hover:text-[#E8920D] transition-colors"
+                          >
+                            {job.jobCardNumber}
+                          </Link>
                         </td>
                         <td className="py-3 px-3">
-                          <span className="font-mono font-bold bg-gray-100 px-2 py-0.5 rounded border text-gray-800">
-                            {job.vehicle?.registration}
-                          </span>
+                          <Link href={`/vehicles/${job.vehicle?.id || ""}`}>
+                            <span className="font-mono font-bold bg-[#1B2A4A] text-amber-400 px-2 py-0.5 rounded border border-[#243656] hover:opacity-90">
+                              {job.vehicle?.registration}
+                            </span>
+                          </Link>
                         </td>
                         <td className="py-3 px-3 font-mono text-gray-600">
                           {formatDateAU(job.dateIn)}

@@ -145,7 +145,7 @@ export default function InvoiceDetailPage({
             </div>
             <div className="text-right">
               <span className="inline-block px-3 py-1 bg-white/10 rounded font-mono font-bold text-base tracking-widest border border-white/20">
-                TAX INVOICE
+                {invoice.isGstFree ? "INVOICE (GST-FREE)" : "TAX INVOICE"}
               </span>
               <p className="font-mono font-bold text-amber-400 text-sm mt-1">
                 {invoice.invoiceNumber}
@@ -158,7 +158,7 @@ export default function InvoiceDetailPage({
             <div className="grid grid-cols-2 gap-6 text-xs border-b border-gray-100 pb-5">
               <div>
                 <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-1">
-                  Tax Invoice Issued To:
+                  {invoice.isGstFree ? "Invoice Issued To:" : "Tax Invoice Issued To:"}
                 </span>
                 <p className="font-bold text-gray-900 text-sm">
                   {isBusiness
@@ -235,11 +235,13 @@ export default function InvoiceDetailPage({
                   <span className="font-semibold">{formatAUD(invoice.subtotalExGst)}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
-                  <span>GST (10%):</span>
+                  <span>
+                    Australian GST {invoice.isGstFree ? "(0% GST-Free):" : "(10%):"}
+                  </span>
                   <span>{formatAUD(invoice.gstAmount)}</span>
                 </div>
                 <div className="pt-2 border-t border-gray-300 flex justify-between text-sm font-bold text-[#1B2A4A]">
-                  <span>Total (Inc-GST):</span>
+                  <span>Total Payable {invoice.isGstFree ? "(GST-Free):" : "(Inc-GST):"}</span>
                   <span className="text-emerald-700">{formatAUD(invoice.finalAmount)}</span>
                 </div>
                 <div className="flex justify-between text-xs text-gray-600">

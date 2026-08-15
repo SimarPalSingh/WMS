@@ -28,7 +28,7 @@ export async function GET(request: Request) {
       ]
     }
 
-    const [jobCards, bays, staff, clients, vehicles] = await Promise.all([
+    const [jobCards, bays, staff, clients, vehicles, workshop] = await Promise.all([
       prisma.jobCard.findMany({
         where,
         include: {
@@ -44,7 +44,8 @@ export async function GET(request: Request) {
       prisma.bay.findMany({ where: { workshopId }, orderBy: { displayOrder: "asc" } }),
       prisma.staff.findMany({ where: { workshopId, isActive: true } }),
       prisma.client.findMany({ where: { workshopId } }),
-      prisma.vehicle.findMany({ where: { workshopId } })
+      prisma.vehicle.findMany({ where: { workshopId } }),
+      prisma.workshop.findUnique({ where: { id: workshopId } })
     ])
 
     return NextResponse.json({
@@ -52,7 +53,8 @@ export async function GET(request: Request) {
       bays,
       staff,
       clients,
-      vehicles
+      vehicles,
+      workshop
     })
   } catch (error) {
     console.error("Error fetching job cards:", error)
@@ -72,6 +74,7 @@ export async function POST(request: Request) {
       staffId,
       bayId,
       priority,
+      includeGst = true,
       mileageIn,
       customerNotes,
       lines = []
@@ -115,6 +118,7 @@ export async function POST(request: Request) {
         bayId: bayId || null,
         status: "Booked",
         priority: priority || "Normal",
+        includeGst: Boolean(includeGst),
         mileageIn: mileageIn ? parseInt(mileageIn) : null,
         customerNotes,
         totalExGst: calculatedTotalExGst,

@@ -40,10 +40,12 @@ export default function JobCardDetailPage({
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
+  const [workshop, setWorkshop] = useState<any>(null)
   const [lines, setLines] = useState<any[]>([])
   const [status, setStatus] = useState("")
   const [staffId, setStaffId] = useState("")
   const [bayId, setBayId] = useState("")
+  const [includeGst, setIncludeGst] = useState(true)
   const [customerNotes, setCustomerNotes] = useState("")
   const [internalNotes, setInternalNotes] = useState("")
 
@@ -57,8 +59,12 @@ export default function JobCardDetailPage({
           setStatus(data.jobCard.status)
           setStaffId(data.jobCard.staffId || "")
           setBayId(data.jobCard.bayId || "")
+          setIncludeGst(data.jobCard.includeGst !== undefined ? data.jobCard.includeGst : true)
           setCustomerNotes(data.jobCard.customerNotes || "")
           setInternalNotes(data.jobCard.internalNotes || "")
+        }
+        if (data.workshop) {
+          setWorkshop(data.workshop)
         }
         setStaffList(data.staffList || [])
         setBayList(data.bayList || [])
@@ -85,6 +91,7 @@ export default function JobCardDetailPage({
           lines,
           staffId: staffId || null,
           bayId: bayId || null,
+          includeGst,
           customerNotes,
           internalNotes,
         }),
@@ -93,6 +100,7 @@ export default function JobCardDetailPage({
       if (updated.jobCard) {
         setJobCard(updated.jobCard)
         setStatus(updated.jobCard.status)
+        setIncludeGst(updated.jobCard.includeGst !== undefined ? updated.jobCard.includeGst : true)
         setLines(updated.jobCard.lines || [])
       }
     } catch (err) {
@@ -103,14 +111,16 @@ export default function JobCardDetailPage({
   }
 
   const handleAddLine = (type: "Labour" | "Part" | "Subcontract") => {
+    const labourRate = workshop?.defaultLabourRate || 95.0
+    const defaultUnitPrice = type === "Labour" ? labourRate : 50.0
     setLines([
       ...lines,
       {
         lineType: type,
         description: type === "Labour" ? "Additional Diagnostic / Labour" : "Replacement Part",
         qty: 1,
-        unitPriceExGst: type === "Labour" ? 95.0 : 50.0,
-        lineTotalExGst: type === "Labour" ? 95.0 : 50.0,
+        unitPriceExGst: defaultUnitPrice,
+        lineTotalExGst: defaultUnitPrice,
         isCompleted: false,
       },
     ])
@@ -151,8 +161,8 @@ export default function JobCardDetailPage({
     (acc, l) => acc + (parseFloat(l.lineTotalExGst) || 0),
     0
   )
-  const gstAmount = Math.round(subtotalExGst * 0.10 * 100) / 100
-  const totalIncGst = subtotalExGst + gstAmount
+  const gstAmount = includeGst ? Math.round(subtotalExGst * 0.10 * 100) / 100 : 0
+  const totalPayable = includeGst ? subtotalExGst + gstAmount : subtotalExGst
 
   const completedCount = lines.filter((l) => l.isCompleted).length
   const progressPct = lines.length > 0 ? Math.round((completedCount / lines.length) * 100) : 0
@@ -410,9 +420,20 @@ export default function JobCardDetailPage({
         {/* Right Col: Financials & Completion Summary */}
         <div className="space-y-4">
           <div className="bg-white rounded-xl border border-[#E5E7EB] p-5 shadow-xs">
-            <h3 className="text-sm font-bold text-[#1B2A4A] uppercase tracking-wider mb-4">
-              Financial Breakdown
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-bold text-[#1B2A4A] uppercase tracking-wider">
+                Financial Breakdown
+              </h3>
+              <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-gray-700 bg-gray-50 px-2 py-1 rounded-md border">
+                <input
+                  type="checkbox"
+                  checked={includeGst}
+                  onChange={(e) => setIncludeGst(e.target.checked)}
+                  className="rounded text-[#E8920D] cursor-pointer"
+                />
+                <span>Include GST (10%)</span>
+              </label>
+            </div>
 
             <div className="space-y-2.5 text-xs">
               <div className="flex justify-between text-gray-600">
@@ -422,14 +443,16 @@ export default function JobCardDetailPage({
                 </span>
               </div>
               <div className="flex justify-between text-gray-600">
-                <span>Australian GST (10%)</span>
-                <span className="font-mono font-semibold text-gray-900">
+                <span>
+                  Australian GST {includeGst ? "(10%)" : "(0% GST-Free)"}
+                </span>
+                <span className={`font-mono font-semibold ${includeGst ? "text-gray-900" : "text-gray-400"}`}>
                   {formatAUD(gstAmount)}
                 </span>
               </div>
               <div className="pt-2.5 border-t border-gray-200 flex justify-between text-sm font-bold text-[#1B2A4A]">
-                <span>Total (Inc-GST)</span>
-                <span className="font-mono text-emerald-700">{formatAUD(totalIncGst)}</span>
+                <span>Total Payable {includeGst ? "(Inc-GST)" : "(GST-Free)"}</span>
+                <span className="font-mono text-emerald-700">{formatAUD(totalPayable)}</span>
               </div>
             </div>
           </div>

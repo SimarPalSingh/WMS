@@ -48,6 +48,7 @@ export default function JobCardsPage() {
     staffId: "",
     bayId: "",
     priority: "Normal",
+    includeGst: true,
     mileageIn: "",
     customerNotes: "",
     lines: [
@@ -66,6 +67,16 @@ export default function JobCardsPage() {
         setStaff(d.staff || [])
         setClients(d.clients || [])
         setVehicles(d.vehicles || [])
+        if (d.workshop?.defaultLabourRate) {
+          const rate = d.workshop.defaultLabourRate
+          setNewJob((prev) => ({
+            ...prev,
+            lines: [
+              { lineType: "Labour", description: "Standard General Logbook Service", qty: 2.0, unitPriceExGst: rate },
+              { lineType: "Part", description: "Engine Oil & Filter Package", qty: 1.0, unitPriceExGst: 85.0 },
+            ],
+          }))
+        }
         setLoading(false)
       })
       .catch((err) => {
@@ -346,6 +357,24 @@ export default function JobCardsPage() {
                   onChange={(e) => setNewJob({ ...newJob, customerNotes: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg"
                 />
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                <div>
+                  <p className="font-semibold text-gray-900">Include Australian GST (10%)</p>
+                  <p className="text-[10px] text-gray-500">
+                    When enabled, the auto-generated invoice will include 10% GST on completion.
+                  </p>
+                </div>
+                <label className="flex items-center gap-1.5 cursor-pointer font-semibold text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={newJob.includeGst}
+                    onChange={(e) => setNewJob({ ...newJob, includeGst: e.target.checked })}
+                    className="rounded text-[#E8920D] cursor-pointer"
+                  />
+                  <span>10% GST</span>
+                </label>
               </div>
 
               <div className="flex justify-end space-x-3 pt-3 border-t">

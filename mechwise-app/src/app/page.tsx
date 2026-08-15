@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import {
   DollarSign,
   Wrench,
@@ -135,9 +136,9 @@ export default function DashboardPage() {
                 </div>
 
                 {activeJob ? (
-                  <div className="space-y-3">
+                  <Link href={`/jobs/${activeJob.id}`} className="block space-y-3 group">
                     <div className="flex items-center justify-between">
-                      <span className="inline-block px-2.5 py-0.5 rounded-md bg-[#1B2A4A] text-amber-400 font-mono font-bold text-xs tracking-wider border border-[#243656]">
+                      <span className="inline-block px-2.5 py-0.5 rounded-md bg-[#1B2A4A] text-amber-400 font-mono font-bold text-xs tracking-wider border border-[#243656] group-hover:border-amber-400 transition-colors">
                         {activeJob.vehicle?.registration}
                       </span>
                       <span
@@ -154,7 +155,7 @@ export default function DashboardPage() {
                     </div>
 
                     <div>
-                      <p className="text-xs font-semibold text-gray-900 truncate">
+                      <p className="text-xs font-semibold text-gray-900 truncate group-hover:text-[#E8920D]">
                         {activeJob.vehicle?.make} {activeJob.vehicle?.model}
                       </p>
                       <p className="text-[11px] text-gray-500 truncate mt-0.5">
@@ -171,13 +172,16 @@ export default function DashboardPage() {
                         {formatAUD(activeJob.totalExGst)}
                       </span>
                     </div>
-                  </div>
+                  </Link>
                 ) : (
                   <div className="h-28 flex flex-col items-center justify-center text-gray-400 text-xs">
                     <span>Bay Available</span>
-                    <button className="mt-2 text-[11px] text-[#E8920D] font-semibold hover:underline">
+                    <Link
+                      href="/jobs"
+                      className="mt-2 text-[11px] text-[#E8920D] font-semibold hover:underline"
+                    >
                       + Assign Job
-                    </button>
+                    </Link>
                   </div>
                 )}
               </div>
@@ -211,19 +215,31 @@ export default function DashboardPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {jobCards?.map((job: any) => (
-                  <tr key={job.id} className="hover:bg-gray-50/80 transition-colors">
+                  <tr key={job.id} className="hover:bg-amber-50/20 transition-colors">
                     <td className="py-3 px-3 font-mono font-semibold text-gray-900">
-                      {job.jobCardNumber}
+                      <Link
+                        href={`/jobs/${job.id}`}
+                        className="hover:text-[#E8920D] transition-colors"
+                      >
+                        {job.jobCardNumber}
+                      </Link>
                     </td>
                     <td className="py-3 px-3">
-                      <span className="font-mono font-bold bg-gray-100 text-gray-800 px-2 py-0.5 rounded border border-gray-300">
-                        {job.vehicle?.registration}
-                      </span>
+                      <Link href={`/vehicles/${job.vehicle?.id || ""}`}>
+                        <span className="font-mono font-bold bg-[#1B2A4A] text-amber-400 px-2 py-0.5 rounded border border-[#243656] hover:opacity-90">
+                          {job.vehicle?.registration}
+                        </span>
+                      </Link>
                     </td>
                     <td className="py-3 px-3">
-                      <p className="font-medium text-gray-900">
-                        {job.client?.businessName || `${job.client?.firstName} ${job.client?.lastName}`}
-                      </p>
+                      <Link
+                        href={`/clients/${job.client?.id || ""}`}
+                        className="hover:text-[#E8920D]"
+                      >
+                        <p className="font-medium text-gray-900">
+                          {job.client?.businessName || `${job.client?.firstName} ${job.client?.lastName}`}
+                        </p>
+                      </Link>
                       <p className="text-[10px] text-gray-400 font-mono">{job.client?.mobilePhone}</p>
                     </td>
                     <td className="py-3 px-3 text-gray-700 font-medium">

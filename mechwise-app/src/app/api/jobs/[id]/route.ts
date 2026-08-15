@@ -11,7 +11,7 @@ export async function GET(
     const workshopId = session?.workshopId || "dhalla-auto-nsw"
     const { id } = await params
 
-    const [jobCard, staffList, bayList] = await Promise.all([
+    const [jobCard, staffList, bayList, workshop] = await Promise.all([
       prisma.jobCard.findFirst({
         where: { id, workshopId },
         include: {
@@ -26,14 +26,15 @@ export async function GET(
         }
       }),
       prisma.staff.findMany({ where: { workshopId, isActive: true } }),
-      prisma.bay.findMany({ where: { workshopId, isActive: true }, orderBy: { displayOrder: "asc" } })
+      prisma.bay.findMany({ where: { workshopId, isActive: true }, orderBy: { displayOrder: "asc" } }),
+      prisma.workshop.findUnique({ where: { id: workshopId } })
     ])
 
     if (!jobCard) {
       return NextResponse.json({ error: "Job card not found" }, { status: 404 })
     }
 
-    return NextResponse.json({ jobCard, staffList, bayList })
+    return NextResponse.json({ jobCard, staffList, bayList, workshop })
   } catch (error) {
     console.error("Error fetching job card:", error)
     return NextResponse.json({ error: "Failed to fetch job card" }, { status: 500 })
@@ -50,7 +51,7 @@ export async function PATCH(
     const { id } = await params
     const body = await request.json()
 
-    const { status, staffId, bayId, lines, customerNotes, internalNotes } = body
+    const { status, staffId, bayId, lines, customerNotes, internalNotes, includeGst } = body
 
     const existingJob = await prisma.jobCard.findFirst({
       where: { id, workshopId },
@@ -92,6 +93,7 @@ export async function PATCH(
 
     // Check if transition is to "Completed" to run automated trigger routines
     const isNowCompleted = status === "Completed" && existingJob.status !== "Completed"
+    const finalIncludeGst = includeGst !== undefined ? Boolean(includeGst) : (existingJob.includeGst ?? true)
 
     const updatedJobCard = await prisma.jobCard.update({
       where: { id },
@@ -101,6 +103,7 @@ export async function PATCH(
         bayId: bayId !== undefined ? bayId : existingJob.bayId,
         customerNotes: customerNotes !== undefined ? customerNotes : existingJob.customerNotes,
         internalNotes: internalNotes !== undefined ? internalNotes : existingJob.internalNotes,
+        includeGst: finalIncludeGst,
         totalExGst: updatedTotalExGst,
         dateCompleted: isNowCompleted ? new Date() : existingJob.dateCompleted
       },
@@ -125,8 +128,9 @@ export async function PATCH(
         })
 
         const invNumFormatted = `INV-${String(workshop.nextInvoiceNum).padStart(4, "0")}`
-        const gstAmount = Math.round(updatedTotalExGst * 0.10 * 100) / 100
-        const finalAmount = updatedTotalExGst + gstAmount
+        const isGstFree = !finalIncludeGst
+        const gstAmount = isGstFree ? 0 : Math.round(updatedTotalExGst * 0.10 * 100) / 100
+        const finalAmount = isGstFree ? updatedTotalExGst : updatedTotalExGst + gstAmount
 
         const newInvoice = await prisma.invoice.create({
           data: {
@@ -136,6 +140,7 @@ export async function PATCH(
             clientId: existingJob.clientId,
             vehicleId: existingJob.vehicleId,
             dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days payment term
+            isGstFree,
             subtotalExGst: updatedTotalExGst,
             gstAmount,
             finalAmount,
@@ -147,8 +152,8 @@ export async function PATCH(
                 qty: line.qty,
                 unitPriceExGst: line.unitPriceExGst,
                 lineTotalExGst: line.lineTotalExGst,
-                gstRate: 0.10,
-                gstAmount: Math.round(line.lineTotalExGst * 0.10 * 100) / 100,
+                gstRate: isGstFree ? 0.0 : 0.10,
+                gstAmount: isGstFree ? 0.0 : Math.round(line.lineTotalExGst * 0.10 * 100) / 100,
                 sortOrder: line.sortOrder
               }))
             }

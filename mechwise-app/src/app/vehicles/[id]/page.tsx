@@ -165,9 +165,12 @@ export default function VehicleDetailPage({
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-gray-200 pb-2.5 mb-3">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-xs bg-[#1B2A4A] text-white px-2 py-0.5 rounded">
+                    <Link
+                      href={`/jobs/${job.id}`}
+                      className="font-mono font-bold text-xs bg-[#1B2A4A] text-amber-400 hover:text-white px-2 py-0.5 rounded transition-colors"
+                    >
                       {job.jobCardNumber}
-                    </span>
+                    </Link>
                     <span className="text-xs font-semibold text-gray-800">
                       {job.customerNotes || "Scheduled Logbook Service"}
                     </span>

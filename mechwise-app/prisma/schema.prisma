@@ -218,6 +218,7 @@ model JobCard {
   mileageIn     Int?
   status        String         @default("Booked") // Booked, Waiting, InProgress, WaitingForParts, QC, ReadyForPickup, Completed, Cancelled
   priority      String         @default("Normal") // Urgent, Normal, Low
+  includeGst    Boolean        @default(true)
   totalExGst    Float          @default(0)
   internalNotes String?
   customerNotes String?
@@ -259,6 +260,7 @@ model Invoice {
   vehicleId     String
   invoiceDate   DateTime      @default(now())
   dueDate       DateTime
+  isGstFree     Boolean       @default(false)
   subtotalExGst Float         @default(0)
   gstAmount     Float         @default(0)
   discountAmount Float        @default(0)
