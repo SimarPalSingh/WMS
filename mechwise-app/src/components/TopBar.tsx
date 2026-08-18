@@ -12,13 +12,18 @@ export default function TopBar() {
   const [isOpen, setIsOpen] = useState(false)
   const [searching, setSearching] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
+  const [today, setToday] = useState("")
 
-  const today = new Date().toLocaleDateString("en-AU", {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  })
+  useEffect(() => {
+    setToday(
+      new Date().toLocaleDateString("en-AU", {
+        weekday: "short",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+    )
+  }, [])
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
