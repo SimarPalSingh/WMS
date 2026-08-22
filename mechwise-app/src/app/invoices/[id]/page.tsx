@@ -229,11 +229,17 @@ export default function InvoiceDetailPage({
 
             {/* Totals Summary */}
             <div className="pt-4 border-t-2 border-gray-800 flex justify-end">
-              <div className="w-64 space-y-1.5 text-xs font-mono">
+              <div className="w-72 space-y-1.5 text-xs font-mono">
                 <div className="flex justify-between text-gray-700">
                   <span>Subtotal (Ex-GST):</span>
                   <span className="font-semibold">{formatAUD(invoice.subtotalExGst)}</span>
                 </div>
+                {Boolean(invoice.discountExGst && invoice.discountExGst > 0) && (
+                  <div className="flex justify-between text-amber-700 font-semibold">
+                    <span>Discount (Ex-GST):</span>
+                    <span>-{formatAUD(invoice.discountExGst)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-gray-600">
                   <span>
                     Australian GST {invoice.isGstFree ? "(0% GST-Free):" : "(10%):"}
@@ -256,6 +262,19 @@ export default function InvoiceDetailPage({
                 </div>
               </div>
             </div>
+
+            {/* Future Notes / Recommendations Section for Customer */}
+            {invoice.futureNotes && (
+              <div className="p-4 bg-amber-50/50 rounded-xl border border-amber-200/60 text-xs text-gray-800 space-y-1">
+                <p className="font-bold text-[#1B2A4A] uppercase text-[10px] tracking-wider flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#E8920D]" />
+                  Workshop Recommendations & Future Service Notes:
+                </p>
+                <p className="whitespace-pre-wrap break-words text-gray-700 leading-relaxed font-sans text-xs">
+                  {invoice.futureNotes}
+                </p>
+              </div>
+            )}
 
             {/* Australian Payment Info Footer */}
             <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 text-xs text-gray-600 space-y-1 font-mono">

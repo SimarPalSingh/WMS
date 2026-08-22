@@ -30,6 +30,7 @@ model Workshop {
   nextInvoiceNum    Int               @default(1)
   nextQuoteNum      Int               @default(1)
   nextJobCardNum    Int               @default(1)
+  nextSupplierInvNum Int              @default(1)
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
@@ -40,7 +41,9 @@ model Workshop {
   bays              Bay[]
   jobCategories     JobCategory[]
   jobCards          JobCard[]
+  quotations        Quotation[]
   invoices          Invoice[]
+  supplierInvoices  SupplierInvoice[]
   payments          Payment[]
   serviceReminders  ServiceReminder[]
   parts             Part[]
@@ -78,6 +81,7 @@ model Staff {
 
   workshop        Workshop  @relation(fields: [workshopId], references: [id], onDelete: Cascade)
   assignedJobCards JobCard[]
+  assignedQuotations Quotation[]
 }
 
 model Client {
@@ -95,7 +99,7 @@ model Client {
   suburb           String?
   state            String            @default("NSW")
   postcode         String?
-  preferredContact String            @default("SMS") // "SMS","Email","Phone"
+  preferredContact String            @default("SMS") // "SMS","WhatsApp","Email","Phone"
   notes            String?
   isActive         Boolean           @default(true)
   createdAt        DateTime          @default(now())
@@ -104,6 +108,7 @@ model Client {
   workshop         Workshop          @relation(fields: [workshopId], references: [id], onDelete: Cascade)
   clientVehicles   ClientVehicle[]
   jobCards         JobCard[]
+  quotations       Quotation[]
   invoices         Invoice[]
   serviceReminders ServiceReminder[]
   payments         Payment[]
@@ -122,7 +127,9 @@ model Vehicle {
   fuelType         String?
   transmission     String?
   vin              String?
+  engineNumber     String?
   engineCapacity   String?
+  bodyType         String?           // Sedan, SUV, Hatchback, Ute, Van, Coupe, Wagon, etc.
   currentMileageKm Int?
   nextServiceDue   DateTime?
   nextServiceKm    Int?
@@ -134,6 +141,7 @@ model Vehicle {
   workshop         Workshop          @relation(fields: [workshopId], references: [id], onDelete: Cascade)
   clientVehicles   ClientVehicle[]
   jobCards         JobCard[]
+  quotations       Quotation[]
   invoices         Invoice[]
   serviceReminders ServiceReminder[]
   maintenanceHist  MaintenanceHistory[]
@@ -205,33 +213,38 @@ model JobSubItem {
 }
 
 model JobCard {
-  id            String         @id @default(cuid())
-  workshopId    String
-  jobCardNumber String         // "JC-0001"
-  clientId      String
-  vehicleId     String
-  staffId       String?        // Assigned mechanic
-  bayId         String?
-  dateIn        DateTime       @default(now())
-  dateDue       DateTime?
-  dateCompleted DateTime?
-  mileageIn     Int?
-  status        String         @default("Booked") // Booked, Waiting, InProgress, WaitingForParts, QC, ReadyForPickup, Completed, Cancelled
-  priority      String         @default("Normal") // Urgent, Normal, Low
-  includeGst    Boolean        @default(true)
-  totalExGst    Float          @default(0)
-  internalNotes String?
-  customerNotes String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id                String         @id @default(cuid())
+  workshopId        String
+  jobCardNumber     String         // "JC-0001"
+  clientId          String
+  vehicleId         String
+  staffId           String?        // Assigned mechanic
+  bayId             String?
+  dateIn            DateTime       @default(now())
+  dateDue           DateTime?
+  dateCompleted     DateTime?
+  mileageIn         Int?
+  status            String         @default("Booked") // Booked, Waiting, InProgress, WaitingForParts, QC, ReadyForPickup, Completed, Cancelled
+  priority          String         @default("Normal") // Urgent, Normal, Low
+  includeGst        Boolean        @default(true)
+  discountExGst     Float          @default(0)       // Dollar discount excluding GST
+  totalExGst        Float          @default(0)
+  internalNotes     String?
+  customerNotes     String?
+  futureNotes       String?        // Recommendations / future advice for client
+  nextServiceOdoDue Int?           // Next scheduled service km
+  nextPinkSlipDue   DateTime?      // Next scheduled pink slip inspection
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 
-  workshop      Workshop       @relation(fields: [workshopId], references: [id], onDelete: Cascade)
-  client        Client         @relation(fields: [clientId], references: [id])
-  vehicle       Vehicle        @relation(fields: [vehicleId], references: [id])
-  staff         Staff?         @relation(fields: [staffId], references: [id])
-  bay           Bay?           @relation(fields: [bayId], references: [id])
-  lines         JobCardLine[]
-  invoice       Invoice?
+  workshop          Workshop       @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  client            Client         @relation(fields: [clientId], references: [id])
+  vehicle           Vehicle        @relation(fields: [vehicleId], references: [id])
+  staff             Staff?         @relation(fields: [staffId], references: [id])
+  bay               Bay?           @relation(fields: [bayId], references: [id])
+  lines             JobCardLine[]
+  invoice           Invoice?
+  quotation         Quotation?
 
   @@unique([workshopId, jobCardNumber])
 }
@@ -240,6 +253,8 @@ model JobCardLine {
   id              String   @id @default(cuid())
   jobCardId       String
   lineType        String   // "Labour", "Part", "Subcontract", "Sundry"
+  category        String?  // Category from inventory/service catalog
+  partId          String?  // Optional relation/reference to inventory Part
   description     String
   qty             Float    @default(1)
   unitPriceExGst  Float    @default(0)
@@ -251,30 +266,79 @@ model JobCardLine {
   jobCard         JobCard  @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
 }
 
-model Invoice {
-  id            String        @id @default(cuid())
-  workshopId    String
-  invoiceNumber String        // "INV-0001" - NO GAPS
-  jobCardId     String?       @unique
-  clientId      String
-  vehicleId     String
-  invoiceDate   DateTime      @default(now())
-  dueDate       DateTime
-  isGstFree     Boolean       @default(false)
-  subtotalExGst Float         @default(0)
-  gstAmount     Float         @default(0)
-  discountAmount Float        @default(0)
-  finalAmount   Float         @default(0)
-  paymentStatus String        @default("Unpaid") // Unpaid, Paid, Overdue, Partial, Void
-  notes         String?
-  createdAt     DateTime      @default(now())
+model Quotation {
+  id                String          @id @default(cuid())
+  workshopId        String
+  quoteNumber       String          // "QUO-0001"
+  jobCardId         String?         @unique
+  clientId          String
+  vehicleId         String
+  staffId           String?
+  quoteDate         DateTime        @default(now())
+  expiryDate        DateTime?
+  status            String          @default("Pending") // Pending, Finalised, Accepted, Declined
+  includeGst        Boolean         @default(true)
+  discountExGst     Float           @default(0)
+  subtotalExGst     Float           @default(0)
+  gstAmount         Float           @default(0)
+  totalAmount       Float           @default(0)
+  notes             String?
+  futureNotes       String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @default(now()) @updatedAt
 
-  workshop      Workshop      @relation(fields: [workshopId], references: [id], onDelete: Cascade)
-  client        Client        @relation(fields: [clientId], references: [id])
-  vehicle       Vehicle       @relation(fields: [vehicleId], references: [id])
-  jobCard       JobCard?      @relation(fields: [jobCardId], references: [id])
-  lines         InvoiceLine[]
-  payments      Payment[]
+  workshop          Workshop        @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  client            Client          @relation(fields: [clientId], references: [id])
+  vehicle           Vehicle         @relation(fields: [vehicleId], references: [id])
+  staff             Staff?          @relation(fields: [staffId], references: [id])
+  jobCard           JobCard?        @relation(fields: [jobCardId], references: [id])
+  lines             QuotationLine[]
+
+  @@unique([workshopId, quoteNumber])
+}
+
+model QuotationLine {
+  id             String    @id @default(cuid())
+  quotationId    String
+  lineType       String    // "Labour", "Part", "Subcontract", "Sundry"
+  category       String?
+  description    String
+  qty            Float     @default(1)
+  unitPriceExGst Float     @default(0)
+  lineTotalExGst Float     @default(0)
+  gstRate        Float     @default(0.10)
+  gstAmount      Float     @default(0)
+  sortOrder      Int       @default(0)
+
+  quotation      Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+}
+
+model Invoice {
+  id             String        @id @default(cuid())
+  workshopId     String
+  invoiceNumber  String        // "INV-0001" - NO GAPS
+  jobCardId      String?       @unique
+  clientId       String
+  vehicleId      String
+  invoiceDate    DateTime      @default(now())
+  dueDate        DateTime
+  isGstFree      Boolean       @default(false)
+  subtotalExGst  Float         @default(0)
+  discountExGst  Float         @default(0)       // Dollar discount before GST
+  discountAmount Float         @default(0)       // Legacy / UI total discount
+  gstAmount      Float         @default(0)
+  finalAmount    Float         @default(0)
+  paymentStatus  String        @default("Unpaid") // Unpaid, Paid, Overdue, Void (Removed Partial)
+  notes          String?
+  futureNotes    String?       // Recommendations / future advice for client
+  createdAt      DateTime      @default(now())
+
+  workshop       Workshop      @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  client         Client        @relation(fields: [clientId], references: [id])
+  vehicle        Vehicle       @relation(fields: [vehicleId], references: [id])
+  jobCard        JobCard?      @relation(fields: [jobCardId], references: [id])
+  lines          InvoiceLine[]
+  payments       Payment[]
 
   @@unique([workshopId, invoiceNumber])
 }
@@ -292,6 +356,45 @@ model InvoiceLine {
   sortOrder      Int      @default(0)
 
   invoice        Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model SupplierInvoice {
+  id               String                @id @default(cuid())
+  workshopId       String
+  supplierId       String
+  supplierInvNumber String               // Supplier's own invoice / reference number
+  invoiceDate      DateTime              @default(now())
+  dueDate          DateTime?
+  isGstInclusive   Boolean               @default(true)
+  subtotalExGst    Float                 @default(0)
+  gstAmount        Float                 @default(0)
+  totalIncGst      Float                 @default(0)
+  paymentStatus    String                @default("Unpaid") // Unpaid, Paid, Overdue, Void
+  notes            String?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @default(now()) @updatedAt
+
+  workshop         Workshop              @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  supplier         Supplier              @relation(fields: [supplierId], references: [id])
+  lines            SupplierInvoiceLine[]
+
+  @@unique([workshopId, supplierId, supplierInvNumber])
+}
+
+model SupplierInvoiceLine {
+  id                String          @id @default(cuid())
+  supplierInvoiceId String
+  description       String
+  category          String?
+  qty               Float           @default(1)
+  unitPriceExGst    Float           @default(0)
+  lineTotalExGst    Float           @default(0)
+  gstRate           Float           @default(0.10)
+  gstAmount         Float           @default(0)
+  lineTotalIncGst   Float           @default(0)
+  sortOrder         Int             @default(0)
+
+  supplierInvoice   SupplierInvoice @relation(fields: [supplierInvoiceId], references: [id], onDelete: Cascade)
 }
 
 model Payment {
@@ -312,23 +415,27 @@ model Payment {
 }
 
 model ServiceReminder {
-  id             String    @id @default(cuid())
-  workshopId     String
-  vehicleId      String
-  clientId       String
-  reminderType   String    // "NextService", "PinkSlip"
-  dueDate        DateTime
-  dueMileageKm   Int?
+  id              String    @id @default(cuid())
+  workshopId      String
+  vehicleId       String?
+  clientId        String?
+  partId          String?   // For stock/reorder reminders
+  channel         String    @default("SMS")     // "SMS", "WhatsApp", "Email"
+  reminderType    String    // "NextService", "PinkSlip", "StockOrderPlaced", "LowStock"
+  dueDate         DateTime
+  dueMileageKm    Int?
   lastServiceDate DateTime?
-  status         String    @default("Pending") // Pending, Sent, Booked, Completed, Declined
-  smsSentDate    DateTime?
-  sendCount      Int       @default(0)
-  clientResponse String?
-  createdAt      DateTime  @default(now())
+  status          String    @default("Pending") // Pending, Sent, Booked, Completed, Declined, OrderPlaced
+  smsSentDate     DateTime?
+  sendCount       Int       @default(0)
+  clientResponse  String?
+  messageContent  String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now()) @updatedAt
 
-  workshop       Workshop  @relation(fields: [workshopId], references: [id], onDelete: Cascade)
-  vehicle        Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  client         Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  workshop        Workshop  @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  vehicle         Vehicle?  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  client          Client?   @relation(fields: [clientId], references: [id], onDelete: Cascade)
 }
 
 model MaintenanceHistory {
@@ -345,33 +452,46 @@ model MaintenanceHistory {
 }
 
 model Part {
-  id           String    @id @default(cuid())
-  workshopId   String
-  partNumber   String
-  name         String
-  category     String?
-  costPrice    Float     @default(0)
-  retailPrice  Float     @default(0)
-  stockQty     Int       @default(0)
-  minStockQty  Int       @default(2)
-  supplierId   String?
-  isActive     Boolean   @default(true)
+  id             String    @id @default(cuid())
+  workshopId     String
+  partNumber     String
+  name           String
+  category       String?   // Filter & service category
+  costPrice      Float     @default(0)
+  retailPrice    Float     @default(0)
+  stockQty       Int       @default(0) // Available current stock
+  availableStock Int       @default(0)
+  maxStockQty    Int       @default(50)
+  minStockQty    Int       @default(2)
+  restockMinQty  Int       @default(5)
+  supplierId     String?
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now()) @updatedAt
 
-  workshop     Workshop  @relation(fields: [workshopId], references: [id], onDelete: Cascade)
-  supplier     Supplier? @relation(fields: [supplierId], references: [id])
+  workshop       Workshop  @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  supplier       Supplier? @relation(fields: [supplierId], references: [id])
 
   @@unique([workshopId, partNumber])
 }
 
 model Supplier {
-  id          String   @id @default(cuid())
-  workshopId  String
-  name        String
-  contactName String?
-  phone       String?
-  email       String?
-  accountNo   String?
-  parts       Part[]
+  id               String            @id @default(cuid())
+  workshopId       String
+  name             String
+  abn              String?
+  contactName      String?
+  phone            String?
+  email            String?
+  address          String?
+  accountNo        String?
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @default(now()) @updatedAt
 
-  workshop    Workshop @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  parts            Part[]
+  supplierInvoices SupplierInvoice[]
+  workshop         Workshop          @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+
+  @@unique([workshopId, name])
 }

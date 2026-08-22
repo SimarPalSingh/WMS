@@ -10,13 +10,10 @@ node_modules
 /mechwise-app/build
 
 # Database
-/mechwise-app/prisma/*.db
 /mechwise-app/prisma/*.db-journal
 
 # Environment variables
-.env
 .env*.local
-/mechwise-app/.env
 
 # Large Assets and Screenshot PDFs (>50MB)
 Dhalla Automotive Screenshots Pdfs/
@@ -28,3 +25,5 @@ Dhalla Automotive Screenshots/
 .DS_Store
 Thumbs.db
 *.log
+
+/customised updates

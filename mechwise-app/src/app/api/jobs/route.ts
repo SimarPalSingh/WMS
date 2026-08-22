@@ -68,7 +68,7 @@ export async function POST(request: Request) {
     const workshopId = session?.workshopId || "dhalla-auto-nsw"
     const body = await request.json()
 
-    const {
+    let {
       clientId,
       vehicleId,
       staffId,
@@ -76,12 +76,71 @@ export async function POST(request: Request) {
       priority,
       includeGst = true,
       mileageIn,
+      discountExGst = 0,
+      futureNotes,
+      nextServiceOdoDue,
+      nextPinkSlipDue,
       customerNotes,
-      lines = []
+      lines = [],
+      // Nested unified creation payload
+      isNewClient,
+      newClientData,
+      isNewVehicle,
+      newVehicleData
     } = body
 
+    // 1. Handle unified new client creation if requested
+    if (isNewClient && newClientData) {
+      const createdClient = await prisma.client.create({
+        data: {
+          workshopId,
+          clientType: newClientData.clientType || "Individual",
+          firstName: newClientData.firstName || null,
+          lastName: newClientData.lastName || null,
+          businessName: newClientData.businessName || null,
+          abn: newClientData.abn || null,
+          mobilePhone: newClientData.mobilePhone || null,
+          email: newClientData.email || null,
+          address: newClientData.address || null
+        }
+      })
+      clientId = createdClient.id
+    }
+
+    // 2. Handle unified new vehicle creation if requested
+    if (isNewVehicle && newVehicleData) {
+      const upperRego = (newVehicleData.registration || "").toUpperCase().replace(/\s+/g, "")
+      const createdVehicle = await prisma.vehicle.create({
+        data: {
+          workshopId,
+          registration: upperRego,
+          make: newVehicleData.make || null,
+          model: newVehicleData.model || null,
+          year: newVehicleData.year ? parseInt(newVehicleData.year) : null,
+          colour: newVehicleData.colour || null,
+          fuelType: newVehicleData.fuelType || "Petrol",
+          transmission: newVehicleData.transmission || "Automatic",
+          vin: newVehicleData.vin ? newVehicleData.vin.trim().toUpperCase() : null,
+          bodyType: newVehicleData.bodyType || "Sedan",
+          currentMileageKm: mileageIn ? parseInt(mileageIn) : null
+        }
+      })
+      vehicleId = createdVehicle.id
+
+      if (clientId) {
+        await prisma.clientVehicle.create({
+          data: {
+            clientId,
+            vehicleId,
+            relationship: "Owner",
+            isPrimaryOwner: true
+          }
+        })
+      }
+    }
+
     if (!clientId || !vehicleId) {
-      return NextResponse.json({ error: "Client and Vehicle are required" }, { status: 400 })
+      return NextResponse.json({ error: "Client and Vehicle are required to create a Job Card" }, { status: 400 })
     }
 
     // Atomic job card number generator
@@ -99,6 +158,8 @@ export async function POST(request: Request) {
       const total = qty * unitPrice
       calculatedTotalExGst += total
       return {
+        category: l.category || "General",
+        partId: l.partId || null,
         lineType: l.lineType || "Labour",
         description: l.description,
         qty,
@@ -107,6 +168,8 @@ export async function POST(request: Request) {
         sortOrder: idx
       }
     })
+
+    const disc = parseFloat(discountExGst) || 0
 
     const jobCard = await prisma.jobCard.create({
       data: {
@@ -120,8 +183,12 @@ export async function POST(request: Request) {
         priority: priority || "Normal",
         includeGst: Boolean(includeGst),
         mileageIn: mileageIn ? parseInt(mileageIn) : null,
+        discountExGst: disc,
+        futureNotes: futureNotes || null,
+        nextServiceOdoDue: nextServiceOdoDue ? parseInt(nextServiceOdoDue) : null,
+        nextPinkSlipDue: nextPinkSlipDue ? new Date(nextPinkSlipDue) : null,
         customerNotes,
-        totalExGst: calculatedTotalExGst,
+        totalExGst: Math.max(0, calculatedTotalExGst - disc),
         lines: {
           create: formattedLines
         }
@@ -135,7 +202,7 @@ export async function POST(request: Request) {
       }
     })
 
-    return NextResponse.json({ jobCard })
+    return NextResponse.json({ jobCard }, { status: 201 })
   } catch (error) {
     console.error("Error creating job card:", error)
     return NextResponse.json({ error: "Failed to create job card" }, { status: 500 })

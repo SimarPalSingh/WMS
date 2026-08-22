@@ -15,16 +15,16 @@ import {
   FileText,
   AlertCircle,
   ShieldCheck,
+  Send,
+  Calendar,
+  Sparkles
 } from "lucide-react"
 import { formatAUD, formatDateAU } from "@/lib/utils"
 
 const LIFECYCLE_STAGES = [
   "Booked",
-  "Waiting",
   "InProgress",
-  "WaitingForParts",
   "QC",
-  "ReadyForPickup",
   "Completed",
 ]
 
@@ -37,8 +37,24 @@ export default function JobCardDetailPage({
   const [jobCard, setJobCard] = useState<any>(null)
   const [staffList, setStaffList] = useState<any[]>([])
   const [bayList, setBayList] = useState<any[]>([])
+  const [partsCatalog, setPartsCatalog] = useState<any[]>([])
+  const [suppliersList, setSuppliersList] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [quoteSuccess, setQuoteSuccess] = useState("")
+
+  // Quick New Master Part Modal
+  const [showNewPartModal, setShowNewPartModal] = useState(false)
+  const [newPartIndex, setNewPartIndex] = useState<number | null>(null)
+  const [newPartForm, setNewPartForm] = useState({
+    partNumber: "",
+    name: "",
+    category: "General",
+    costPrice: "0.00",
+    retailPrice: "50.00",
+    availableStock: "5",
+    supplierId: ""
+  })
 
   const [workshop, setWorkshop] = useState<any>(null)
   const [lines, setLines] = useState<any[]>([])
@@ -46,8 +62,12 @@ export default function JobCardDetailPage({
   const [staffId, setStaffId] = useState("")
   const [bayId, setBayId] = useState("")
   const [includeGst, setIncludeGst] = useState(true)
+  const [discountExGst, setDiscountExGst] = useState<string | number>(0)
   const [customerNotes, setCustomerNotes] = useState("")
+  const [futureNotes, setFutureNotes] = useState("")
   const [internalNotes, setInternalNotes] = useState("")
+  const [nextServiceOdoDue, setNextServiceOdoDue] = useState<string | number>("")
+  const [nextPinkSlipDue, setNextPinkSlipDue] = useState("")
 
   const fetchJobCard = () => {
     fetch(`/api/jobs/${id}`)
@@ -56,12 +76,20 @@ export default function JobCardDetailPage({
         if (data.jobCard) {
           setJobCard(data.jobCard)
           setLines(data.jobCard.lines || [])
-          setStatus(data.jobCard.status)
+          setStatus(data.jobCard.status || "")
           setStaffId(data.jobCard.staffId || "")
           setBayId(data.jobCard.bayId || "")
           setIncludeGst(data.jobCard.includeGst !== undefined ? data.jobCard.includeGst : true)
+          setDiscountExGst(data.jobCard.discountExGst !== null && data.jobCard.discountExGst !== undefined ? data.jobCard.discountExGst : 0)
           setCustomerNotes(data.jobCard.customerNotes || "")
+          setFutureNotes(data.jobCard.futureNotes || "")
           setInternalNotes(data.jobCard.internalNotes || "")
+          setNextServiceOdoDue(data.jobCard.nextServiceOdoDue !== null && data.jobCard.nextServiceOdoDue !== undefined ? data.jobCard.nextServiceOdoDue : "")
+          setNextPinkSlipDue(
+            data.jobCard.nextPinkSlipDue
+              ? new Date(data.jobCard.nextPinkSlipDue).toISOString().split("T")[0]
+              : ""
+          )
         }
         if (data.workshop) {
           setWorkshop(data.workshop)
@@ -76,9 +104,73 @@ export default function JobCardDetailPage({
       })
   }
 
+  const fetchParts = () => {
+    fetch("/api/inventory")
+      .then((res) => res.json())
+      .then((d) => {
+        setPartsCatalog(d.parts || [])
+        setSuppliersList(d.suppliers || [])
+      })
+      .catch((err) => console.error(err))
+  }
+
   useEffect(() => {
     fetchJobCard()
+    fetchParts()
   }, [id])
+
+  const handleSaveQuickPart = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newPartForm.partNumber || !newPartForm.name) {
+      alert("Please fill in Part Number and Name.")
+      return
+    }
+
+    try {
+      const res = await fetch("/api/inventory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newPartForm)
+      })
+
+      if (res.ok) {
+        const json = await res.json()
+        const createdPart = json.part
+        setShowNewPartModal(false)
+
+        // Refresh parts list
+        fetchParts()
+
+        // If opened from a specific line item row, automatically bind it
+        if (newPartIndex !== null && createdPart) {
+          const updated = [...lines]
+          updated[newPartIndex].partId = createdPart.id
+          updated[newPartIndex].description = `${createdPart.partNumber} - ${createdPart.name}`
+          updated[newPartIndex].category = createdPart.category || "Parts & Supplies"
+          updated[newPartIndex].unitPriceExGst = createdPart.retailPrice || 50
+          const q = parseFloat(updated[newPartIndex].qty) || 1
+          updated[newPartIndex].lineTotalExGst = Math.round(q * (createdPart.retailPrice || 50) * 100) / 100
+          setLines(updated)
+        }
+
+        setNewPartForm({
+          partNumber: "",
+          name: "",
+          category: "General",
+          costPrice: "0.00",
+          retailPrice: "50.00",
+          availableStock: "5",
+          supplierId: ""
+        })
+        setNewPartIndex(null)
+      } else {
+        const errJson = await res.json()
+        alert(errJson.error || "Failed to create inventory part")
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
 
   const handleUpdateStatus = async (newStatus: string) => {
     setSaving(true)
@@ -92,6 +184,10 @@ export default function JobCardDetailPage({
           staffId: staffId || null,
           bayId: bayId || null,
           includeGst,
+          discountExGst: discountExGst ? parseFloat(String(discountExGst)) : 0,
+          futureNotes,
+          nextServiceOdoDue: nextServiceOdoDue ? parseInt(String(nextServiceOdoDue)) : null,
+          nextPinkSlipDue: nextPinkSlipDue || null,
           customerNotes,
           internalNotes,
         }),
@@ -101,6 +197,7 @@ export default function JobCardDetailPage({
         setJobCard(updated.jobCard)
         setStatus(updated.jobCard.status)
         setIncludeGst(updated.jobCard.includeGst !== undefined ? updated.jobCard.includeGst : true)
+        setDiscountExGst(updated.jobCard.discountExGst || 0)
         setLines(updated.jobCard.lines || [])
       }
     } catch (err) {
@@ -110,20 +207,66 @@ export default function JobCardDetailPage({
     }
   }
 
+  const handleGenerateQuotation = async () => {
+    if (!jobCard) return
+    try {
+      const res = await fetch("/api/quotations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobCardId: jobCard.id,
+          clientId: jobCard.clientId,
+          vehicleId: jobCard.vehicleId,
+          notes: customerNotes,
+          discountExGst: discountExGst ? parseFloat(String(discountExGst)) : 0,
+          includeGst,
+          lines,
+        }),
+      })
+
+      if (res.ok) {
+        const json = await res.json()
+        const quoteNum = json.quotation?.quoteNumber || "Quote"
+        const actionLabel = json.updated ? "updated" : "generated"
+        setQuoteSuccess(`Quotation ${quoteNum} ${actionLabel} successfully!`)
+        setTimeout(() => setQuoteSuccess(""), 4000)
+      } else {
+        alert("Failed to generate quotation.")
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
   const handleAddLine = (type: "Labour" | "Part" | "Subcontract") => {
     const labourRate = workshop?.defaultLabourRate || 95.0
     const defaultUnitPrice = type === "Labour" ? labourRate : 50.0
     setLines([
       ...lines,
       {
+        category: type === "Labour" ? "Labour & Diagnostics" : "Parts & Supplies",
         lineType: type,
-        description: type === "Labour" ? "Additional Diagnostic / Labour" : "Replacement Part",
+        description: type === "Labour" ? "General Workshop Labour" : "Replacement Part / Filter",
         qty: 1,
         unitPriceExGst: defaultUnitPrice,
         lineTotalExGst: defaultUnitPrice,
         isCompleted: false,
       },
     ])
+  }
+
+  const handleSelectInventoryPart = (index: number, partId: string) => {
+    const selected = partsCatalog.find((p) => p.id === partId)
+    const updated = [...lines]
+    if (selected) {
+      updated[index].partId = selected.id
+      updated[index].description = `${selected.partNumber} - ${selected.name}`
+      updated[index].category = selected.category || "Parts & Supplies"
+      updated[index].unitPriceExGst = selected.sellingPriceExGst
+      const q = parseFloat(updated[index].qty) || 1
+      updated[index].lineTotalExGst = Math.round(q * selected.sellingPriceExGst * 100) / 100
+    }
+    setLines(updated)
   }
 
   const handleRemoveLine = (index: number) => {
@@ -136,7 +279,7 @@ export default function JobCardDetailPage({
     if (field === "qty" || field === "unitPriceExGst") {
       const q = parseFloat(updated[index].qty) || 0
       const p = parseFloat(updated[index].unitPriceExGst) || 0
-      updated[index].lineTotalExGst = q * p
+      updated[index].lineTotalExGst = Math.round(q * p * 100) / 100
     }
     setLines(updated)
   }
@@ -157,12 +300,14 @@ export default function JobCardDetailPage({
     )
   }
 
-  const subtotalExGst = lines.reduce(
+  const linesTotalExGst = lines.reduce(
     (acc, l) => acc + (parseFloat(l.lineTotalExGst) || 0),
     0
   )
-  const gstAmount = includeGst ? Math.round(subtotalExGst * 0.10 * 100) / 100 : 0
-  const totalPayable = includeGst ? subtotalExGst + gstAmount : subtotalExGst
+  const dollarDiscount = parseFloat(String(discountExGst)) || 0
+  const subtotalAfterDiscount = Math.max(0, linesTotalExGst - dollarDiscount)
+  const gstAmount = includeGst ? Math.round(subtotalAfterDiscount * 0.10 * 100) / 100 : 0
+  const totalPayable = includeGst ? subtotalAfterDiscount + gstAmount : subtotalAfterDiscount
 
   const completedCount = lines.filter((l) => l.isCompleted).length
   const progressPct = lines.length > 0 ? Math.round((completedCount / lines.length) * 100) : 0
@@ -179,13 +324,27 @@ export default function JobCardDetailPage({
           <span>Back to Job Cards Pipeline</span>
         </Link>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {quoteSuccess && (
+            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 animate-pulse">
+              {quoteSuccess}
+            </span>
+          )}
+
+          <button
+            onClick={handleGenerateQuotation}
+            className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Generate Quotation</span>
+          </button>
+
           <button
             onClick={() => handleUpdateStatus(status)}
             disabled={saving}
             className="px-4 py-2 bg-[#1B2A4A] text-white rounded-lg text-xs font-semibold hover:bg-[#243656] transition-all disabled:opacity-50"
           >
-            {saving ? "Saving Changes..." : "Save Job Changes"}
+            {saving ? "Saving..." : "Save Job Changes"}
           </button>
 
           {status !== "Completed" && (
@@ -194,19 +353,22 @@ export default function JobCardDetailPage({
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-1.5"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>Complete Job & Generate Invoice</span>
+              <span>Complete & Finalise Invoice</span>
             </button>
           )}
 
           {jobCard.invoice && (
-            <span className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-mono font-bold bg-blue-50 text-blue-800 border border-blue-200">
-              Tax Invoice Generated: {jobCard.invoice.invoiceNumber}
-            </span>
+            <Link
+              href={`/invoices/${jobCard.invoice.id}`}
+              className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-mono font-bold bg-blue-50 text-blue-800 border border-blue-200 hover:bg-blue-100"
+            >
+              Invoice: {jobCard.invoice.invoiceNumber} →
+            </Link>
           )}
         </div>
       </div>
 
-      {/* 7-Step Interactive Lifecycle Progress Pills */}
+      {/* Simplified Status Lifecycle Progress */}
       <div className="bg-white p-4 rounded-xl border border-[#E5E7EB] shadow-xs">
         <div className="flex items-center justify-between mb-3 text-xs">
           <span className="font-bold text-[#1B2A4A] uppercase tracking-wider">
@@ -217,21 +379,20 @@ export default function JobCardDetailPage({
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
-          {LIFECYCLE_STAGES.map((stage, idx) => {
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {LIFECYCLE_STAGES.map((stage) => {
             const isCurrent = status === stage
             return (
               <button
                 key={stage}
                 onClick={() => handleUpdateStatus(stage)}
-                className={`py-2 px-2 rounded-lg text-xs font-semibold transition-all text-center ${
+                className={`py-2 px-3 rounded-lg text-xs font-semibold transition-all text-center ${
                   isCurrent
                     ? "bg-[#E8920D] text-white shadow-md ring-2 ring-[#E8920D]/30"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
               >
-                <div className="text-[10px] opacity-70 font-mono">Step {idx + 1}</div>
-                <div className="truncate">{stage}</div>
+                <div className="truncate">{stage === "InProgress" ? "In Progress" : stage}</div>
               </button>
             )
           })}
@@ -273,8 +434,8 @@ export default function JobCardDetailPage({
                 </Link>{" "}
                 <span className="font-mono text-gray-400">({jobCard.client?.mobilePhone})</span>
               </p>
-              <p className="text-xs text-gray-500 italic mt-1">
-                Notes: "{jobCard.customerNotes || "Standard maintenance service"}"
+              <p className="text-xs text-gray-500 italic mt-1 whitespace-pre-wrap break-words">
+                Symptoms: "{jobCard.customerNotes || "Standard maintenance service"}"
               </p>
             </div>
           </div>
@@ -285,7 +446,7 @@ export default function JobCardDetailPage({
                 Mechanic Assigned
               </label>
               <select
-                value={staffId}
+                value={staffId ?? ""}
                 onChange={(e) => setStaffId(e.target.value)}
                 className="mt-1 px-2.5 py-1.5 border rounded-lg font-medium text-gray-800 bg-white"
               >
@@ -303,7 +464,7 @@ export default function JobCardDetailPage({
                 Bay Allocation
               </label>
               <select
-                value={bayId}
+                value={bayId ?? ""}
                 onChange={(e) => setBayId(e.target.value)}
                 className="mt-1 px-2.5 py-1.5 border rounded-lg font-medium text-gray-800 bg-white"
               >
@@ -322,102 +483,159 @@ export default function JobCardDetailPage({
       {/* 2-Column: Work Items Checklist & Financial Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Left 2 Cols: Work Items Checklist */}
-        <div className="md:col-span-2 bg-white rounded-xl border border-[#E5E7EB] p-5 shadow-xs space-y-4">
-          <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-            <h2 className="text-sm font-bold text-[#1B2A4A] uppercase tracking-wider flex items-center gap-2">
-              <Wrench className="w-4 h-4 text-[#E8920D]" />
-              Work Items & Parts Checklist
-            </h2>
+        <div className="md:col-span-2 space-y-4">
+          <div className="bg-white rounded-xl border border-[#E5E7EB] p-5 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h2 className="text-sm font-bold text-[#1B2A4A] uppercase tracking-wider flex items-center gap-2">
+                <Wrench className="w-4 h-4 text-[#E8920D]" />
+                Work Items & Dynamic Inventory Parts
+              </h2>
 
-            <div className="flex space-x-2">
-              <button
-                type="button"
-                onClick={() => handleAddLine("Labour")}
-                className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs font-semibold"
-              >
-                + Add Labour
-              </button>
-              <button
-                type="button"
-                onClick={() => handleAddLine("Part")}
-                className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs font-semibold"
-              >
-                + Add Part
-              </button>
+              <div className="flex space-x-2">
+                <button
+                  type="button"
+                  onClick={() => handleAddLine("Labour")}
+                  className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs font-semibold"
+                >
+                  + Add Labour
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddLine("Part")}
+                  className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs font-semibold"
+                >
+                  + Add Part
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {lines.map((line, idx) => (
+                <div
+                  key={idx}
+                  className={`p-3 rounded-xl border transition-all flex flex-col sm:flex-row items-start sm:items-center gap-3 ${
+                    line.isCompleted
+                      ? "bg-emerald-50/40 border-emerald-200"
+                      : "bg-gray-50 border-gray-200"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={Boolean(line.isCompleted)}
+                    onChange={(e) => handleLineChange(idx, "isCompleted", e.target.checked)}
+                    className="w-4 h-4 text-[#E8920D] rounded cursor-pointer mt-1 sm:mt-0"
+                  />
+
+                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-12 gap-2 text-xs w-full">
+                    {/* Select from Inventory if Part or Custom Work Item */}
+                    {line.lineType === "Part" ? (
+                      <div className="sm:col-span-5 flex items-center gap-1.5">
+                        <select
+                          value={line.partId ?? ""}
+                          onChange={(e) => handleSelectInventoryPart(idx, e.target.value)}
+                          className="w-full px-2 py-1 bg-white border rounded font-medium text-gray-900 text-xs"
+                        >
+                          <option value="">-- Select Master Part --</option>
+                          {partsCatalog.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.partNumber} - {p.name} ({formatAUD(p.retailPrice || 0)})
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewPartIndex(idx)
+                            setShowNewPartModal(true)
+                          }}
+                          className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-[#E8920D] border border-amber-200 rounded text-[10px] font-bold whitespace-nowrap"
+                          title="Register new part in master inventory"
+                        >
+                          + New Part
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="sm:col-span-5">
+                        <input
+                          type="text"
+                          value={line.description ?? ""}
+                          onChange={(e) => handleLineChange(idx, "description", e.target.value)}
+                          placeholder="Item description (e.g. Front brake pads replacement)"
+                          className="w-full px-2 py-1 bg-white border rounded font-medium text-gray-900"
+                        />
+                      </div>
+                    )}
+
+                    <div className="sm:col-span-2">
+                      <select
+                        value={line.lineType ?? "Labour"}
+                        onChange={(e) => handleLineChange(idx, "lineType", e.target.value)}
+                        className="w-full px-2 py-1 bg-white border rounded text-[11px]"
+                      >
+                        <option value="Labour">Labour</option>
+                        <option value="Part">Part</option>
+                        <option value="Subcontract">Subcontract</option>
+                        <option value="Sundry">Sundry</option>
+                      </select>
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={line.qty ?? 1}
+                        onChange={(e) => handleLineChange(idx, "qty", e.target.value)}
+                        placeholder="Qty"
+                        className="w-full px-2 py-1 bg-white border rounded font-mono text-center"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-3 flex items-center justify-between gap-1">
+                      <div className="relative flex-1">
+                        <span className="absolute left-1.5 top-1 text-gray-400 text-[10px]">$</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={line.unitPriceExGst ?? 0}
+                          onChange={(e) => handleLineChange(idx, "unitPriceExGst", e.target.value)}
+                          placeholder="Unit Price"
+                          className="w-full pl-4 pr-1 py-1 bg-white border rounded font-mono text-xs font-bold text-gray-800"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveLine(idx)}
+                        className="text-gray-400 hover:text-red-600 p-1"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="space-y-3">
-            {lines.map((line, idx) => (
-              <div
-                key={idx}
-                className={`p-3 rounded-xl border transition-all flex items-center gap-3 ${
-                  line.isCompleted
-                    ? "bg-emerald-50/40 border-emerald-200"
-                    : "bg-gray-50 border-gray-200"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={Boolean(line.isCompleted)}
-                  onChange={(e) => handleLineChange(idx, "isCompleted", e.target.checked)}
-                  className="w-4 h-4 text-[#E8920D] rounded cursor-pointer"
-                />
-
-                <div className="flex-1 grid grid-cols-1 sm:grid-cols-12 gap-2 text-xs">
-                  <div className="sm:col-span-6">
-                    <input
-                      type="text"
-                      value={line.description}
-                      onChange={(e) => handleLineChange(idx, "description", e.target.value)}
-                      placeholder="Item description"
-                      className="w-full px-2 py-1 bg-white border rounded font-medium text-gray-900"
-                    />
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <select
-                      value={line.lineType}
-                      onChange={(e) => handleLineChange(idx, "lineType", e.target.value)}
-                      className="w-full px-2 py-1 bg-white border rounded text-[11px]"
-                    >
-                      <option value="Labour">Labour</option>
-                      <option value="Part">Part</option>
-                      <option value="Subcontract">Subcontract</option>
-                      <option value="Sundry">Sundry</option>
-                    </select>
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={line.qty}
-                      onChange={(e) => handleLineChange(idx, "qty", e.target.value)}
-                      placeholder="Qty/Hrs"
-                      className="w-full px-2 py-1 bg-white border rounded font-mono text-center"
-                    />
-                  </div>
-
-                  <div className="sm:col-span-2 flex items-center justify-between">
-                    <span className="font-mono font-bold text-gray-900">
-                      {formatAUD(line.lineTotalExGst)}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveLine(idx)}
-                      className="text-gray-400 hover:text-red-600 p-1"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
+          {/* Future Notes & Recommendations Section */}
+          <div className="bg-white rounded-xl border border-[#E5E7EB] p-5 shadow-xs space-y-3">
+            <h3 className="text-sm font-bold text-[#1B2A4A] uppercase tracking-wider flex items-center gap-2">
+              <FileText className="w-4 h-4 text-[#E8920D]" />
+              Future Notes & Recommendations for Client
+            </h3>
+            <p className="text-[11px] text-gray-500">
+              Notes recorded here will appear in the Future Recommendations box on the client's printed Tax Invoice.
+            </p>
+            <textarea
+              rows={3}
+              placeholder="e.g. Front brake pads at 3mm (recommend replacement next service), rear tyres near wear indicator."
+              value={futureNotes ?? ""}
+              onChange={(e) => setFutureNotes(e.target.value)}
+              className="w-full px-3 py-2 border rounded-lg text-xs whitespace-pre-wrap break-words"
+            />
           </div>
         </div>
 
-        {/* Right Col: Financials & Completion Summary */}
+        {/* Right Col: Financials, Discounts & Reminders Targets */}
         <div className="space-y-4">
           <div className="bg-white rounded-xl border border-[#E5E7EB] p-5 shadow-xs">
             <div className="flex items-center justify-between mb-4">
@@ -427,7 +645,7 @@ export default function JobCardDetailPage({
               <label className="flex items-center gap-1.5 cursor-pointer text-xs font-semibold text-gray-700 bg-gray-50 px-2 py-1 rounded-md border">
                 <input
                   type="checkbox"
-                  checked={includeGst}
+                  checked={Boolean(includeGst)}
                   onChange={(e) => setIncludeGst(e.target.checked)}
                   className="rounded text-[#E8920D] cursor-pointer"
                 />
@@ -435,13 +653,38 @@ export default function JobCardDetailPage({
               </label>
             </div>
 
-            <div className="space-y-2.5 text-xs">
+            <div className="space-y-3 text-xs">
               <div className="flex justify-between text-gray-600">
-                <span>Labour & Parts (Ex-GST)</span>
+                <span>Items Subtotal (Ex-GST)</span>
                 <span className="font-mono font-semibold text-gray-900">
-                  {formatAUD(subtotalExGst)}
+                  {formatAUD(linesTotalExGst)}
                 </span>
               </div>
+
+              {/* Ex-GST Dollar Discount Field */}
+              <div className="p-2.5 bg-amber-50/60 rounded-lg border border-amber-200/60 space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <label className="font-bold text-gray-800">Dollar Discount ($ Ex-GST)</label>
+                  <span className="text-[10px] text-amber-800 font-semibold">Applied before GST</span>
+                </div>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={discountExGst ?? 0}
+                  onChange={(e) => setDiscountExGst(e.target.value)}
+                  className="w-full px-2.5 py-1.5 bg-white border border-amber-300 rounded font-mono font-bold text-xs text-gray-900"
+                />
+              </div>
+
+              <div className="flex justify-between text-gray-600">
+                <span>Net Subtotal (Ex-GST)</span>
+                <span className="font-mono font-semibold text-gray-900">
+                  {formatAUD(subtotalAfterDiscount)}
+                </span>
+              </div>
+
               <div className="flex justify-between text-gray-600">
                 <span>
                   Australian GST {includeGst ? "(10%)" : "(0% GST-Free)"}
@@ -450,6 +693,7 @@ export default function JobCardDetailPage({
                   {formatAUD(gstAmount)}
                 </span>
               </div>
+
               <div className="pt-2.5 border-t border-gray-200 flex justify-between text-sm font-bold text-[#1B2A4A]">
                 <span>Total Payable {includeGst ? "(Inc-GST)" : "(GST-Free)"}</span>
                 <span className="font-mono text-emerald-700">{formatAUD(totalPayable)}</span>
@@ -457,27 +701,168 @@ export default function JobCardDetailPage({
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-[#E5E7EB] p-5 shadow-xs">
-            <h3 className="text-sm font-bold text-[#1B2A4A] uppercase tracking-wider mb-3">
-              Automated Triggers on Finish
+          {/* Next Targets Scheduled */}
+          <div className="bg-white rounded-xl border border-[#E5E7EB] p-5 shadow-xs space-y-3">
+            <h3 className="text-sm font-bold text-[#1B2A4A] uppercase tracking-wider flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-purple-700" />
+              Service Target Reminders
             </h3>
-            <ul className="text-xs text-gray-600 space-y-2">
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
-                <span>Auto-generates gapless ATO Tax Invoice</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
-                <span>Records permanent vehicle logbook history</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
-                <span>Schedules +6 months service reminder</span>
-              </li>
-            </ul>
+            <div className="space-y-2 text-xs">
+              <div>
+                <label className="block text-gray-600 font-semibold mb-1">Next Service Target Odometer (km)</label>
+                <input
+                  type="number"
+                  placeholder="e.g. 78450"
+                  value={nextServiceOdoDue ?? ""}
+                  onChange={(e) => setNextServiceOdoDue(e.target.value)}
+                  className="w-full px-2.5 py-1.5 border rounded font-mono text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-600 font-semibold mb-1">Next NSW Pink Slip Inspection Date</label>
+                <input
+                  type="date"
+                  value={nextPinkSlipDue ?? ""}
+                  onChange={(e) => setNextPinkSlipDue(e.target.value)}
+                  className="w-full px-2.5 py-1.5 border rounded font-mono text-xs"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Quick Master Part Creation Modal */}
+      {showNewPartModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="font-bold text-[#1B2A4A] text-sm flex items-center gap-2">
+                <Wrench className="w-4 h-4 text-[#E8920D]" />
+                Register New Inventory Part to Master Catalog
+              </h3>
+              <button
+                onClick={() => {
+                  setShowNewPartModal(false)
+                  setNewPartIndex(null)
+                }}
+                className="text-gray-400 hover:text-gray-700 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveQuickPart} className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">Part Number / SKU *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. WIX-51348"
+                    value={newPartForm.partNumber}
+                    onChange={(e) => setNewPartForm({ ...newPartForm, partNumber: e.target.value })}
+                    className="w-full px-2.5 py-1.5 border rounded font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">Category</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Filters"
+                    value={newPartForm.category}
+                    onChange={(e) => setNewPartForm({ ...newPartForm, category: e.target.value })}
+                    className="w-full px-2.5 py-1.5 border rounded"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-gray-700 font-semibold mb-1">Part Name / Description *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Wix Spin-on Oil Filter"
+                  value={newPartForm.name}
+                  onChange={(e) => setNewPartForm({ ...newPartForm, name: e.target.value })}
+                  className="w-full px-2.5 py-1.5 border rounded font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">Cost ($ Ex-GST)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={newPartForm.costPrice}
+                    onChange={(e) => setNewPartForm({ ...newPartForm, costPrice: e.target.value })}
+                    className="w-full px-2 py-1.5 border rounded font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">Retail ($ Ex-GST) *</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="50.00"
+                    value={newPartForm.retailPrice}
+                    onChange={(e) => setNewPartForm({ ...newPartForm, retailPrice: e.target.value })}
+                    className="w-full px-2 py-1.5 border rounded font-mono font-bold text-[#1B2A4A]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">Initial Stock</label>
+                  <input
+                    type="number"
+                    value={newPartForm.availableStock}
+                    onChange={(e) => setNewPartForm({ ...newPartForm, availableStock: e.target.value })}
+                    className="w-full px-2 py-1.5 border rounded font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-gray-700 font-semibold mb-1">Primary Supplier (Optional)</label>
+                <select
+                  value={newPartForm.supplierId}
+                  onChange={(e) => setNewPartForm({ ...newPartForm, supplierId: e.target.value })}
+                  className="w-full px-2.5 py-1.5 border rounded bg-white"
+                >
+                  <option value="">None / Direct Sourced</option>
+                  {suppliersList.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} {s.abn ? `(ABN: ${s.abn})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowNewPartModal(false)
+                    setNewPartIndex(null)
+                  }}
+                  className="px-3.5 py-1.5 border rounded-lg text-gray-600 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 bg-[#E8920D] hover:bg-[#d68307] text-white font-bold rounded-lg shadow-sm"
+                >
+                  Save & Bind Part
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+

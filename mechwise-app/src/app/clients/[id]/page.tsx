@@ -205,17 +205,21 @@ export default function ClientDetailPage({
           </div>
         </div>
 
-        {/* Right Column: Service & Job History */}
-        <div className="md:col-span-2 space-y-4">
+        {/* Right Column: Split Job Cards & Historical Records */}
+        <div className="md:col-span-2 space-y-6">
+          {/* Card 1: Workshop Job Cards */}
           <div className="bg-white rounded-xl border border-[#E5E7EB] p-5 shadow-xs">
-            <h2 className="text-sm font-bold text-[#1B2A4A] uppercase tracking-wider mb-4 flex items-center gap-2">
-              <Wrench className="w-4 h-4 text-[#E8920D]" />
-              Workshop Job Cards & History
-            </h2>
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
+              <h2 className="text-sm font-bold text-[#1B2A4A] uppercase tracking-wider flex items-center gap-2">
+                <Wrench className="w-4 h-4 text-[#E8920D]" />
+                Workshop Job Cards ({client.jobCards?.length || 0})
+              </h2>
+              <span className="text-[11px] text-gray-400 font-mono">Current & pipeline repair orders</span>
+            </div>
 
             {client.jobCards?.length === 0 ? (
               <p className="text-xs text-gray-400 py-6 text-center">
-                No job cards recorded for this client yet.
+                No active or recorded job cards for this client.
               </p>
             ) : (
               <div className="overflow-x-auto">
@@ -261,6 +265,8 @@ export default function ClientDetailPage({
                                 ? "bg-amber-100 text-amber-800"
                                 : job.status === "QC"
                                 ? "bg-purple-100 text-purple-800"
+                                : job.status === "Completed"
+                                ? "bg-emerald-100 text-emerald-800"
                                 : "bg-blue-100 text-blue-800"
                             }`}
                           >
@@ -269,6 +275,81 @@ export default function ClientDetailPage({
                         </td>
                         <td className="py-3 px-3 text-right font-mono font-semibold text-gray-900">
                           {formatAUD(job.totalExGst)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Card 2: Completed Service History & Invoices Log */}
+          <div className="bg-white rounded-xl border border-[#E5E7EB] p-5 shadow-xs">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
+              <h2 className="text-sm font-bold text-[#1B2A4A] uppercase tracking-wider flex items-center gap-2">
+                <FileText className="w-4 h-4 text-emerald-600" />
+                Service History & Tax Invoices ({client.invoices?.length || 0})
+              </h2>
+              <span className="text-[11px] text-gray-400 font-mono">Billed transactions & payment audit</span>
+            </div>
+
+            {client.invoices?.length === 0 ? (
+              <p className="text-xs text-gray-400 py-6 text-center">
+                No past invoices or completed service records found.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-gray-50 text-gray-600 font-medium">
+                      <th className="py-2.5 px-3">Invoice #</th>
+                      <th className="py-2.5 px-3">Date</th>
+                      <th className="py-2.5 px-3">Payment Status</th>
+                      <th className="py-2.5 px-3 text-right">Subtotal (Ex-GST)</th>
+                      <th className="py-2.5 px-3 text-right">GST</th>
+                      <th className="py-2.5 px-3 text-right">Total Paid (Inc-GST)</th>
+                      <th className="py-2.5 px-3 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {client.invoices?.map((inv: any) => (
+                      <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3 px-3 font-mono font-bold text-gray-900">
+                          <Link href={`/invoices/${inv.id}`} className="hover:text-[#E8920D]">
+                            {inv.invoiceNumber}
+                          </Link>
+                        </td>
+                        <td className="py-3 px-3 font-mono text-gray-600">
+                          {formatDateAU(inv.invoiceDate)}
+                        </td>
+                        <td className="py-3 px-3">
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              inv.paymentStatus === "Paid"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
+                          >
+                            {inv.paymentStatus}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono text-gray-700">
+                          {formatAUD(inv.subtotalExGst)}
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono text-gray-500">
+                          {formatAUD(inv.gstAmount)}
+                        </td>
+                        <td className="py-3 px-3 text-right font-mono font-bold text-gray-900">
+                          {formatAUD(inv.finalAmount)}
+                        </td>
+                        <td className="py-3 px-3 text-right">
+                          <Link
+                            href={`/invoices/${inv.id}`}
+                            className="text-[#E8920D] font-semibold hover:underline text-[11px]"
+                          >
+                            View Invoice
+                          </Link>
                         </td>
                       </tr>
                     ))}

@@ -14,6 +14,10 @@ import {
   User,
   ShieldAlert,
   MessageSquare,
+  Mail,
+  Smartphone,
+  Check,
+  ExternalLink
 } from "lucide-react"
 import { formatDateAU } from "@/lib/utils"
 
@@ -81,6 +85,35 @@ export default function RemindersPage() {
     } finally {
       setSending(false)
     }
+  }
+
+  // Generate compliant Australian message template
+  const getReminderMessage = (r: any) => {
+    const isPinkSlip = r.reminderType === "PinkSlip"
+    const clientName = r.client ? r.client.firstName || "valued customer" : "customer"
+    const rego = r.vehicle?.registration || "your vehicle"
+    const serviceName = isPinkSlip ? "Safety Check (Pink Slip)" : "Scheduled Logbook Service"
+    const dueDateStr = formatDateAU(r.dueDate)
+
+    return `Hi ${clientName}, this is Dhalla Automotive (Kingswood NSW). A friendly reminder that your ${rego} is due for its ${serviceName} on ${dueDateStr}. Call us on (02) 4732 1199 or reply to book in. Reply STOP to opt out.`
+  }
+
+  const handleWhatsAppDirect = (r: any) => {
+    const rawPhone = (r.client?.mobilePhone || "").replace(/[^0-9]/g, "")
+    // Format to Australian international prefix (04... -> 614...)
+    let formattedPhone = rawPhone
+    if (formattedPhone.startsWith("0")) {
+      formattedPhone = "61" + formattedPhone.slice(1)
+    }
+    const message = encodeURIComponent(getReminderMessage(r))
+    window.open(`https://wa.me/${formattedPhone}?text=${message}`, "_blank")
+  }
+
+  const handleEmailDirect = (r: any) => {
+    const email = r.client?.email || ""
+    const subject = encodeURIComponent(`Service Reminder: ${r.vehicle?.registration || ""} due at Dhalla Automotive`)
+    const body = encodeURIComponent(getReminderMessage(r))
+    window.open(`mailto:${email}?subject=${subject}&body=${body}`, "_blank")
   }
 
   const dueThisMonthCount = reminders.filter((r) => {
@@ -238,7 +271,8 @@ export default function RemindersPage() {
                   <th className="py-3 px-4">Reminder Type</th>
                   <th className="py-3 px-4">Due Date</th>
                   <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4">Sent Count</th>
+                  <th className="py-3 px-4 text-center">Sent Count</th>
+                  <th className="py-3 px-4 text-right">Quick Dispatch</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -310,6 +344,29 @@ export default function RemindersPage() {
                       </td>
                       <td className="py-3 px-4 font-mono text-center text-gray-800">
                         {r.sendCount}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end space-x-1.5">
+                          {/* WhatsApp wa.me button */}
+                          <button
+                            onClick={() => handleWhatsAppDirect(r)}
+                            title="Send via WhatsApp"
+                            className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg border border-emerald-200 transition-all text-[11px] font-semibold flex items-center gap-1"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">WhatsApp</span>
+                          </button>
+
+                          {/* Email Mailto button */}
+                          <button
+                            onClick={() => handleEmailDirect(r)}
+                            title="Send via Email"
+                            className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg border border-blue-200 transition-all text-[11px] font-semibold flex items-center gap-1"
+                          >
+                            <Mail className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Email</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )

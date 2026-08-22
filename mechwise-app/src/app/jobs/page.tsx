@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
   Wrench,
@@ -14,33 +15,57 @@ import {
   CheckCircle2,
   AlertCircle,
   FileText,
+  UserPlus,
+  FileSpreadsheet
 } from "lucide-react"
 import { formatAUD, formatDateAU } from "@/lib/utils"
 
-const STATUS_PILLS = [
+// Simplified visible status tabs per user specification
+const SIMPLIFIED_STATUS_TABS = [
   "All",
   "Booked",
-  "Waiting",
   "InProgress",
-  "WaitingForParts",
-  "QC",
-  "ReadyForPickup",
   "Completed",
-  "Cancelled",
+  "Cancelled"
 ]
 
 export default function JobCardsPage() {
+  const router = useRouter()
   const [jobCards, setJobCards] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("All")
   const [showModal, setShowModal] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
   // Options for creation
   const [clients, setClients] = useState<any[]>([])
   const [vehicles, setVehicles] = useState<any[]>([])
   const [staff, setStaff] = useState<any[]>([])
   const [bays, setBays] = useState<any[]>([])
+
+  // Unified creation mode
+  const [isNewClientMode, setIsNewClientMode] = useState(false)
+  const [isNewVehicleMode, setIsNewVehicleMode] = useState(false)
+
+  const [newClientData, setNewClientData] = useState({
+    clientType: "Individual",
+    firstName: "",
+    lastName: "",
+    businessName: "",
+    mobilePhone: "",
+    email: ""
+  })
+
+  const [newVehicleData, setNewVehicleData] = useState({
+    registration: "",
+    make: "Toyota",
+    model: "",
+    year: "2021",
+    bodyType: "Sedan",
+    fuelType: "Petrol",
+    vin: ""
+  })
 
   const [newJob, setNewJob] = useState({
     clientId: "",
@@ -50,10 +75,14 @@ export default function JobCardsPage() {
     priority: "Normal",
     includeGst: true,
     mileageIn: "",
+    discountExGst: "",
+    futureNotes: "",
+    nextServiceOdoDue: "",
+    nextPinkSlipDue: "",
     customerNotes: "",
     lines: [
-      { lineType: "Labour", description: "Standard General Logbook Service", qty: 2.0, unitPriceExGst: 95.0 },
-      { lineType: "Part", description: "Engine Oil & Filter Package", qty: 1.0, unitPriceExGst: 85.0 },
+      { category: "General", lineType: "Labour", description: "Standard General Logbook Service", qty: 2.0, unitPriceExGst: 95.0 },
+      { category: "General", lineType: "Part", description: "Engine Oil & Filter Package", qty: 1.0, unitPriceExGst: 85.0 },
     ],
   })
 
@@ -72,8 +101,8 @@ export default function JobCardsPage() {
           setNewJob((prev) => ({
             ...prev,
             lines: [
-              { lineType: "Labour", description: "Standard General Logbook Service", qty: 2.0, unitPriceExGst: rate },
-              { lineType: "Part", description: "Engine Oil & Filter Package", qty: 1.0, unitPriceExGst: 85.0 },
+              { category: "General", lineType: "Labour", description: "Standard General Logbook Service", qty: 2.0, unitPriceExGst: rate },
+              { category: "General", lineType: "Part", description: "Engine Oil & Filter Package", qty: 1.0, unitPriceExGst: 85.0 },
             ],
           }))
         }
@@ -96,18 +125,39 @@ export default function JobCardsPage() {
 
   const handleCreateJobCard = async (e: React.FormEvent) => {
     e.preventDefault()
+    setSubmitting(true)
     try {
+      const payload = {
+        ...newJob,
+        isNewClient: isNewClientMode,
+        newClientData: isNewClientMode ? newClientData : null,
+        isNewVehicle: isNewVehicleMode,
+        newVehicleData: isNewVehicleMode ? newVehicleData : null
+      }
+
       const res = await fetch("/api/jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newJob),
+        body: JSON.stringify(payload),
       })
+
       if (res.ok) {
+        const json = await res.json()
         setShowModal(false)
-        fetchJobs()
+        // Immediately navigate directly into the newly created job card
+        if (json.jobCard?.id) {
+          router.push(`/jobs/${json.jobCard.id}`)
+        } else {
+          fetchJobs()
+        }
+      } else {
+        const errJson = await res.json()
+        alert(errJson.error || "Failed to create job card")
       }
     } catch (err) {
       console.error(err)
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -134,10 +184,11 @@ export default function JobCardsPage() {
         </button>
       </div>
 
-      {/* Status Pipeline Filter Tabs */}
+      {/* Simplified Status Pipeline Filter Tabs */}
       <div className="flex items-center space-x-1 overflow-x-auto pb-2 border-b border-gray-200 text-xs">
-        {STATUS_PILLS.map((st) => {
+        {SIMPLIFIED_STATUS_TABS.map((st) => {
           const isActive = statusFilter === st
+          const label = st === "InProgress" ? "In Progress" : st
           return (
             <button
               key={st}
@@ -148,7 +199,7 @@ export default function JobCardsPage() {
                   : "text-gray-600 hover:bg-gray-200/70"
               }`}
             >
-              {st}
+              {label}
             </button>
           )
         })}
@@ -235,8 +286,8 @@ export default function JobCardsPage() {
                               ? "bg-purple-100 text-purple-800"
                               : job.status === "Completed"
                               ? "bg-emerald-100 text-emerald-800"
-                              : job.status === "WaitingForParts"
-                              ? "bg-red-100 text-red-800"
+                              : job.status === "Cancelled"
+                              ? "bg-gray-100 text-gray-800"
                               : "bg-blue-100 text-blue-800"
                           }`}
                         >
@@ -264,54 +315,166 @@ export default function JobCardsPage() {
         )}
       </div>
 
-      {/* Create Job Card Modal */}
+      {/* Unified Job Intake Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-xl w-full p-6 shadow-xl border border-gray-200">
-            <h2 className="text-lg font-bold text-[#1B2A4A] mb-4">Open New Job Card</h2>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-xl max-w-2xl w-full p-6 shadow-2xl border border-gray-200 space-y-4 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-lg font-bold text-[#1B2A4A] border-b border-gray-100 pb-3 flex items-center gap-2">
+              <Wrench className="w-5 h-5 text-[#E8920D]" />
+              Open New Job Card & Intake
+            </h2>
             <form onSubmit={handleCreateJobCard} className="space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-1">Customer / Client *</label>
+              {/* Customer Selector / Creator */}
+              <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-gray-800">1. Customer / Client *</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsNewClientMode(!isNewClientMode)}
+                    className="text-[11px] text-[#E8920D] hover:underline font-semibold"
+                  >
+                    {isNewClientMode ? "← Select Existing Client" : "+ Register New Client Here"}
+                  </button>
+                </div>
+
+                {isNewClientMode ? (
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <div>
+                      <label className="block text-gray-600 text-[10px] font-semibold">First Name *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="John"
+                        value={newClientData.firstName ?? ""}
+                        onChange={(e) => setNewClientData({ ...newClientData, firstName: e.target.value })}
+                        className="w-full px-2.5 py-1.5 border rounded bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-600 text-[10px] font-semibold">Last Name / Company</label>
+                      <input
+                        type="text"
+                        placeholder="Smith or Co Pty Ltd"
+                        value={newClientData.lastName ?? ""}
+                        onChange={(e) => setNewClientData({ ...newClientData, lastName: e.target.value })}
+                        className="w-full px-2.5 py-1.5 border rounded bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-600 text-[10px] font-semibold">Mobile Phone *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="0412 345 678"
+                        value={newClientData.mobilePhone ?? ""}
+                        onChange={(e) => setNewClientData({ ...newClientData, mobilePhone: e.target.value })}
+                        className="w-full px-2.5 py-1.5 border rounded bg-white font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-600 text-[10px] font-semibold">Email</label>
+                      <input
+                        type="email"
+                        placeholder="john@example.com"
+                        value={newClientData.email ?? ""}
+                        onChange={(e) => setNewClientData({ ...newClientData, email: e.target.value })}
+                        className="w-full px-2.5 py-1.5 border rounded bg-white"
+                      />
+                    </div>
+                  </div>
+                ) : (
                   <select
                     required
-                    value={newJob.clientId}
+                    value={newJob.clientId ?? ""}
                     onChange={(e) => setNewJob({ ...newJob, clientId: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 border rounded-lg bg-white"
                   >
-                    <option value="">-- Select Client --</option>
+                    <option value="">-- Select Existing Client --</option>
                     {clients.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.clientType === "Business" ? c.businessName : `${c.firstName} ${c.lastName}`}
+                        {c.clientType === "Business" ? c.businessName : `${c.firstName} ${c.lastName}`} ({c.mobilePhone})
                       </option>
                     ))}
                   </select>
+                )}
+              </div>
+
+              {/* Vehicle Selector / Creator */}
+              <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-gray-800">2. Vehicle *</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsNewVehicleMode(!isNewVehicleMode)}
+                    className="text-[11px] text-[#E8920D] hover:underline font-semibold"
+                  >
+                    {isNewVehicleMode ? "← Select Existing Vehicle" : "+ Register New Vehicle Here"}
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-gray-700 font-semibold mb-1">Vehicle Rego *</label>
+
+                {isNewVehicleMode ? (
+                  <div className="grid grid-cols-3 gap-2 pt-1">
+                    <div>
+                      <label className="block text-gray-600 text-[10px] font-semibold">Rego Plate *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. DL88AA"
+                        value={newVehicleData.registration ?? ""}
+                        onChange={(e) => setNewVehicleData({ ...newVehicleData, registration: e.target.value.toUpperCase() })}
+                        className="w-full px-2.5 py-1.5 border rounded bg-white font-mono font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-600 text-[10px] font-semibold">Make & Model *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Toyota Hilux"
+                        value={newVehicleData.model ?? ""}
+                        onChange={(e) => setNewVehicleData({ ...newVehicleData, model: e.target.value })}
+                        className="w-full px-2.5 py-1.5 border rounded bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-600 text-[10px] font-semibold">Body Type</label>
+                      <select
+                        value={newVehicleData.bodyType ?? "Sedan"}
+                        onChange={(e) => setNewVehicleData({ ...newVehicleData, bodyType: e.target.value })}
+                        className="w-full px-2.5 py-1.5 border rounded bg-white"
+                      >
+                        <option value="Sedan">Sedan</option>
+                        <option value="SUV">SUV</option>
+                        <option value="Hatchback">Hatchback</option>
+                        <option value="Ute">Ute</option>
+                        <option value="Van">Van</option>
+                      </select>
+                    </div>
+                  </div>
+                ) : (
                   <select
                     required
-                    value={newJob.vehicleId}
+                    value={newJob.vehicleId ?? ""}
                     onChange={(e) => setNewJob({ ...newJob, vehicleId: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg font-mono font-bold"
+                    className="w-full px-3 py-2 border rounded-lg font-mono font-bold bg-white"
                   >
-                    <option value="">-- Select Vehicle --</option>
+                    <option value="">-- Select Existing Vehicle --</option>
                     {vehicles.map((v) => (
                       <option key={v.id} value={v.id}>
                         {v.registration} ({v.year} {v.make} {v.model})
                       </option>
                     ))}
                   </select>
-                </div>
+                )}
               </div>
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-gray-700 font-semibold mb-1">Assign Mechanic</label>
                   <select
-                    value={newJob.staffId}
+                    value={newJob.staffId ?? ""}
                     onChange={(e) => setNewJob({ ...newJob, staffId: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 border rounded-lg bg-white"
                   >
                     <option value="">-- Unassigned --</option>
                     {staff.map((s) => (
@@ -324,9 +487,9 @@ export default function JobCardsPage() {
                 <div>
                   <label className="block text-gray-700 font-semibold mb-1">Workshop Bay</label>
                   <select
-                    value={newJob.bayId}
+                    value={newJob.bayId ?? ""}
                     onChange={(e) => setNewJob({ ...newJob, bayId: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 border rounded-lg bg-white"
                   >
                     <option value="">-- Unassigned --</option>
                     {bays.map((b) => (
@@ -341,7 +504,7 @@ export default function JobCardsPage() {
                   <input
                     type="number"
                     placeholder="e.g. 68450"
-                    value={newJob.mileageIn}
+                    value={newJob.mileageIn ?? ""}
                     onChange={(e) => setNewJob({ ...newJob, mileageIn: e.target.value })}
                     className="w-full px-3 py-2 border rounded-lg font-mono"
                   />
@@ -352,32 +515,14 @@ export default function JobCardsPage() {
                 <label className="block text-gray-700 font-semibold mb-1">Customer Reported Symptoms / Work Order</label>
                 <textarea
                   rows={2}
-                  placeholder="e.g. 70,000 km logbook service + brake inspection"
-                  value={newJob.customerNotes}
+                  placeholder="e.g. 70,000 km logbook service + front brake shudder"
+                  value={newJob.customerNotes ?? ""}
                   onChange={(e) => setNewJob({ ...newJob, customerNotes: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
+                  className="w-full px-3 py-2 border rounded-lg whitespace-pre-wrap break-words"
                 />
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
-                <div>
-                  <p className="font-semibold text-gray-900">Include Australian GST (10%)</p>
-                  <p className="text-[10px] text-gray-500">
-                    When enabled, the auto-generated invoice will include 10% GST on completion.
-                  </p>
-                </div>
-                <label className="flex items-center gap-1.5 cursor-pointer font-semibold text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={newJob.includeGst}
-                    onChange={(e) => setNewJob({ ...newJob, includeGst: e.target.checked })}
-                    className="rounded text-[#E8920D] cursor-pointer"
-                  />
-                  <span>10% GST</span>
-                </label>
-              </div>
-
-              <div className="flex justify-end space-x-3 pt-3 border-t">
+              <div className="flex justify-end space-x-3 pt-3 border-t border-gray-100">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
@@ -387,9 +532,10 @@ export default function JobCardsPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-[#E8920D] text-white rounded-lg font-semibold hover:bg-[#d68307]"
+                  disabled={submitting}
+                  className="px-5 py-2 bg-[#E8920D] text-white rounded-lg font-bold hover:bg-[#d68307] shadow-sm disabled:opacity-50"
                 >
-                  Open Job Card
+                  {submitting ? "Opening..." : "Save & Open Job Card"}
                 </button>
               </div>
             </form>
@@ -399,3 +545,4 @@ export default function JobCardsPage() {
     </div>
   )
 }
+

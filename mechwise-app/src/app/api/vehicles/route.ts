@@ -76,37 +76,78 @@ export async function POST(request: Request) {
       fuelType,
       transmission,
       vin,
+      engineNumber,
+      engineCapacity,
+      bodyType,
       currentMileageKm,
-      clientId
+      nextServiceKm,
+      nextServiceDue,
+      pinkSlipExpiry,
+      clientId,
+      isNewClient,
+      newClientData
     } = body
 
     if (!registration) {
       return NextResponse.json({ error: "Registration plate is required" }, { status: 400 })
     }
 
+    let finalClientId = clientId
+
+    // Create new client on the fly if requested
+    if (isNewClient && newClientData) {
+      if (!newClientData.mobilePhone && !newClientData.firstName && !newClientData.businessName) {
+        return NextResponse.json({ error: "Client name or phone is required" }, { status: 400 })
+      }
+
+      const client = await prisma.client.create({
+        data: {
+          workshopId,
+          clientType: newClientData.clientType || "Individual",
+          firstName: newClientData.firstName ? newClientData.firstName.trim() : null,
+          lastName: newClientData.lastName ? newClientData.lastName.trim() : null,
+          businessName: newClientData.businessName ? newClientData.businessName.trim() : null,
+          mobilePhone: newClientData.mobilePhone ? newClientData.mobilePhone.trim() : null,
+          email: newClientData.email ? newClientData.email.trim() : null,
+          address: newClientData.address ? newClientData.address.trim() : null,
+          suburb: newClientData.suburb ? newClientData.suburb.trim() : "Kingswood",
+          state: newClientData.state || "NSW",
+          postcode: newClientData.postcode ? newClientData.postcode.trim() : null,
+        }
+      })
+      finalClientId = client.id
+    }
+
     const upperRego = registration.toUpperCase().replace(/\s+/g, "")
+
+    const curKm = currentMileageKm ? parseInt(currentMileageKm) : null
+    const nxtKm = nextServiceKm ? parseInt(nextServiceKm) : curKm ? curKm + 10000 : null
 
     const vehicle = await prisma.vehicle.create({
       data: {
         workshopId,
         registration: upperRego,
-        make,
-        model,
+        make: make || null,
+        model: model || null,
         year: year ? parseInt(year) : null,
-        colour,
-        fuelType,
-        transmission,
-        vin,
-        currentMileageKm: currentMileageKm ? parseInt(currentMileageKm) : null,
-        nextServiceDue: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000), // Default 6 months
-        pinkSlipExpiry: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // Default 1 year
+        colour: colour || null,
+        fuelType: fuelType || "Petrol",
+        transmission: transmission || "Automatic",
+        vin: vin ? vin.trim().toUpperCase() : null,
+        engineNumber: engineNumber ? engineNumber.trim().toUpperCase() : null,
+        engineCapacity: engineCapacity ? engineCapacity.trim() : null,
+        bodyType: bodyType || "Sedan",
+        currentMileageKm: curKm,
+        nextServiceKm: nxtKm,
+        nextServiceDue: nextServiceDue ? new Date(nextServiceDue) : new Date(Date.now() + 180 * 24 * 60 * 60 * 1000), // Default 6 months
+        pinkSlipExpiry: pinkSlipExpiry ? new Date(pinkSlipExpiry) : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // Default 1 year
       }
     })
 
-    if (clientId) {
+    if (finalClientId) {
       await prisma.clientVehicle.create({
         data: {
-          clientId,
+          clientId: finalClientId,
           vehicleId: vehicle.id,
           relationship: "Owner",
           isPrimaryOwner: true
@@ -114,9 +155,12 @@ export async function POST(request: Request) {
       })
     }
 
-    return NextResponse.json({ vehicle })
-  } catch (error) {
+    return NextResponse.json({ vehicle }, { status: 201 })
+  } catch (error: any) {
     console.error("Error creating vehicle:", error)
+    if (error.code === "P2002") {
+      return NextResponse.json({ error: "A vehicle with this registration already exists." }, { status: 409 })
+    }
     return NextResponse.json({ error: "Failed to create vehicle" }, { status: 500 })
   }
 }

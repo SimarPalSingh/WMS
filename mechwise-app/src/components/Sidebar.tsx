@@ -13,6 +13,8 @@ import {
   Settings,
   ShieldAlert,
   ChevronRight,
+  Package,
+  Sparkles,
 } from "lucide-react"
 
 const NAV_ITEMS = [
@@ -21,6 +23,8 @@ const NAV_ITEMS = [
   { label: "Clients", href: "/clients", icon: Users },
   { label: "Vehicles", href: "/vehicles", icon: Car },
   { label: "Job Cards", href: "/jobs", icon: Wrench },
+  { label: "Quotations", href: "/quotations", icon: Sparkles },
+  { label: "Inventory", href: "/inventory", icon: Package },
   { label: "Invoices", href: "/invoices", icon: FileText, badge: "1 Due" },
   { label: "Reminders", href: "/reminders", icon: BellRing, badge: "1 Overdue", badgeColor: "bg-red-500" },
   { label: "Reports & BAS", href: "/reports", icon: BarChart3 },

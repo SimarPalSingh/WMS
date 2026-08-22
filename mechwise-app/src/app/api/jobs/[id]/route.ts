@@ -51,7 +51,19 @@ export async function PATCH(
     const { id } = await params
     const body = await request.json()
 
-    const { status, staffId, bayId, lines, customerNotes, internalNotes, includeGst } = body
+    const {
+      status,
+      staffId,
+      bayId,
+      lines,
+      customerNotes,
+      internalNotes,
+      futureNotes,
+      discountExGst,
+      nextServiceOdoDue,
+      nextPinkSlipDue,
+      includeGst
+    } = body
 
     const existingJob = await prisma.jobCard.findFirst({
       where: { id, workshopId },
@@ -62,22 +74,23 @@ export async function PATCH(
       return NextResponse.json({ error: "Job card not found" }, { status: 404 })
     }
 
-    let updatedTotalExGst = existingJob.totalExGst
+    let calculatedLinesTotal = 0
 
     // Update lines if provided
     if (lines && Array.isArray(lines)) {
       await prisma.jobCardLine.deleteMany({ where: { jobCardId: id } })
-      updatedTotalExGst = 0
       for (let i = 0; i < lines.length; i++) {
         const l = lines[i]
         const qty = parseFloat(l.qty) || 1
         const unitPrice = parseFloat(l.unitPriceExGst) || 0
         const total = qty * unitPrice
-        updatedTotalExGst += total
+        calculatedLinesTotal += total
 
         await prisma.jobCardLine.create({
           data: {
             jobCardId: id,
+            category: l.category || "General",
+            partId: l.partId || null,
             lineType: l.lineType || "Labour",
             description: l.description,
             qty,
@@ -89,7 +102,12 @@ export async function PATCH(
           }
         })
       }
+    } else {
+      calculatedLinesTotal = existingJob.lines.reduce((acc, l) => acc + l.lineTotalExGst, 0)
     }
+
+    const finalDiscount = discountExGst !== undefined ? parseFloat(discountExGst) || 0 : (existingJob.discountExGst || 0)
+    const netTotalExGst = Math.max(0, calculatedLinesTotal - finalDiscount)
 
     // Check if transition is to "Completed" to run automated trigger routines
     const isNowCompleted = status === "Completed" && existingJob.status !== "Completed"
@@ -103,8 +121,12 @@ export async function PATCH(
         bayId: bayId !== undefined ? bayId : existingJob.bayId,
         customerNotes: customerNotes !== undefined ? customerNotes : existingJob.customerNotes,
         internalNotes: internalNotes !== undefined ? internalNotes : existingJob.internalNotes,
+        futureNotes: futureNotes !== undefined ? futureNotes : existingJob.futureNotes,
+        discountExGst: finalDiscount,
+        nextServiceOdoDue: nextServiceOdoDue !== undefined ? (nextServiceOdoDue ? parseInt(nextServiceOdoDue) : null) : existingJob.nextServiceOdoDue,
+        nextPinkSlipDue: nextPinkSlipDue !== undefined ? (nextPinkSlipDue ? new Date(nextPinkSlipDue) : null) : existingJob.nextPinkSlipDue,
         includeGst: finalIncludeGst,
-        totalExGst: updatedTotalExGst,
+        totalExGst: netTotalExGst,
         dateCompleted: isNowCompleted ? new Date() : existingJob.dateCompleted
       },
       include: {
@@ -129,10 +151,10 @@ export async function PATCH(
 
         const invNumFormatted = `INV-${String(workshop.nextInvoiceNum).padStart(4, "0")}`
         const isGstFree = !finalIncludeGst
-        const gstAmount = isGstFree ? 0 : Math.round(updatedTotalExGst * 0.10 * 100) / 100
-        const finalAmount = isGstFree ? updatedTotalExGst : updatedTotalExGst + gstAmount
+        const gstAmount = isGstFree ? 0 : Math.round(netTotalExGst * 0.10 * 100) / 100
+        const finalAmount = isGstFree ? netTotalExGst : netTotalExGst + gstAmount
 
-        const newInvoice = await prisma.invoice.create({
+        await prisma.invoice.create({
           data: {
             workshopId,
             invoiceNumber: invNumFormatted,
@@ -141,7 +163,9 @@ export async function PATCH(
             vehicleId: existingJob.vehicleId,
             dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days payment term
             isGstFree,
-            subtotalExGst: updatedTotalExGst,
+            subtotalExGst: calculatedLinesTotal,
+            discountExGst: finalDiscount,
+            futureNotes: updatedJobCard.futureNotes || null,
             gstAmount,
             finalAmount,
             paymentStatus: "Unpaid",
@@ -161,7 +185,13 @@ export async function PATCH(
         })
       }
 
-      // 2. Auto-record Maintenance History
+      // 2. Auto-finalise any pending quotation for this job card
+      await prisma.quotation.updateMany({
+        where: { jobCardId: id, status: "Pending" },
+        data: { status: "Finalised" }
+      })
+
+      // 3. Auto-record Maintenance History
       await prisma.maintenanceHistory.create({
         data: {
           vehicleId: existingJob.vehicleId,
@@ -169,20 +199,22 @@ export async function PATCH(
           serviceType: "Workshop Service",
           description: existingJob.customerNotes || "Standard maintenance service",
           mileage: existingJob.mileageIn,
-          totalCost: updatedTotalExGst
+          totalCost: netTotalExGst
         }
       })
 
-      // 3. Auto-update vehicle mileage and calculate next service due date
+      // 4. Auto-update vehicle mileage and calculate next service due targets
       await prisma.vehicle.update({
         where: { id: existingJob.vehicleId },
         data: {
           currentMileageKm: existingJob.mileageIn || undefined,
-          nextServiceDue: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000) // +6 months
+          nextServiceKm: updatedJobCard.nextServiceOdoDue || (existingJob.mileageIn ? existingJob.mileageIn + 10000 : undefined),
+          nextServiceDue: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000), // +6 months
+          pinkSlipExpiry: updatedJobCard.nextPinkSlipDue || undefined
         }
       })
 
-      // 4. Auto-schedule Next Service Reminder
+      // 5. Auto-schedule Next Service & Pink Slip Reminders
       await prisma.serviceReminder.create({
         data: {
           workshopId,
@@ -194,6 +226,61 @@ export async function PATCH(
           sendCount: 0
         }
       })
+
+      if (updatedJobCard.nextPinkSlipDue) {
+        await prisma.serviceReminder.create({
+          data: {
+            workshopId,
+            vehicleId: existingJob.vehicleId,
+            clientId: existingJob.clientId,
+            reminderType: "PinkSlip",
+            dueDate: updatedJobCard.nextPinkSlipDue,
+            status: "Pending",
+            sendCount: 0
+          }
+        })
+      }
+
+      // 6. Deduct Inventory Quantities & Trigger Low Stock Alert Reminders
+      for (const line of updatedJobCard.lines) {
+        if (line.lineType === "Part") {
+          // Attempt match by exact partNumber or description substring
+          const part = await prisma.part.findFirst({
+            where: {
+              workshopId,
+              OR: [
+                { name: { contains: line.description } },
+                { partNumber: { contains: line.description } }
+              ]
+            }
+          })
+
+          if (part) {
+            const newStockQty = Math.max(0, part.stockQty - Math.ceil(line.qty))
+            const updatedPart = await prisma.part.update({
+              where: { id: part.id },
+              data: {
+                stockQty: newStockQty,
+                availableStock: newStockQty
+              }
+            })
+
+            // Trigger Low Stock / Reorder reminder if stock drops below minStockQty
+            if (updatedPart.stockQty <= updatedPart.minStockQty) {
+              await prisma.serviceReminder.create({
+                data: {
+                  workshopId,
+                  partId: updatedPart.id,
+                  reminderType: "LowStock",
+                  dueDate: new Date(),
+                  status: "Pending",
+                  messageContent: `Low stock alert: ${updatedPart.name} (${updatedPart.partNumber}) has ${updatedPart.stockQty} remaining (Min: ${updatedPart.minStockQty}).`
+                }
+              })
+            }
+          }
+        }
+      }
     }
 
     return NextResponse.json({ jobCard: updatedJobCard })
