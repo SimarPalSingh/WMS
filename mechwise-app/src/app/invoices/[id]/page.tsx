@@ -29,6 +29,12 @@ export default function InvoiceDetailPage({
   const [invoice, setInvoice] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [paying, setPaying] = useState(false)
+  const [updatingSettings, setUpdatingSettings] = useState(false)
+
+  // Invoice discount & GST configuration
+  const [discountExGst, setDiscountExGst] = useState<string | number>(0)
+  const [isGstFree, setIsGstFree] = useState(false)
+  const [futureNotes, setFutureNotes] = useState("")
 
   const [paymentAmount, setPaymentAmount] = useState("")
   const [paymentMethod, setPaymentMethod] = useState("EFTPOS")
@@ -40,6 +46,9 @@ export default function InvoiceDetailPage({
       .then((data) => {
         if (data.invoice) {
           setInvoice(data.invoice)
+          setDiscountExGst(data.invoice.discountExGst || 0)
+          setIsGstFree(Boolean(data.invoice.isGstFree))
+          setFutureNotes(data.invoice.futureNotes || "")
           const remaining =
             data.invoice.finalAmount -
             data.invoice.payments.reduce((acc: number, p: any) => acc + p.amount, 0)
@@ -56,6 +65,43 @@ export default function InvoiceDetailPage({
   useEffect(() => {
     fetchInvoice()
   }, [id])
+
+  const handleUpdateInvoiceSettings = async (newDiscount?: number | string, newGstFree?: boolean, newNotes?: string) => {
+    setUpdatingSettings(true)
+    try {
+      const disc = newDiscount !== undefined ? parseFloat(String(newDiscount)) || 0 : (parseFloat(String(discountExGst)) || 0)
+      const gstF = newGstFree !== undefined ? newGstFree : isGstFree
+      const fNotes = newNotes !== undefined ? newNotes : futureNotes
+
+      const res = await fetch(`/api/invoices/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          discountExGst: disc,
+          isGstFree: gstF,
+          futureNotes: fNotes
+        })
+      })
+
+      if (res.ok) {
+        const json = await res.json()
+        if (json.invoice) {
+          setInvoice(json.invoice)
+          setDiscountExGst(json.invoice.discountExGst || 0)
+          setIsGstFree(Boolean(json.invoice.isGstFree))
+          setFutureNotes(json.invoice.futureNotes || "")
+          const remaining =
+            json.invoice.finalAmount -
+            json.invoice.payments.reduce((acc: number, p: any) => acc + p.amount, 0)
+          setPaymentAmount(remaining > 0 ? remaining.toFixed(2) : "0.00")
+        }
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setUpdatingSettings(false)
+    }
+  }
 
   const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -289,8 +335,95 @@ export default function InvoiceDetailPage({
           </div>
         </div>
 
-        {/* Right Column: Payment Collection Panel */}
+        {/* Right Column: Adjustments & Payment Collection Panel */}
         <div className="space-y-4">
+          {/* Invoice Adjustments (Discounts & GST Configuration) */}
+          <div className="bg-white rounded-xl border border-[#E5E7EB] p-5 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-[#1B2A4A] uppercase tracking-wider flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-[#E8920D]" />
+                Invoice Adjustments
+              </h3>
+              {updatingSettings && (
+                <span className="text-[10px] text-amber-600 font-semibold animate-pulse">
+                  Updating...
+                </span>
+              )}
+            </div>
+
+            {/* GST-Free or Standard Australian 10% GST Toggle */}
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+              <label className="flex items-center justify-between cursor-pointer">
+                <span className="text-xs font-semibold text-gray-800">
+                  Include GST (10%)
+                </span>
+                <input
+                  type="checkbox"
+                  checked={!isGstFree}
+                  onChange={(e) => {
+                    const newGstFree = !e.target.checked
+                    setIsGstFree(newGstFree)
+                    handleUpdateInvoiceSettings(undefined, newGstFree)
+                  }}
+                  className="w-4 h-4 text-[#E8920D] rounded cursor-pointer"
+                />
+              </label>
+              <p className="text-[10px] text-gray-500 mt-1">
+                {isGstFree
+                  ? "Marked as Australian GST-Free (0% GST)"
+                  : "Standard Australian 10% GST applied"}
+              </p>
+            </div>
+
+            {/* Dollar Discount Ex-GST Field */}
+            <div className="p-3 bg-amber-50/60 border border-amber-200/60 rounded-lg space-y-1.5">
+              <div className="flex justify-between items-center">
+                <label className="text-xs font-bold text-gray-800">
+                  Dollar Discount ($ Ex-GST)
+                </label>
+                <span className="text-[10px] text-amber-800 font-semibold">Applied before GST</span>
+              </div>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <span className="absolute left-2.5 top-2 text-gray-400 font-mono text-xs">$</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    value={discountExGst}
+                    onChange={(e) => setDiscountExGst(e.target.value)}
+                    onBlur={() => handleUpdateInvoiceSettings(discountExGst)}
+                    className="w-full pl-6 pr-2.5 py-1.5 bg-white border border-amber-300 rounded font-mono font-bold text-xs text-gray-900"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleUpdateInvoiceSettings(discountExGst)}
+                  disabled={updatingSettings}
+                  className="px-3 py-1.5 bg-[#1B2A4A] hover:bg-[#243656] text-white rounded text-xs font-semibold"
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
+
+            {/* Future Recommendations Editor */}
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-gray-800">
+                Future Recommendations for Customer
+              </label>
+              <textarea
+                rows={2}
+                placeholder="e.g. Brake pads low (replace next service)"
+                value={futureNotes}
+                onChange={(e) => setFutureNotes(e.target.value)}
+                onBlur={() => handleUpdateInvoiceSettings(undefined, undefined, futureNotes)}
+                className="w-full px-2.5 py-1.5 border border-gray-300 rounded text-xs"
+              />
+            </div>
+          </div>
+
           <div className="bg-white rounded-xl border border-[#E5E7EB] p-5 shadow-xs">
             <h3 className="text-sm font-bold text-[#1B2A4A] uppercase tracking-wider mb-3 flex items-center gap-2">
               <CreditCard className="w-4 h-4 text-[#E8920D]" />

@@ -135,12 +135,17 @@ export default function RemindersPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[#1B2A4A] tracking-tight flex items-center gap-2">
-            <BellRing className="w-6 h-6 text-[#E8920D]" />
-            Service & Pink Slip Reminders
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-[#1B2A4A] tracking-tight flex items-center gap-2">
+              <BellRing className="w-6 h-6 text-[#E8920D]" />
+              Service & Pink Slip Reminders
+            </h1>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+              Dev Mode / Simulated Gateway
+            </span>
+          </div>
           <p className="text-xs text-gray-500 mt-0.5">
-            Automated ACMA-compliant SMS reminder campaign engine (9:00 AM – 8:00 PM AEST)
+            ACMA-compliant SMS reminder campaign engine (9:00 AM – 8:00 PM AEST simulation)
           </p>
         </div>
 
@@ -150,7 +155,7 @@ export default function RemindersPage() {
           className="flex items-center space-x-2 bg-[#E8920D] hover:bg-[#d68307] text-white px-4 py-2.5 rounded-lg text-xs font-semibold shadow-sm transition-all disabled:opacity-50 self-start sm:self-auto"
         >
           <Send className="w-4 h-4" />
-          <span>{sending ? "Dispatching SMS..." : `Send SMS to ${selectedIds.length} Selected`}</span>
+          <span>{sending ? "Simulating SMS..." : `Simulate SMS to ${selectedIds.length} Selected`}</span>
         </button>
       </div>
 
@@ -160,9 +165,12 @@ export default function RemindersPage() {
           <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
           <div className="text-xs">
             <p className="font-bold text-emerald-900">
-              Successfully Dispatched {dispatchResult.sentCount} SMS Reminders!
+              [Simulation] Successfully Processed {dispatchResult.sentCount} SMS Reminders!
             </p>
-            <p className="text-emerald-700 mt-0.5">{dispatchResult.acmaNotice}</p>
+            <p className="text-emerald-700 mt-0.5 font-mono">
+              Status updated in local DB (no real telecommunication carrier charges or real SMS messages were sent).
+            </p>
+            <p className="text-[11px] text-gray-500 mt-1">{dispatchResult.acmaNotice}</p>
           </div>
         </div>
       )}

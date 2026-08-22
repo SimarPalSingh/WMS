@@ -36,7 +36,8 @@ import { formatAUD } from "@/lib/utils"
 import * as XLSX from "xlsx"
 
 export default function ReportsPage() {
-  // Authentication PIN Gate (Default workshop PIN: 1234 or configured env)
+  // Authentication PIN Gate (Strict workshop manager PIN: 1234)
+  // No persistent session storage — PIN is strictly required every single time the reports are accessed
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [pinInput, setPinInput] = useState("")
   const [pinError, setPinError] = useState(false)
@@ -45,24 +46,21 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState("Q1")
 
-  // Check sessionStorage for previous PIN unlock in same session
-  useEffect(() => {
-    const unlocked = sessionStorage.getItem("reports_unlocked")
-    if (unlocked === "true") {
-      setIsAuthenticated(true)
-    }
-  }, [])
-
   const handlePinSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     // Workshop manager secure PIN
-    if (pinInput === "1234" || pinInput === "8888" || pinInput === "0000") {
+    if (pinInput === "1234") {
       setIsAuthenticated(true)
       setPinError(false)
-      sessionStorage.setItem("reports_unlocked", "true")
     } else {
       setPinError(true)
     }
+  }
+
+  const handleLockReports = () => {
+    setIsAuthenticated(false)
+    setPinInput("")
+    setPinError(false)
   }
 
   useEffect(() => {
@@ -192,6 +190,16 @@ export default function ReportsPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Lock Hub button */}
+          <button
+            onClick={handleLockReports}
+            className="px-3 py-2 bg-gray-100 hover:bg-red-50 text-gray-700 hover:text-red-700 rounded-lg text-xs font-semibold border border-gray-200 hover:border-red-200 transition-all flex items-center gap-1.5"
+            title="Lock Financial Hub"
+          >
+            <Lock className="w-3.5 h-3.5 text-gray-500 hover:text-red-600" />
+            <span>Lock Hub</span>
+          </button>
+
           {/* Excel Export */}
           <button
             onClick={handleExportExcel}

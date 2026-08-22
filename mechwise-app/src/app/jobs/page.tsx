@@ -118,6 +118,60 @@ export default function JobCardsPage() {
     fetchJobs()
   }, [statusFilter])
 
+  const handleSelectClient = (clientId: string) => {
+    setNewJob((prev) => {
+      const updated = { ...prev, clientId }
+      if (clientId) {
+        const clientObj = clients.find((c) => c.id === clientId)
+        // If client has any linked vehicles, auto-select the first vehicle and populate its details
+        if (clientObj?.clientVehicles?.length && clientObj.clientVehicles.length > 0) {
+          const firstVehicle = clientObj.clientVehicles[0].vehicle
+          if (firstVehicle) {
+            updated.vehicleId = firstVehicle.id
+            if (firstVehicle.currentMileageKm) {
+              updated.mileageIn = String(firstVehicle.currentMileageKm)
+            }
+            if (firstVehicle.nextServiceKm) {
+              updated.nextServiceOdoDue = String(firstVehicle.nextServiceKm)
+            }
+            if (firstVehicle.pinkSlipExpiry) {
+              updated.nextPinkSlipDue = new Date(firstVehicle.pinkSlipExpiry).toISOString().split("T")[0]
+            }
+          }
+        } else {
+          // Client has no registered vehicles yet
+          updated.vehicleId = ""
+        }
+      }
+      return updated
+    })
+  }
+
+  const handleSelectVehicle = (vehicleId: string) => {
+    setNewJob((prev) => {
+      const updated = { ...prev, vehicleId }
+      if (vehicleId) {
+        const vehicleObj = vehicles.find((v) => v.id === vehicleId)
+        // Auto-select linked owner client if available
+        const primaryOwner = vehicleObj?.clientVehicles?.[0]?.client
+        if (primaryOwner) {
+          updated.clientId = primaryOwner.id
+        }
+        // Auto-populate vehicle odometer and service targets
+        if (vehicleObj?.currentMileageKm) {
+          updated.mileageIn = String(vehicleObj.currentMileageKm)
+        }
+        if (vehicleObj?.nextServiceKm) {
+          updated.nextServiceOdoDue = String(vehicleObj.nextServiceKm)
+        }
+        if (vehicleObj?.pinkSlipExpiry) {
+          updated.nextPinkSlipDue = new Date(vehicleObj.pinkSlipExpiry).toISOString().split("T")[0]
+        }
+      }
+      return updated
+    })
+  }
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     fetchJobs()
@@ -386,13 +440,13 @@ export default function JobCardsPage() {
                   <select
                     required
                     value={newJob.clientId ?? ""}
-                    onChange={(e) => setNewJob({ ...newJob, clientId: e.target.value })}
+                    onChange={(e) => handleSelectClient(e.target.value)}
                     className="w-full px-3 py-2 border rounded-lg bg-white"
                   >
                     <option value="">-- Select Existing Client --</option>
                     {clients.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.clientType === "Business" ? c.businessName : `${c.firstName} ${c.lastName}`} ({c.mobilePhone})
+                        {c.clientType === "Business" ? c.businessName : `${c.firstName} ${c.lastName}`} ({c.mobilePhone || "No phone"}) {c.clientVehicles?.length ? `• ${c.clientVehicles.length} vehicle(s)` : ""}
                       </option>
                     ))}
                   </select>
@@ -452,19 +506,67 @@ export default function JobCardsPage() {
                     </div>
                   </div>
                 ) : (
-                  <select
-                    required
-                    value={newJob.vehicleId ?? ""}
-                    onChange={(e) => setNewJob({ ...newJob, vehicleId: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg font-mono font-bold bg-white"
-                  >
-                    <option value="">-- Select Existing Vehicle --</option>
-                    {vehicles.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.registration} ({v.year} {v.make} {v.model})
-                      </option>
-                    ))}
-                  </select>
+                  <div className="space-y-1">
+                    {(() => {
+                      const selectedClient = clients.find((c) => c.id === newJob.clientId)
+                      const clientVehiclesList = selectedClient?.clientVehicles?.map((cv: any) => cv.vehicle).filter(Boolean) || []
+                      const hasClientVehicles = clientVehiclesList.length > 0
+
+                      return (
+                        <>
+                          <select
+                            required
+                            value={newJob.vehicleId ?? ""}
+                            onChange={(e) => handleSelectVehicle(e.target.value)}
+                            className="w-full px-3 py-2 border rounded-lg font-mono font-bold bg-white"
+                          >
+                            <option value="">
+                              {hasClientVehicles
+                                ? `-- Select Vehicle for ${selectedClient?.firstName || selectedClient?.businessName} (${clientVehiclesList.length} registered) --`
+                                : "-- Select Existing Vehicle --"}
+                            </option>
+
+                            {/* If a client is selected and has cars, show their cars at the top / filtered */}
+                            {hasClientVehicles ? (
+                              <optgroup label={`Vehicles registered to ${selectedClient?.businessName || `${selectedClient?.firstName || ""} ${selectedClient?.lastName || ""}`.trim()}`}>
+                                {clientVehiclesList.map((v: any) => (
+                                  <option key={v.id} value={v.id}>
+                                    {v.registration} ({v.year} {v.make} {v.model})
+                                  </option>
+                                ))}
+                              </optgroup>
+                            ) : null}
+
+                            {/* Show other workshop fleet vehicles */}
+                            <optgroup label={hasClientVehicles ? "Other Fleet Vehicles" : "All Workshop Vehicles"}>
+                              {vehicles
+                                .filter((v) => !clientVehiclesList.some((cv: any) => cv.id === v.id))
+                                .map((v) => {
+                                  const owner = v.clientVehicles?.[0]?.client
+                                  const ownerTag = owner ? ` [${owner.businessName || `${owner.firstName || ""} ${owner.lastName || ""}`.trim()}]` : ""
+                                  return (
+                                    <option key={v.id} value={v.id}>
+                                      {v.registration} ({v.year} {v.make} {v.model}){ownerTag}
+                                    </option>
+                                  )
+                                })}
+                            </optgroup>
+                          </select>
+
+                          {newJob.clientId && hasClientVehicles && (
+                            <p className="text-[10px] text-gray-500 font-mono">
+                              Showing {clientVehiclesList.length} vehicle(s) linked to this client (first vehicle selected automatically).
+                            </p>
+                          )}
+                          {newJob.clientId && !hasClientVehicles && (
+                            <p className="text-[10px] text-amber-600 font-medium">
+                              This client does not have any registered vehicles yet. Click "+ Register New Vehicle Here" above to add one.
+                            </p>
+                          )}
+                        </>
+                      )
+                    })()}
+                  </div>
                 )}
               </div>
 

@@ -110,3 +110,85 @@ export async function POST(
     return NextResponse.json({ error: "Failed to record payment" }, { status: 500 })
   }
 }
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession()
+    const workshopId = session?.workshopId || "dhalla-auto-nsw"
+    const { id } = await params
+    const body = await request.json()
+
+    const { discountExGst, isGstFree, notes, futureNotes, paymentStatus } = body
+
+    const existingInvoice = await prisma.invoice.findFirst({
+      where: { id, workshopId },
+      include: { lines: true, payments: true }
+    })
+
+    if (!existingInvoice) {
+      return NextResponse.json({ error: "Invoice not found" }, { status: 404 })
+    }
+
+    const subtotalExGst = existingInvoice.lines.reduce((acc, l) => acc + l.lineTotalExGst, 0)
+    const discount = discountExGst !== undefined ? Math.max(0, parseFloat(discountExGst) || 0) : existingInvoice.discountExGst
+    const gstFree = isGstFree !== undefined ? Boolean(isGstFree) : existingInvoice.isGstFree
+
+    const netSubtotal = Math.max(0, subtotalExGst - discount)
+    const gstAmount = gstFree ? 0 : Math.round(netSubtotal * 0.10 * 100) / 100
+    const finalAmount = gstFree ? netSubtotal : Math.round((netSubtotal + gstAmount) * 100) / 100
+
+    // Update lines GST amount if GST toggle changed
+    if (isGstFree !== undefined) {
+      for (const line of existingInvoice.lines) {
+        await prisma.invoiceLine.update({
+          where: { id: line.id },
+          data: {
+            gstRate: gstFree ? 0.0 : 0.10,
+            gstAmount: gstFree ? 0.0 : Math.round(line.lineTotalExGst * 0.10 * 100) / 100
+          }
+        })
+      }
+    }
+
+    const totalPaid = existingInvoice.payments.reduce((acc, p) => acc + p.amount, 0)
+    let newPaymentStatus = paymentStatus || existingInvoice.paymentStatus
+    if (totalPaid >= finalAmount) {
+      newPaymentStatus = "Paid"
+    } else if (newPaymentStatus === "Paid" && totalPaid < finalAmount) {
+      newPaymentStatus = "Unpaid"
+    }
+
+    const updatedInvoice = await prisma.invoice.update({
+      where: { id },
+      data: {
+        discountExGst: discount,
+        isGstFree: gstFree,
+        subtotalExGst,
+        gstAmount,
+        finalAmount,
+        paymentStatus: newPaymentStatus,
+        notes: notes !== undefined ? notes : existingInvoice.notes,
+        futureNotes: futureNotes !== undefined ? futureNotes : existingInvoice.futureNotes
+      },
+      include: {
+        workshop: true,
+        client: true,
+        vehicle: true,
+        lines: {
+          orderBy: { sortOrder: "asc" }
+        },
+        payments: {
+          orderBy: { paymentDate: "desc" }
+        }
+      }
+    })
+
+    return NextResponse.json({ invoice: updatedInvoice })
+  } catch (error) {
+    console.error("Error updating invoice:", error)
+    return NextResponse.json({ error: "Failed to update invoice" }, { status: 500 })
+  }
+}

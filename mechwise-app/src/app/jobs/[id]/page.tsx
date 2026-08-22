@@ -259,12 +259,13 @@ export default function JobCardDetailPage({
     const selected = partsCatalog.find((p) => p.id === partId)
     const updated = [...lines]
     if (selected) {
+      const price = selected.retailPrice !== undefined ? selected.retailPrice : (selected.sellingPriceExGst || 0)
       updated[index].partId = selected.id
       updated[index].description = `${selected.partNumber} - ${selected.name}`
       updated[index].category = selected.category || "Parts & Supplies"
-      updated[index].unitPriceExGst = selected.sellingPriceExGst
+      updated[index].unitPriceExGst = price
       const q = parseFloat(updated[index].qty) || 1
-      updated[index].lineTotalExGst = Math.round(q * selected.sellingPriceExGst * 100) / 100
+      updated[index].lineTotalExGst = Math.round(q * price * 100) / 100
     }
     setLines(updated)
   }
@@ -513,27 +514,62 @@ export default function JobCardDetailPage({
               {lines.map((line, idx) => (
                 <div
                   key={idx}
-                  className={`p-3 rounded-xl border transition-all flex flex-col sm:flex-row items-start sm:items-center gap-3 ${
+                  className={`p-3.5 rounded-xl border transition-all space-y-2 ${
                     line.isCompleted
                       ? "bg-emerald-50/40 border-emerald-200"
-                      : "bg-gray-50 border-gray-200"
+                      : "bg-gray-50/80 border-gray-200"
                   }`}
                 >
-                  <input
-                    type="checkbox"
-                    checked={Boolean(line.isCompleted)}
-                    onChange={(e) => handleLineChange(idx, "isCompleted", e.target.checked)}
-                    className="w-4 h-4 text-[#E8920D] rounded cursor-pointer mt-1 sm:mt-0"
-                  />
+                  {/* Top Header of the Line Item Row */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(line.isCompleted)}
+                        onChange={(e) => handleLineChange(idx, "isCompleted", e.target.checked)}
+                        className="w-4 h-4 text-[#E8920D] rounded cursor-pointer"
+                      />
+                      <span className="font-bold text-gray-800 text-[11px]">
+                        Line #{idx + 1} — {line.lineType} Item
+                      </span>
+                    </div>
 
-                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-12 gap-2 text-xs w-full">
-                    {/* Select from Inventory if Part or Custom Work Item */}
-                    {line.lineType === "Part" ? (
-                      <div className="sm:col-span-5 flex items-center gap-1.5">
+                    <div className="flex items-center gap-3">
+                      {line.lineType === "Part" && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setNewPartIndex(idx)
+                            setShowNewPartModal(true)
+                          }}
+                          className="text-[11px] text-[#E8920D] hover:underline font-semibold flex items-center gap-1"
+                        >
+                          + Register New Master Part
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveLine(idx)}
+                        className="text-gray-400 hover:text-red-600 p-0.5"
+                        title="Remove item"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Input Fields Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 text-xs">
+                    {/* Item Description / Master Part Dropdown */}
+                    <div className="sm:col-span-5">
+                      <label className="block text-gray-500 text-[10px] font-semibold mb-0.5">
+                        {line.lineType === "Part" ? "Master Inventory Part *" : "Item Description *"}
+                      </label>
+                      {line.lineType === "Part" ? (
                         <select
                           value={line.partId ?? ""}
                           onChange={(e) => handleSelectInventoryPart(idx, e.target.value)}
-                          className="w-full px-2 py-1 bg-white border rounded font-medium text-gray-900 text-xs"
+                          className="w-full px-2.5 py-1.5 bg-white border border-gray-300 rounded-lg font-medium text-gray-900 text-xs"
                         >
                           <option value="">-- Select Master Part --</option>
                           {partsCatalog.map((p) => (
@@ -542,35 +578,26 @@ export default function JobCardDetailPage({
                             </option>
                           ))}
                         </select>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setNewPartIndex(idx)
-                            setShowNewPartModal(true)
-                          }}
-                          className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-[#E8920D] border border-amber-200 rounded text-[10px] font-bold whitespace-nowrap"
-                          title="Register new part in master inventory"
-                        >
-                          + New Part
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="sm:col-span-5">
+                      ) : (
                         <input
                           type="text"
                           value={line.description ?? ""}
                           onChange={(e) => handleLineChange(idx, "description", e.target.value)}
-                          placeholder="Item description (e.g. Front brake pads replacement)"
-                          className="w-full px-2 py-1 bg-white border rounded font-medium text-gray-900"
+                          placeholder="e.g. Front brake pads replacement & disc rotor resurface"
+                          className="w-full px-2.5 py-1.5 bg-white border border-gray-300 rounded-lg font-medium text-gray-900"
                         />
-                      </div>
-                    )}
+                      )}
+                    </div>
 
+                    {/* Line Type */}
                     <div className="sm:col-span-2">
+                      <label className="block text-gray-500 text-[10px] font-semibold mb-0.5">
+                        Type
+                      </label>
                       <select
                         value={line.lineType ?? "Labour"}
                         onChange={(e) => handleLineChange(idx, "lineType", e.target.value)}
-                        className="w-full px-2 py-1 bg-white border rounded text-[11px]"
+                        className="w-full px-2 py-1.5 bg-white border border-gray-300 rounded-lg text-xs"
                       >
                         <option value="Labour">Labour</option>
                         <option value="Part">Part</option>
@@ -579,36 +606,37 @@ export default function JobCardDetailPage({
                       </select>
                     </div>
 
+                    {/* Quantity */}
                     <div className="sm:col-span-2">
+                      <label className="block text-gray-500 text-[10px] font-semibold mb-0.5 text-center">
+                        Quantity
+                      </label>
                       <input
                         type="number"
                         step="0.1"
                         value={line.qty ?? 1}
                         onChange={(e) => handleLineChange(idx, "qty", e.target.value)}
                         placeholder="Qty"
-                        className="w-full px-2 py-1 bg-white border rounded font-mono text-center"
+                        className="w-full px-2 py-1.5 bg-white border border-gray-300 rounded-lg font-mono text-center"
                       />
                     </div>
 
-                    <div className="sm:col-span-3 flex items-center justify-between gap-1">
-                      <div className="relative flex-1">
-                        <span className="absolute left-1.5 top-1 text-gray-400 text-[10px]">$</span>
+                    {/* Unit Price (Ex-GST) */}
+                    <div className="sm:col-span-3">
+                      <label className="block text-gray-500 text-[10px] font-semibold mb-0.5">
+                        Unit Price ($ Ex-GST)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-2 top-1.5 text-gray-400 text-xs">$</span>
                         <input
                           type="number"
                           step="0.01"
                           value={line.unitPriceExGst ?? 0}
                           onChange={(e) => handleLineChange(idx, "unitPriceExGst", e.target.value)}
-                          placeholder="Unit Price"
-                          className="w-full pl-4 pr-1 py-1 bg-white border rounded font-mono text-xs font-bold text-gray-800"
+                          placeholder="0.00"
+                          className="w-full pl-5 pr-2 py-1.5 bg-white border border-gray-300 rounded-lg font-mono text-xs font-bold text-gray-900"
                         />
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveLine(idx)}
-                        className="text-gray-400 hover:text-red-600 p-1"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
                     </div>
                   </div>
                 </div>

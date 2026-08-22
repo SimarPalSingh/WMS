@@ -196,6 +196,38 @@ export default function InvoicesPage() {
       .catch((err) => console.error(err))
   }
 
+  const handleSelectCustInvoiceClient = (clientId: string) => {
+    setCustForm((prev) => {
+      const updated = { ...prev, clientId }
+      if (clientId) {
+        const clientObj = clientsList.find((c) => c.id === clientId)
+        if (clientObj?.clientVehicles?.length && clientObj.clientVehicles.length > 0) {
+          const firstVehicle = clientObj.clientVehicles[0].vehicle
+          if (firstVehicle) {
+            updated.vehicleId = firstVehicle.id
+          }
+        } else {
+          updated.vehicleId = ""
+        }
+      }
+      return updated
+    })
+  }
+
+  const handleSelectCustInvoiceVehicle = (vehicleId: string) => {
+    setCustForm((prev) => {
+      const updated = { ...prev, vehicleId }
+      if (vehicleId) {
+        const vehicleObj = vehiclesList.find((v) => v.id === vehicleId)
+        const primaryOwner = vehicleObj?.clientVehicles?.[0]?.client
+        if (primaryOwner) {
+          updated.clientId = primaryOwner.id
+        }
+      }
+      return updated
+    })
+  }
+
   useEffect(() => {
     fetchCustomerInvoices()
     fetchSuppliers()
@@ -1127,13 +1159,13 @@ export default function InvoicesPage() {
                   <select
                     required
                     value={custForm.clientId}
-                    onChange={(e) => setCustForm({ ...custForm, clientId: e.target.value })}
+                    onChange={(e) => handleSelectCustInvoiceClient(e.target.value)}
                     className="w-full px-3 py-2 border rounded-lg bg-white font-medium"
                   >
                     <option value="">-- Select Existing Client --</option>
                     {clientsList.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.clientType === "Business" ? c.businessName : `${c.firstName} ${c.lastName}`} ({c.mobilePhone || "No Phone"})
+                        {c.clientType === "Business" ? c.businessName : `${c.firstName} ${c.lastName}`} ({c.mobilePhone || "No Phone"}) {c.clientVehicles?.length ? `• ${c.clientVehicles.length} vehicle(s)` : ""}
                       </option>
                     ))}
                   </select>
@@ -1218,19 +1250,62 @@ export default function InvoicesPage() {
                     </div>
                   </div>
                 ) : (
-                  <select
-                    required
-                    value={custForm.vehicleId}
-                    onChange={(e) => setCustForm({ ...custForm, vehicleId: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg bg-white font-mono font-bold"
-                  >
-                    <option value="">-- Select Existing Vehicle --</option>
-                    {vehiclesList.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.registration} ({v.year} {v.make} {v.model})
-                      </option>
-                    ))}
-                  </select>
+                  <div className="space-y-1">
+                    {(() => {
+                      const selectedClient = clientsList.find((c) => c.id === custForm.clientId)
+                      const clientVehiclesList = selectedClient?.clientVehicles?.map((cv: any) => cv.vehicle).filter(Boolean) || []
+                      const hasClientVehicles = clientVehiclesList.length > 0
+
+                      return (
+                        <>
+                          <select
+                            required
+                            value={custForm.vehicleId}
+                            onChange={(e) => handleSelectCustInvoiceVehicle(e.target.value)}
+                            className="w-full px-3 py-2 border rounded-lg bg-white font-mono font-bold"
+                          >
+                            <option value="">
+                              {hasClientVehicles
+                                ? `-- Select Vehicle for ${selectedClient?.firstName || selectedClient?.businessName} (${clientVehiclesList.length} registered) --`
+                                : "-- Select Existing Vehicle --"}
+                            </option>
+
+                            {/* Client's vehicles */}
+                            {hasClientVehicles ? (
+                              <optgroup label={`Vehicles registered to ${selectedClient?.businessName || `${selectedClient?.firstName || ""} ${selectedClient?.lastName || ""}`.trim()}`}>
+                                {clientVehiclesList.map((v: any) => (
+                                  <option key={v.id} value={v.id}>
+                                    {v.registration} ({v.year} {v.make} {v.model})
+                                  </option>
+                                ))}
+                              </optgroup>
+                            ) : null}
+
+                            {/* Other fleet vehicles */}
+                            <optgroup label={hasClientVehicles ? "Other Fleet Vehicles" : "All Workshop Vehicles"}>
+                              {vehiclesList
+                                .filter((v) => !clientVehiclesList.some((cv: any) => cv.id === v.id))
+                                .map((v) => {
+                                  const owner = v.clientVehicles?.[0]?.client
+                                  const ownerTag = owner ? ` [${owner.businessName || `${owner.firstName || ""} ${owner.lastName || ""}`.trim()}]` : ""
+                                  return (
+                                    <option key={v.id} value={v.id}>
+                                      {v.registration} ({v.year} {v.make} {v.model}){ownerTag}
+                                    </option>
+                                  )
+                                })}
+                            </optgroup>
+                          </select>
+
+                          {custForm.clientId && hasClientVehicles && (
+                            <p className="text-[10px] text-gray-500 font-mono">
+                              Showing {clientVehiclesList.length} vehicle(s) linked to this client (first vehicle selected automatically).
+                            </p>
+                          )}
+                        </>
+                      )
+                    })()}
+                  </div>
                 )}
               </div>
 

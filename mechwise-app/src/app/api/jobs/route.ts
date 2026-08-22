@@ -43,8 +43,24 @@ export async function GET(request: Request) {
       }),
       prisma.bay.findMany({ where: { workshopId }, orderBy: { displayOrder: "asc" } }),
       prisma.staff.findMany({ where: { workshopId, isActive: true } }),
-      prisma.client.findMany({ where: { workshopId } }),
-      prisma.vehicle.findMany({ where: { workshopId } }),
+      prisma.client.findMany({
+        where: { workshopId },
+        include: {
+          clientVehicles: {
+            include: { vehicle: true }
+          }
+        },
+        orderBy: { createdAt: "desc" }
+      }),
+      prisma.vehicle.findMany({
+        where: { workshopId },
+        include: {
+          clientVehicles: {
+            include: { client: true }
+          }
+        },
+        orderBy: { createdAt: "desc" }
+      }),
       prisma.workshop.findUnique({ where: { id: workshopId } })
     ])
 
