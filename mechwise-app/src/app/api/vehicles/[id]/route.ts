@@ -135,6 +135,46 @@ export async function PATCH(
             }
           })
         }
+
+        // DYNAMIC CROSS-ENTITY CASCADE:
+        // Update active job cards, quotations, unpaid invoices, and service reminders with the new clientId
+        await Promise.all([
+          // 1. Update open / in-progress job cards
+          prisma.jobCard.updateMany({
+            where: {
+              vehicleId: id,
+              status: { notIn: ["Completed", "Cancelled"] }
+            },
+            data: { clientId }
+          }),
+
+          // 2. Update active / pending / approved quotations
+          prisma.quotation.updateMany({
+            where: {
+              vehicleId: id,
+              status: { notIn: ["Finalised", "Declined", "Expired"] }
+            },
+            data: { clientId }
+          }),
+
+          // 3. Update pending / unpaid invoices
+          prisma.invoice.updateMany({
+            where: {
+              vehicleId: id,
+              paymentStatus: "Unpaid"
+            },
+            data: { clientId }
+          }),
+
+          // 4. Update pending reminders
+          prisma.serviceReminder.updateMany({
+            where: {
+              vehicleId: id,
+              status: "Pending"
+            },
+            data: { clientId }
+          })
+        ])
       }
     }
 

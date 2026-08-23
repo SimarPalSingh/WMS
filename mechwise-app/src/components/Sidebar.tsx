@@ -35,7 +35,7 @@ const NAV_ITEMS = [
 
 export default function Sidebar() {
   const pathname = usePathname()
-  const { isOpen, isCollapsed, toggleCollapse, closeSidebar } = useSidebar()
+  const { isOpen, isCollapsed, toggleSidebar, toggleCollapse, closeSidebar } = useSidebar()
 
   return (
     <>
@@ -58,9 +58,36 @@ export default function Sidebar() {
         {/* Brand Header */}
         <div className="p-4 border-b border-[#243656] flex items-center justify-between">
           <div className="flex items-center space-x-3 truncate">
-            <div className="w-9 h-9 rounded-lg bg-[#E8920D] flex items-center justify-center font-black text-xl text-white shadow-md shrink-0">
-              M
-            </div>
+            {/* Interactive "M" Logo Button that turns into Hamburger Icon on Hover */}
+            <button
+              onClick={toggleSidebar}
+              type="button"
+              aria-label="Toggle Sidebar"
+              title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+              className="group relative w-9 h-9 rounded-lg bg-[#E8920D] hover:bg-[#d68307] flex items-center justify-center text-white shadow-md shrink-0 cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-amber-300"
+            >
+              {/* Default "M" */}
+              <span className="font-black text-xl leading-none group-hover:opacity-0 group-hover:scale-75 transition-all duration-200">
+                M
+              </span>
+              {/* Hamburger Icon on Hover */}
+              <span className="absolute inset-0 flex items-center justify-center opacity-0 scale-75 group-hover:opacity-100 group-hover:scale-100 transition-all duration-200">
+                <svg
+                  className="w-5 h-5 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="4" y1="6" x2="20" y2="6" />
+                  <line x1="4" y1="12" x2="20" y2="12" />
+                  <line x1="4" y1="18" x2="20" y2="18" />
+                </svg>
+              </span>
+            </button>
+
             {!isCollapsed && (
               <div className="truncate">
                 <h1 className="font-bold text-base tracking-wider text-white">MECHWISE</h1>

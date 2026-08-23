@@ -195,6 +195,46 @@ export async function POST(
       data: { updatedAt: new Date() }
     })
 
+    // DYNAMIC CROSS-ENTITY CASCADE:
+    // When linking a vehicle to this client, update all active jobs, quotes, unpaid invoices, and pending reminders
+    await Promise.all([
+      // 1. Update open / in-progress job cards
+      prisma.jobCard.updateMany({
+        where: {
+          vehicleId: finalVehicleId,
+          status: { notIn: ["Completed", "Cancelled"] }
+        },
+        data: { clientId }
+      }),
+
+      // 2. Update active quotations
+      prisma.quotation.updateMany({
+        where: {
+          vehicleId: finalVehicleId,
+          status: { notIn: ["Finalised", "Declined", "Expired"] }
+        },
+        data: { clientId }
+      }),
+
+      // 3. Update unpaid invoices
+      prisma.invoice.updateMany({
+        where: {
+          vehicleId: finalVehicleId,
+          paymentStatus: "Unpaid"
+        },
+        data: { clientId }
+      }),
+
+      // 4. Update pending reminders
+      prisma.serviceReminder.updateMany({
+        where: {
+          vehicleId: finalVehicleId,
+          status: "Pending"
+        },
+        data: { clientId }
+      })
+    ])
+
     return NextResponse.json({ success: true, vehicleId: finalVehicleId })
   } catch (error: any) {
     console.error("Error linking vehicle to client:", error)
