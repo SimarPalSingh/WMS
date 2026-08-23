@@ -431,11 +431,11 @@ async function main() {
 
   // 7.1 Sample Quotation
   await prisma.quotation.upsert({
-    where: { workshopId_quoteNumber: { workshopId: workshop.id, quoteNumber: 'QUO-0088' } },
+    where: { workshopId_quoteNumber: { workshopId: workshop.id, quoteNumber: 'QT-0088' } },
     update: {},
     create: {
       workshopId: workshop.id,
-      quoteNumber: 'QUO-0088',
+      quoteNumber: 'QT-0088',
       jobCardId: jc2.id,
       clientId: 'cli-02',
       vehicleId: (await prisma.vehicle.findFirst({ where: { registration: 'CV42TY' } }))!.id,

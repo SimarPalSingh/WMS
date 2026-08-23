@@ -21,6 +21,7 @@ import {
 import * as XLSX from "xlsx"
 
 export default function InventoryPage() {
+  const [activeMainTab, setActiveMainTab] = useState<"parts" | "suppliers">("parts")
   const [parts, setParts] = useState<any[]>([])
   const [suppliers, setSuppliers] = useState<any[]>([])
   const [categories, setCategories] = useState<string[]>([])
@@ -30,13 +31,20 @@ export default function InventoryPage() {
   const [search, setSearch] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [filterLowStock, setFilterLowStock] = useState(false)
+  const [suppSearch, setSuppSearch] = useState("")
 
   // Modals
   const [showPartModal, setShowPartModal] = useState(false)
   const [showRestockModal, setShowRestockModal] = useState(false)
+  const [showSupplierEditModal, setShowSupplierEditModal] = useState(false)
   const [activePart, setActivePart] = useState<any>(null)
+  const [activeSupplier, setActiveSupplier] = useState<any>(null)
   const [restockAmount, setRestockAmount] = useState("5")
   const [notification, setNotification] = useState<string | null>(null)
+
+  // Category on-the-fly mode
+  const [isCustomCategoryMode, setIsCustomCategoryMode] = useState(false)
+  const [customCategoryInput, setCustomCategoryInput] = useState("")
 
   // Part Form
   const [isNewSupplierMode, setIsNewSupplierMode] = useState(false)
@@ -53,7 +61,7 @@ export default function InventoryPage() {
   const [partForm, setPartForm] = useState({
     partNumber: "",
     name: "",
-    category: "General",
+    category: "Oils & Fluids",
     costPrice: "0.00",
     retailPrice: "0.00",
     availableStock: "10",
@@ -61,6 +69,17 @@ export default function InventoryPage() {
     minStockQty: "2",
     restockMinQty: "5",
     supplierId: ""
+  })
+
+  // Supplier Form for Edit/Create Supplier
+  const [supplierForm, setSupplierForm] = useState({
+    name: "",
+    abn: "",
+    contactName: "",
+    phone: "",
+    email: "",
+    address: "",
+    accountNo: ""
   })
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -174,9 +193,14 @@ export default function InventoryPage() {
       return
     }
 
+    const effectiveCategory = isCustomCategoryMode
+      ? customCategoryInput.trim() || "General"
+      : partForm.category || "General"
+
     try {
       const payload = {
         ...partForm,
+        category: effectiveCategory,
         supplierId: isNewSupplierMode ? null : partForm.supplierId,
         isNewSupplier: isNewSupplierMode,
         newSupplierData: isNewSupplierMode ? newSupplierData : null
@@ -199,6 +223,8 @@ export default function InventoryPage() {
       }
       setShowPartModal(false)
       setIsNewSupplierMode(false)
+      setIsCustomCategoryMode(false)
+      setCustomCategoryInput("")
       setNewSupplierData({
         name: "",
         abn: "",
@@ -211,6 +237,38 @@ export default function InventoryPage() {
       loadInventory()
     } catch (err) {
       console.error("Error saving part:", err)
+    }
+  }
+
+  // Save / Update Supplier
+  const handleSaveSupplier = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!supplierForm.name) {
+      alert("Please enter supplier name.")
+      return
+    }
+
+    try {
+      if (activeSupplier) {
+        await fetch("/api/suppliers", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: activeSupplier.id, ...supplierForm })
+        })
+        showToast("Supplier details updated successfully!")
+      } else {
+        await fetch("/api/suppliers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(supplierForm)
+        })
+        showToast("New supplier registered successfully!")
+      }
+      setShowSupplierEditModal(false)
+      setActiveSupplier(null)
+      loadInventory()
+    } catch (err) {
+      console.error("Error saving supplier:", err)
     }
   }
 
@@ -238,6 +296,8 @@ export default function InventoryPage() {
   const openEditPart = (p: any) => {
     setActivePart(p)
     setIsNewSupplierMode(false)
+    setIsCustomCategoryMode(false)
+    setCustomCategoryInput("")
     setPartForm({
       partNumber: p.partNumber,
       name: p.name,
@@ -256,6 +316,8 @@ export default function InventoryPage() {
   const openNewPart = () => {
     setActivePart(null)
     setIsNewSupplierMode(false)
+    setIsCustomCategoryMode(false)
+    setCustomCategoryInput("")
     setNewSupplierData({
       name: "",
       abn: "",
@@ -280,9 +342,48 @@ export default function InventoryPage() {
     setShowPartModal(true)
   }
 
+  const openEditSupplier = (s: any) => {
+    setActiveSupplier(s)
+    setSupplierForm({
+      name: s.name || "",
+      abn: s.abn || "",
+      contactName: s.contactName || "",
+      phone: s.phone || "",
+      email: s.email || "",
+      address: s.address || "",
+      accountNo: s.accountNo || ""
+    })
+    setShowSupplierEditModal(true)
+  }
+
+  const openNewSupplier = () => {
+    setActiveSupplier(null)
+    setSupplierForm({
+      name: "",
+      abn: "",
+      contactName: "",
+      phone: "",
+      email: "",
+      address: "",
+      accountNo: ""
+    })
+    setShowSupplierEditModal(true)
+  }
+
   const filteredParts = parts.filter((p) => {
     if (filterLowStock && p.availableStock > p.minStockQty) return false
     return true
+  })
+
+  const filteredSuppliers = suppliers.filter((s) => {
+    if (!suppSearch) return true
+    const term = suppSearch.toLowerCase()
+    return (
+      s.name?.toLowerCase().includes(term) ||
+      s.abn?.toLowerCase().includes(term) ||
+      s.contactName?.toLowerCase().includes(term) ||
+      s.phone?.toLowerCase().includes(term)
+    )
   })
 
   const lowStockCount = parts.filter((p) => p.availableStock <= p.minStockQty).length
@@ -297,7 +398,7 @@ export default function InventoryPage() {
             Parts Inventory & Master Catalog
           </h1>
           <p className="text-xs text-gray-500 mt-0.5">
-            Manage spare parts, stock levels, restocking triggers, and synchronize master inventory via Excel
+            Manage spare parts, stock levels, restocking triggers, suppliers, and synchronize master inventory via Excel
           </p>
         </div>
 
@@ -327,14 +428,50 @@ export default function InventoryPage() {
             Export Excel
           </button>
 
-          <button
-            onClick={openNewPart}
-            className="px-3.5 py-2 bg-[#1B2A4A] hover:bg-[#243656] text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all shadow-xs"
-          >
-            <Plus className="w-4 h-4 text-[#E8920D]" />
-            Add New Part
-          </button>
+          {activeMainTab === "parts" ? (
+            <button
+              onClick={openNewPart}
+              className="px-3.5 py-2 bg-[#1B2A4A] hover:bg-[#243656] text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all shadow-xs"
+            >
+              <Plus className="w-4 h-4 text-[#E8920D]" />
+              Add New Part
+            </button>
+          ) : (
+            <button
+              onClick={openNewSupplier}
+              className="px-3.5 py-2 bg-[#1B2A4A] hover:bg-[#243656] text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all shadow-xs"
+            >
+              <Plus className="w-4 h-4 text-[#E8920D]" />
+              Register Supplier
+            </button>
+          )}
         </div>
+      </div>
+
+      {/* Main Tabs */}
+      <div className="flex space-x-2 border-b border-gray-200">
+        <button
+          onClick={() => setActiveMainTab("parts")}
+          className={`pb-3 px-4 text-xs font-bold border-b-2 transition-all flex items-center gap-2 ${
+            activeMainTab === "parts"
+              ? "border-[#E8920D] text-[#E8920D]"
+              : "border-transparent text-gray-500 hover:text-gray-900"
+          }`}
+        >
+          <Package className="w-4 h-4" />
+          Parts Catalog & Stock ({parts.length})
+        </button>
+        <button
+          onClick={() => setActiveMainTab("suppliers")}
+          className={`pb-3 px-4 text-xs font-bold border-b-2 transition-all flex items-center gap-2 ${
+            activeMainTab === "suppliers"
+              ? "border-[#E8920D] text-[#E8920D]"
+              : "border-transparent text-gray-500 hover:text-gray-900"
+          }`}
+        >
+          <Building2 className="w-4 h-4" />
+          Connected Suppliers ({suppliers.length})
+        </button>
       </div>
 
       {/* Notification Toast */}
@@ -345,193 +482,284 @@ export default function InventoryPage() {
         </div>
       )}
 
-      {/* Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Total Part Lines</p>
-            <p className="text-2xl font-bold font-mono text-[#1B2A4A] mt-1">{parts.length}</p>
-          </div>
-          <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700">
-            <Package className="w-5 h-5" />
-          </div>
-        </div>
+      {/* TAB 1: PARTS INVENTORY */}
+      {activeMainTab === "parts" && (
+        <div className="space-y-4">
+          {/* Metric Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Total Part Lines</p>
+                <p className="text-2xl font-bold font-mono text-[#1B2A4A] mt-1">{parts.length}</p>
+              </div>
+              <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700">
+                <Package className="w-5 h-5" />
+              </div>
+            </div>
 
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Categories</p>
-            <p className="text-2xl font-bold font-mono text-[#1B2A4A] mt-1">{categories.length}</p>
-          </div>
-          <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-[#E8920D]">
-            <Filter className="w-5 h-5" />
-          </div>
-        </div>
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Categories</p>
+                <p className="text-2xl font-bold font-mono text-[#1B2A4A] mt-1">{categories.length}</p>
+              </div>
+              <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center text-[#E8920D]">
+                <Filter className="w-5 h-5" />
+              </div>
+            </div>
 
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Low Stock Alerts</p>
-            <p className="text-2xl font-bold font-mono text-red-600 mt-1">{lowStockCount}</p>
-          </div>
-          <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center text-red-600">
-            <AlertTriangle className="w-5 h-5" />
-          </div>
-        </div>
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Low Stock Alerts</p>
+                <p className="text-2xl font-bold font-mono text-red-600 mt-1">{lowStockCount}</p>
+              </div>
+              <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center text-red-600">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+            </div>
 
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center justify-between">
-          <div>
-            <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Connected Suppliers</p>
-            <p className="text-2xl font-bold font-mono text-[#1B2A4A] mt-1">{suppliers.length}</p>
-          </div>
-          <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
-            <Building2 className="w-5 h-5" />
-          </div>
-        </div>
-      </div>
-
-      {/* Filters & Search */}
-      <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-3 flex-1 flex-wrap">
-          {/* Search Box */}
-          <div className="relative flex-1 min-w-[220px]">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
-            <input
-              type="text"
-              placeholder="Search by part number or name..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 border rounded-lg font-medium text-gray-900"
-            />
+            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Connected Suppliers</p>
+                <p className="text-2xl font-bold font-mono text-[#1B2A4A] mt-1">{suppliers.length}</p>
+              </div>
+              <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+                <Building2 className="w-5 h-5" />
+              </div>
+            </div>
           </div>
 
-          {/* Category Dropdown */}
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-3 py-2 border rounded-lg font-medium text-gray-700 bg-white"
-          >
-            <option value="All">All Categories</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </div>
+          {/* Filters & Search */}
+          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-3 flex-1 flex-wrap">
+              {/* Search Box */}
+              <div className="relative flex-1 min-w-[220px]">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Search by part number or name..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 border rounded-lg font-medium text-gray-900"
+                />
+              </div>
 
-        {/* Low Stock Toggle */}
-        <button
-          onClick={() => setFilterLowStock(!filterLowStock)}
-          className={`px-3 py-2 rounded-lg font-semibold flex items-center gap-1.5 transition-all border ${
-            filterLowStock
-              ? "bg-red-50 text-red-700 border-red-200"
-              : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
-          }`}
-        >
-          <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
-          Low Stock Only ({lowStockCount})
-        </button>
-      </div>
+              {/* Category Dropdown */}
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="px-3 py-2 border rounded-lg font-medium text-gray-700 bg-white"
+              >
+                <option value="All">All Categories</option>
+                {categories.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-      {/* Parts Table */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-xs">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-gray-50 text-gray-600 font-semibold border-b border-gray-200">
-            <tr>
-              <th className="py-3 px-4">Part # / Code</th>
-              <th className="py-3 px-4">Description / Name</th>
-              <th className="py-3 px-4">Category</th>
-              <th className="py-3 px-4 text-right">Cost (ex-GST)</th>
-              <th className="py-3 px-4 text-right">Retail (ex-GST)</th>
-              <th className="py-3 px-4 text-center">Available Stock</th>
-              <th className="py-3 px-4 text-center">Min / Max</th>
-              <th className="py-3 px-4">Supplier</th>
-              <th className="py-3 px-4 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {loading ? (
-              <tr>
-                <td colSpan={9} className="py-12 text-center text-gray-400 font-mono">
-                  Loading inventory parts catalog...
-                </td>
-              </tr>
-            ) : filteredParts.length === 0 ? (
-              <tr>
-                <td colSpan={9} className="py-12 text-center text-gray-400 font-mono">
-                  No parts found matching your criteria.
-                </td>
-              </tr>
-            ) : (
-              filteredParts.map((p) => {
-                const isLow = p.availableStock <= p.minStockQty
-                return (
-                  <tr key={p.id} className="hover:bg-gray-50/80 transition-colors">
-                    <td className="py-3 px-4 font-mono font-bold text-gray-900">
-                      {p.partNumber}
-                    </td>
-                    <td className="py-3 px-4 font-semibold text-gray-900">
-                      {p.name}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="px-2.5 py-0.5 bg-slate-100 text-slate-800 rounded-full font-medium text-[11px]">
-                        {p.category || "General"}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono text-gray-600">
-                      ${p.costPrice.toFixed(2)}
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono font-bold text-gray-900">
-                      ${p.retailPrice.toFixed(2)}
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-mono font-bold text-[11px] ${
-                          isLow
-                            ? "bg-red-100 text-red-800 border border-red-200"
-                            : "bg-emerald-100 text-emerald-800"
-                        }`}
-                      >
-                        {isLow && <AlertTriangle className="w-3 h-3 text-red-600" />}
-                        {p.availableStock} in stock
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-center font-mono text-[11px] text-gray-500">
-                      Min: {p.minStockQty} | Max: {p.maxStockQty}
-                    </td>
-                    <td className="py-3 px-4 text-gray-600 text-[11px]">
-                      {p.supplier ? (
-                        <span className="font-medium text-gray-800">{p.supplier.name}</span>
-                      ) : (
-                        <span className="text-gray-400 font-mono">—</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-right space-x-1">
-                      <button
-                        onClick={() => {
-                          setActivePart(p)
-                          setRestockAmount(String(p.restockMinQty || 5))
-                          setShowRestockModal(true)
-                        }}
-                        className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-[#E8920D] rounded font-bold text-[11px] transition-colors"
-                        title="Stock Received / Restock"
-                      >
-                        + Restock
-                      </button>
-                      <button
-                        onClick={() => openEditPart(p)}
-                        className="p-1.5 hover:bg-gray-100 rounded text-gray-600 hover:text-blue-600 transition-colors"
-                        title="Edit Part"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
+            {/* Low Stock Toggle */}
+            <button
+              onClick={() => setFilterLowStock(!filterLowStock)}
+              className={`px-3 py-2 rounded-lg font-semibold flex items-center gap-1.5 transition-all border ${
+                filterLowStock
+                  ? "bg-red-50 text-red-700 border-red-200"
+                  : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+              }`}
+            >
+              <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+              Low Stock Only ({lowStockCount})
+            </button>
+          </div>
+
+          {/* Parts Table */}
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-xs">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-gray-50 text-gray-600 font-semibold border-b border-gray-200">
+                <tr>
+                  <th className="py-3 px-4">Part # / Code</th>
+                  <th className="py-3 px-4">Description / Name</th>
+                  <th className="py-3 px-4">Category</th>
+                  <th className="py-3 px-4 text-right">Cost (ex-GST)</th>
+                  <th className="py-3 px-4 text-right">Retail (ex-GST)</th>
+                  <th className="py-3 px-4 text-center">Available Stock</th>
+                  <th className="py-3 px-4 text-center">Min / Max</th>
+                  <th className="py-3 px-4">Supplier</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {loading ? (
+                  <tr>
+                    <td colSpan={9} className="py-12 text-center text-gray-400 font-mono">
+                      Loading inventory parts catalog...
                     </td>
                   </tr>
-                )
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+                ) : filteredParts.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="py-12 text-center text-gray-400 font-mono">
+                      No parts found matching your criteria.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredParts.map((p) => {
+                    const isLow = p.availableStock <= p.minStockQty
+                    return (
+                      <tr key={p.id} className="hover:bg-gray-50/80 transition-colors">
+                        <td className="py-3 px-4 font-mono font-bold text-gray-900">
+                          {p.partNumber}
+                        </td>
+                        <td className="py-3 px-4 font-semibold text-gray-900">
+                          {p.name}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="px-2.5 py-0.5 bg-slate-100 text-slate-800 rounded-full font-medium text-[11px]">
+                            {p.category || "General"}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono text-gray-600">
+                          ${p.costPrice.toFixed(2)}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono font-bold text-gray-900">
+                          ${p.retailPrice.toFixed(2)}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-mono font-bold text-[11px] ${
+                              isLow
+                                ? "bg-red-100 text-red-800 border border-red-200"
+                                : "bg-emerald-100 text-emerald-800"
+                            }`}
+                          >
+                            {isLow && <AlertTriangle className="w-3 h-3 text-red-600" />}
+                            {p.availableStock} in stock
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-center font-mono text-[11px] text-gray-500">
+                          Min: {p.minStockQty} | Max: {p.maxStockQty}
+                        </td>
+                        <td className="py-3 px-4 text-gray-600 text-[11px]">
+                          {p.supplier ? (
+                            <span className="font-medium text-gray-800">{p.supplier.name}</span>
+                          ) : (
+                            <span className="text-gray-400 font-mono">—</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-right space-x-1">
+                          <button
+                            onClick={() => {
+                              setActivePart(p)
+                              setRestockAmount(String(p.restockMinQty || 5))
+                              setShowRestockModal(true)
+                            }}
+                            className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-[#E8920D] rounded font-bold text-[11px] transition-colors"
+                            title="Stock Received / Restock"
+                          >
+                            + Restock
+                          </button>
+                          <button
+                            onClick={() => openEditPart(p)}
+                            className="p-1.5 hover:bg-gray-100 rounded text-gray-600 hover:text-blue-600 transition-colors"
+                            title="Edit Part"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 2: SUPPLIERS MANAGEMENT */}
+      {activeMainTab === "suppliers" && (
+        <div className="space-y-4">
+          <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+            <div className="relative flex-1 max-w-md">
+              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                placeholder="Search suppliers by name, ABN, contact or phone..."
+                value={suppSearch}
+                onChange={(e) => setSuppSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 border rounded-lg font-medium text-gray-900"
+              />
+            </div>
+            <button
+              onClick={openNewSupplier}
+              className="px-3.5 py-2 bg-[#1B2A4A] hover:bg-[#243656] text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all shadow-xs self-start md:self-auto"
+            >
+              <Plus className="w-4 h-4 text-[#E8920D]" />
+              + Add New Supplier
+            </button>
+          </div>
+
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-xs">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-gray-50 text-gray-600 font-semibold border-b border-gray-200">
+                <tr>
+                  <th className="py-3 px-4">Supplier Name</th>
+                  <th className="py-3 px-4">ABN</th>
+                  <th className="py-3 px-4">Contact Person</th>
+                  <th className="py-3 px-4">Phone / Trade Desk</th>
+                  <th className="py-3 px-4">Order / Accounts Email</th>
+                  <th className="py-3 px-4">Address / Suburb</th>
+                  <th className="py-3 px-4">Trade Account #</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filteredSuppliers.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-12 text-center text-gray-400 font-mono">
+                      No suppliers found. Click "+ Add New Supplier" to register one.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredSuppliers.map((s) => (
+                    <tr key={s.id} className="hover:bg-gray-50/80 transition-colors">
+                      <td className="py-3 px-4 font-bold text-gray-900">
+                        {s.name}
+                      </td>
+                      <td className="py-3 px-4 font-mono text-gray-600">
+                        {s.abn || "—"}
+                      </td>
+                      <td className="py-3 px-4 font-medium text-gray-800">
+                        {s.contactName || "—"}
+                      </td>
+                      <td className="py-3 px-4 font-mono text-gray-700">
+                        {s.phone || "—"}
+                      </td>
+                      <td className="py-3 px-4 text-gray-600">
+                        {s.email || "—"}
+                      </td>
+                      <td className="py-3 px-4 text-gray-600">
+                        {s.address || "—"}
+                      </td>
+                      <td className="py-3 px-4 font-mono font-bold text-blue-700">
+                        {s.accountNo || "—"}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <button
+                          onClick={() => openEditSupplier(s)}
+                          className="px-2.5 py-1 bg-gray-100 hover:bg-blue-50 hover:text-blue-700 text-gray-700 rounded font-semibold text-[11px] transition-colors inline-flex items-center gap-1"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                          Edit
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Add / Edit Part Modal */}
       {showPartModal && (
@@ -563,15 +791,40 @@ export default function InventoryPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-gray-700 font-semibold mb-1">Category *</label>
-                  <input
-                    type="text"
-                    required
-                    value={partForm.category}
-                    onChange={(e) => setPartForm({ ...partForm, category: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg font-medium"
-                    placeholder="e.g. Oils & Fluids, Brakes"
-                  />
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-gray-700 font-semibold">Category *</label>
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomCategoryMode(!isCustomCategoryMode)}
+                      className="text-[10px] text-[#E8920D] hover:underline font-semibold"
+                    >
+                      {isCustomCategoryMode ? "← Choose Existing" : "+ Add Custom"}
+                    </button>
+                  </div>
+
+                  {isCustomCategoryMode ? (
+                    <input
+                      type="text"
+                      required
+                      autoFocus
+                      placeholder="e.g. Exhaust & Emission"
+                      value={customCategoryInput}
+                      onChange={(e) => setCustomCategoryInput(e.target.value)}
+                      className="w-full px-3 py-2 border border-[#E8920D] rounded-lg font-medium bg-amber-50/30"
+                    />
+                  ) : (
+                    <select
+                      value={partForm.category}
+                      onChange={(e) => setPartForm({ ...partForm, category: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg font-medium bg-white"
+                    >
+                      {Array.from(new Set([...categories, "Oils & Fluids", "Filters", "Brakes", "Ignition", "Tyres", "General"])).map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
 
@@ -740,6 +993,125 @@ export default function InventoryPage() {
                   className="px-5 py-2 bg-[#E8920D] hover:bg-[#d68307] text-white font-bold rounded-lg shadow-sm"
                 >
                   {activePart ? "Update Part" : "Add Part"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Supplier Edit / Create Modal */}
+      {showSupplierEditModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="font-bold text-[#1B2A4A] text-sm flex items-center gap-1.5">
+                <Building2 className="w-4 h-4 text-[#E8920D]" />
+                {activeSupplier ? "Edit Supplier Record" : "Register New Supplier"}
+              </h3>
+              <button
+                onClick={() => setShowSupplierEditModal(false)}
+                className="text-gray-400 hover:text-gray-700"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSupplier} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-gray-700 font-semibold mb-1">Supplier Business Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Repco Auto Parts Penrith"
+                  value={supplierForm.name}
+                  onChange={(e) => setSupplierForm({ ...supplierForm, name: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">Australian ABN</label>
+                  <input
+                    type="text"
+                    placeholder="43 004 180 515"
+                    value={supplierForm.abn}
+                    onChange={(e) => setSupplierForm({ ...supplierForm, abn: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">Contact Person</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Mark Stevens"
+                    value={supplierForm.contactName}
+                    onChange={(e) => setSupplierForm({ ...supplierForm, contactName: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg font-medium"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">Phone Number</label>
+                  <input
+                    type="text"
+                    placeholder="(02) 4731 2200"
+                    value={supplierForm.phone}
+                    onChange={(e) => setSupplierForm({ ...supplierForm, phone: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">Order Email</label>
+                  <input
+                    type="email"
+                    placeholder="orders@supplier.com.au"
+                    value={supplierForm.email}
+                    onChange={(e) => setSupplierForm({ ...supplierForm, email: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">Street Address</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 22 Blaikie Rd, Jamisontown"
+                    value={supplierForm.address}
+                    onChange={(e) => setSupplierForm({ ...supplierForm, address: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">Trade Account Number</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. DHALLA-001"
+                    value={supplierForm.accountNo}
+                    onChange={(e) => setSupplierForm({ ...supplierForm, accountNo: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg font-mono font-bold text-blue-700"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setShowSupplierEditModal(false)}
+                  className="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-[#E8920D] hover:bg-[#d68307] text-white font-bold rounded-lg shadow-sm"
+                >
+                  {activeSupplier ? "Save Changes" : "Register Supplier"}
                 </button>
               </div>
             </form>

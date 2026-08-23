@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import DeleteConfirmModal from "@/components/DeleteConfirmModal"
 import {
   Users,
   Search,
@@ -14,6 +15,7 @@ import {
   User,
   ChevronRight,
   Filter,
+  Trash2,
 } from "lucide-react"
 import { formatAUD } from "@/lib/utils"
 
@@ -23,6 +25,8 @@ export default function ClientsPage() {
   const [search, setSearch] = useState("")
   const [filterType, setFilterType] = useState("All")
   const [showModal, setShowModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [selectedClientToDelete, setSelectedClientToDelete] = useState<any>(null)
   const [newClient, setNewClient] = useState({
     clientType: "Individual",
     firstName: "",
@@ -88,6 +92,26 @@ export default function ClientsPage() {
       }
     } catch (err) {
       console.error(err)
+    }
+  }
+
+  const handleDeleteClientInList = async () => {
+    if (!selectedClientToDelete) return
+    try {
+      const res = await fetch(`/api/clients/${selectedClientToDelete.id}`, {
+        method: "DELETE",
+      })
+      if (res.ok) {
+        setShowDeleteModal(false)
+        setSelectedClientToDelete(null)
+        fetchClients()
+      } else {
+        const json = await res.json()
+        alert(json.error || "Failed to delete client")
+      }
+    } catch (err) {
+      console.error(err)
+      alert("Error occurred while deleting client.")
     }
   }
 
@@ -244,13 +268,25 @@ export default function ClientsPage() {
                         {formatAUD(totalSpend)}
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <Link
-                          href={`/clients/${client.id}`}
-                          className="inline-flex items-center text-[#E8920D] font-semibold hover:underline text-xs"
-                        >
-                          <span>View Profile</span>
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </Link>
+                        <div className="flex items-center justify-end space-x-2">
+                          <Link
+                            href={`/clients/${client.id}`}
+                            className="inline-flex items-center text-[#E8920D] font-semibold hover:underline text-xs"
+                          >
+                            <span>View Profile</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </Link>
+                          <button
+                            onClick={() => {
+                              setSelectedClientToDelete(client)
+                              setShowDeleteModal(true)
+                            }}
+                            className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors"
+                            title="Delete Client"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -406,6 +442,26 @@ export default function ClientsPage() {
           </div>
         </div>
       )}
+
+      {/* 2-Step Safety Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        title="Delete Client Account"
+        itemName={
+          selectedClientToDelete
+            ? selectedClientToDelete.clientType === "Business"
+              ? selectedClientToDelete.businessName
+              : `${selectedClientToDelete.firstName || ""} ${selectedClientToDelete.lastName || ""}`.trim()
+            : "Client"
+        }
+        itemType="Client"
+        warningMessage="Deleting this client will remove their profile and decouple all related vehicle assignments, reminders, invoices, and job histories."
+        onClose={() => {
+          setShowDeleteModal(false)
+          setSelectedClientToDelete(null)
+        }}
+        onConfirm={handleDeleteClientInList}
+      />
     </div>
   )
 }

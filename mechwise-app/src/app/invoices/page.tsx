@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react"
 import Link from "next/link"
+import DeleteConfirmModal from "@/components/DeleteConfirmModal"
 import {
   FileText,
   Search,
@@ -19,13 +20,16 @@ import {
   TrendingDown,
   FileSpreadsheet,
   Upload,
-  X
+  X,
+  Trash2,
 } from "lucide-react"
 import { formatAUD, formatDateAU } from "@/lib/utils"
 import * as XLSX from "xlsx"
 
 export default function InvoicesPage() {
   const [activeTab, setActiveTab] = useState<"customer" | "supplier">("customer")
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [selectedInvoiceToDelete, setSelectedInvoiceToDelete] = useState<any>(null)
 
   // Customer Invoices State
   const [customerInvoices, setCustomerInvoices] = useState<any[]>([])
@@ -431,6 +435,26 @@ export default function InvoicesPage() {
   const totalSupplierExpenses = supplierInvoices.reduce((acc, inv) => acc + (inv.totalIncGst || 0), 0)
   const totalSupplierGstPaid = supplierInvoices.reduce((acc, inv) => acc + (inv.gstAmount || 0), 0)
 
+  const handleDeleteInvoiceInList = async () => {
+    if (!selectedInvoiceToDelete) return
+    try {
+      const res = await fetch(`/api/invoices/${selectedInvoiceToDelete.id}`, {
+        method: "DELETE",
+      })
+      if (res.ok) {
+        setShowDeleteModal(false)
+        setSelectedInvoiceToDelete(null)
+        fetchCustomerInvoices()
+      } else {
+        const json = await res.json()
+        alert(json.error || "Failed to delete invoice")
+      }
+    } catch (err) {
+      console.error(err)
+      alert("Error occurred while deleting invoice.")
+    }
+  }
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -523,9 +547,9 @@ export default function InvoicesPage() {
               />
             </div>
 
-            {/* Status Tabs without 'Partial' */}
+            {/* Status Tabs without 'Partial' and 'Overdue' */}
             <div className="flex items-center space-x-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-              {["All", "Unpaid", "Paid", "Overdue"].map((st) => (
+              {["All", "Unpaid", "Paid"].map((st) => (
                 <button
                   key={st}
                   onClick={() => setCustStatusFilter(st)}
@@ -625,13 +649,25 @@ export default function InvoicesPage() {
                             {formatAUD(inv.finalAmount)}
                           </td>
                           <td className="py-3 px-4 text-right">
-                            <Link
-                              href={`/invoices/${inv.id}`}
-                              className="inline-flex items-center text-[#E8920D] font-semibold hover:underline text-xs"
-                            >
-                              <span>View Tax Invoice</span>
-                              <ChevronRight className="w-3.5 h-3.5" />
-                            </Link>
+                            <div className="flex items-center justify-end space-x-2">
+                              <Link
+                                href={`/invoices/${inv.id}`}
+                                className="inline-flex items-center text-[#E8920D] font-semibold hover:underline text-xs"
+                              >
+                                <span>View Tax Invoice</span>
+                                <ChevronRight className="w-3.5 h-3.5" />
+                              </Link>
+                              <button
+                                onClick={() => {
+                                  setSelectedInvoiceToDelete(inv)
+                                  setShowDeleteModal(true)
+                                }}
+                                className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors"
+                                title="Delete Invoice"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       )
@@ -1515,6 +1551,20 @@ export default function InvoicesPage() {
           </div>
         </div>
       )}
+
+      {/* 2-Step Safety Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        title="Delete Tax Invoice"
+        itemName={selectedInvoiceToDelete ? selectedInvoiceToDelete.invoiceNumber : "Invoice"}
+        itemType="Invoice"
+        warningMessage="Deleting this invoice will permanently delete payment receipt logs and decouple it from financial and job reports."
+        onClose={() => {
+          setShowDeleteModal(false)
+          setSelectedInvoiceToDelete(null)
+        }}
+        onConfirm={handleDeleteInvoiceInList}
+      />
     </div>
   )
 }

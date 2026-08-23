@@ -98,3 +98,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to dispatch reminders" }, { status: 500 })
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const session = await getSession()
+    const workshopId = session?.workshopId || "dhalla-auto-nsw"
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get("id")
+
+    if (!id) {
+      return NextResponse.json({ error: "Reminder ID is required" }, { status: 400 })
+    }
+
+    const existingReminder = await prisma.serviceReminder.findFirst({
+      where: { id, workshopId }
+    })
+
+    if (!existingReminder) {
+      return NextResponse.json({ error: "Reminder not found" }, { status: 404 })
+    }
+
+    await prisma.serviceReminder.delete({
+      where: { id }
+    })
+
+    return NextResponse.json({ success: true, message: "Reminder deleted successfully" })
+  } catch (error) {
+    console.error("Error deleting service reminder:", error)
+    return NextResponse.json({ error: "Failed to delete reminder" }, { status: 500 })
+  }
+}

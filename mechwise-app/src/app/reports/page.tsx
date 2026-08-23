@@ -314,48 +314,56 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {/* Revenue by Stream Breakdown Pie */}
+        {/* Revenue by Stream & Parts Breakdown Pie */}
         <div className="bg-white rounded-xl border border-[#E5E7EB] p-5 shadow-xs flex flex-col justify-between">
           <div>
             <h3 className="text-sm font-bold text-[#1B2A4A] uppercase tracking-wider mb-1">
               Revenue by Stream & Parts
             </h3>
-            <p className="text-xs text-gray-500 mb-3">Labour vs Parts sales breakdown</p>
+            <p className="text-xs text-gray-500 mb-3">All labour, part categories & service streams</p>
           </div>
 
-          <div className="h-44">
+          <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={serviceTypeBreakdown}
-                  dataKey="value"
+                  dataKey="amount"
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  outerRadius={65}
-                  innerRadius={40}
-                  paddingAngle={3}
+                  outerRadius={70}
+                  innerRadius={42}
+                  paddingAngle={2}
                 >
                   {serviceTypeBreakdown?.map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(val: any) => `${val}%`} />
+                <Tooltip
+                  formatter={(val: any, name: any, item: any) => [
+                    `${formatAUD(Number(val))} (${item.payload.value}%)`,
+                    name
+                  ]}
+                  contentStyle={{ backgroundColor: "#1B2A4A", borderRadius: 8, color: "#fff", fontSize: 11 }}
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>
 
-          <div className="space-y-1.5 text-xs">
+          <div className="space-y-1.5 text-xs max-h-48 overflow-y-auto pr-1 mt-2">
             {serviceTypeBreakdown?.map((s: any) => (
-              <div key={s.name} className="flex justify-between items-center text-gray-600">
-                <span className="flex items-center gap-1.5">
+              <div key={s.name} className="flex justify-between items-center text-gray-600 hover:bg-gray-50 p-1 rounded transition-colors">
+                <span className="flex items-center gap-1.5 truncate mr-2">
                   <span
-                    className="w-2.5 h-2.5 rounded-full"
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
                     style={{ backgroundColor: s.color }}
                   ></span>
-                  <span>{s.name}</span>
+                  <span className="truncate">{s.name}</span>
                 </span>
-                <span className="font-mono font-bold text-gray-800">{s.value}%</span>
+                <span className="font-mono font-bold text-gray-800 shrink-0 text-[11px]">
+                  {formatAUD(s.amount)} <span className="text-gray-400 font-normal">({s.value}%)</span>
+                </span>
               </div>
             ))}
           </div>

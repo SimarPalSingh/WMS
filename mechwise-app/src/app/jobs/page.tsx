@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import DeleteConfirmModal from "@/components/DeleteConfirmModal"
 import {
   Wrench,
   Search,
@@ -16,7 +17,8 @@ import {
   AlertCircle,
   FileText,
   UserPlus,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Trash2,
 } from "lucide-react"
 import { formatAUD, formatDateAU } from "@/lib/utils"
 
@@ -36,7 +38,18 @@ export default function JobCardsPage() {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("All")
   const [showModal, setShowModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [selectedJobToDelete, setSelectedJobToDelete] = useState<any>(null)
   const [submitting, setSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get("create") === "true" || params.get("new") === "quote" || params.get("new") === "job") {
+        setShowModal(true)
+      }
+    }
+  }, [])
 
   // Options for creation
   const [clients, setClients] = useState<any[]>([])
@@ -215,6 +228,26 @@ export default function JobCardsPage() {
     }
   }
 
+  const handleDeleteJobInList = async () => {
+    if (!selectedJobToDelete) return
+    try {
+      const res = await fetch(`/api/jobs/${selectedJobToDelete.id}`, {
+        method: "DELETE",
+      })
+      if (res.ok) {
+        setShowDeleteModal(false)
+        setSelectedJobToDelete(null)
+        fetchJobs()
+      } else {
+        const json = await res.json()
+        alert(json.error || "Failed to delete job card")
+      }
+    } catch (err) {
+      console.error(err)
+      alert("Error occurred while deleting job card.")
+    }
+  }
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -352,13 +385,25 @@ export default function JobCardsPage() {
                         {formatAUD(job.totalExGst)}
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <Link
-                          href={`/jobs/${job.id}`}
-                          className="inline-flex items-center text-[#E8920D] font-semibold hover:underline text-xs"
-                        >
-                          <span>Open Card</span>
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </Link>
+                        <div className="flex items-center justify-end space-x-2">
+                          <Link
+                            href={`/jobs/${job.id}`}
+                            className="inline-flex items-center text-[#E8920D] font-semibold hover:underline text-xs"
+                          >
+                            <span>Open Card</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </Link>
+                          <button
+                            onClick={() => {
+                              setSelectedJobToDelete(job)
+                              setShowDeleteModal(true)
+                            }}
+                            className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors"
+                            title="Delete Job Card"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -644,6 +689,20 @@ export default function JobCardsPage() {
           </div>
         </div>
       )}
+
+      {/* 2-Step Safety Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        title="Delete Job Card"
+        itemName={selectedJobToDelete ? selectedJobToDelete.jobCardNumber : "Job Card"}
+        itemType="Job Card"
+        warningMessage="Deleting this job card will permanently remove all repair line items, labour records, and unlink associated quotations or drafts."
+        onClose={() => {
+          setShowDeleteModal(false)
+          setSelectedJobToDelete(null)
+        }}
+        onConfirm={handleDeleteJobInList}
+      />
     </div>
   )
 }

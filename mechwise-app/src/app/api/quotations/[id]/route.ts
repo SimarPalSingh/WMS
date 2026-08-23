@@ -16,7 +16,11 @@ export async function GET(
       include: {
         client: true,
         vehicle: true,
-        jobCard: true,
+        jobCard: {
+          include: {
+            invoice: true
+          }
+        },
         lines: {
           orderBy: { sortOrder: "asc" }
         }
@@ -67,3 +71,34 @@ export async function PATCH(
     return NextResponse.json({ error: "Failed to update quotation" }, { status: 500 })
   }
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession()
+    const workshopId = session?.workshopId || "dhalla-auto-nsw"
+    const { id } = await params
+
+    const existingQuotation = await prisma.quotation.findFirst({
+      where: { id, workshopId }
+    })
+
+    if (!existingQuotation) {
+      return NextResponse.json({ error: "Quotation not found" }, { status: 404 })
+    }
+
+    // Delete quotation lines
+    await prisma.quotationLine.deleteMany({ where: { quotationId: id } })
+
+    // Delete quotation
+    await prisma.quotation.delete({ where: { id } })
+
+    return NextResponse.json({ success: true, message: "Quotation deleted successfully" })
+  } catch (error) {
+    console.error("Error deleting quotation:", error)
+    return NextResponse.json({ error: "Failed to delete quotation" }, { status: 500 })
+  }
+}
+

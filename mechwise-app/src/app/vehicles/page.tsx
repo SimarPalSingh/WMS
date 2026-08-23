@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import DeleteConfirmModal from "@/components/DeleteConfirmModal"
 import {
   Car,
   Search,
@@ -14,7 +15,8 @@ import {
   ChevronRight,
   ShieldAlert,
   Gauge,
-  FileCheck
+  FileCheck,
+  Trash2,
 } from "lucide-react"
 import { formatDateAU } from "@/lib/utils"
 
@@ -23,6 +25,8 @@ export default function VehiclesPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [showModal, setShowModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [selectedVehicleToDelete, setSelectedVehicleToDelete] = useState<any>(null)
   const [clients, setClients] = useState<any[]>([])
   const [isNewClientMode, setIsNewClientMode] = useState(false)
 
@@ -141,6 +145,26 @@ export default function VehiclesPage() {
       }
     } catch (err) {
       console.error(err)
+    }
+  }
+
+  const handleDeleteVehicleInList = async () => {
+    if (!selectedVehicleToDelete) return
+    try {
+      const res = await fetch(`/api/vehicles/${selectedVehicleToDelete.id}`, {
+        method: "DELETE",
+      })
+      if (res.ok) {
+        setShowDeleteModal(false)
+        setSelectedVehicleToDelete(null)
+        fetchVehicles()
+      } else {
+        const json = await res.json()
+        alert(json.error || "Failed to delete vehicle")
+      }
+    } catch (err) {
+      console.error(err)
+      alert("Error occurred while deleting vehicle.")
     }
   }
 
@@ -286,13 +310,25 @@ export default function VehiclesPage() {
                         </span>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <Link
-                          href={`/vehicles/${v.id}`}
-                          className="inline-flex items-center text-[#E8920D] font-semibold hover:underline text-xs"
-                        >
-                          <span>Dossier</span>
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </Link>
+                        <div className="flex items-center justify-end space-x-2">
+                          <Link
+                            href={`/vehicles/${v.id}`}
+                            className="inline-flex items-center text-[#E8920D] font-semibold hover:underline text-xs"
+                          >
+                            <span>View Details</span>
+                            <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+                          </Link>
+                          <button
+                            onClick={() => {
+                              setSelectedVehicleToDelete(v)
+                              setShowDeleteModal(true)
+                            }}
+                            className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors"
+                            title="Delete Vehicle"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -466,6 +502,31 @@ export default function VehiclesPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">Next Service Due (Date)</label>
+                  <input
+                    type="date"
+                    value={newVehicle.nextServiceDue}
+                    onChange={(e) =>
+                      setNewVehicle({ ...newVehicle, nextServiceDue: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">Pink Slip Due Date</label>
+                  <input
+                    type="date"
+                    value={newVehicle.pinkSlipExpiry}
+                    onChange={(e) =>
+                      setNewVehicle({ ...newVehicle, pinkSlipExpiry: e.target.value })
+                    }
+                    className="w-full px-3 py-2 border rounded-lg font-mono"
+                  />
+                </div>
+              </div>
+
               {/* Client Owner Assignment / Creation */}
               <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
                 <div className="flex items-center justify-between">
@@ -604,6 +665,24 @@ export default function VehiclesPage() {
           </div>
         </div>
       )}
+
+      {/* 2-Step Safety Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        title="Delete Vehicle Record"
+        itemName={
+          selectedVehicleToDelete
+            ? `${selectedVehicleToDelete.registration} (${selectedVehicleToDelete.year || ""} ${selectedVehicleToDelete.make || ""} ${selectedVehicleToDelete.model || ""})`
+            : "Vehicle"
+        }
+        itemType="Vehicle"
+        warningMessage="Deleting this vehicle will remove its fleet specifications, odometer/pink slip tracking, and decouple all linked historical logbook records and invoices."
+        onClose={() => {
+          setShowDeleteModal(false)
+          setSelectedVehicleToDelete(null)
+        }}
+        onConfirm={handleDeleteVehicleInList}
+      />
     </div>
   )
 }

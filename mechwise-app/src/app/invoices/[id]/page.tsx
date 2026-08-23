@@ -1,7 +1,9 @@
 "use client"
 
 import { useEffect, useState, use } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
+import DeleteConfirmModal from "@/components/DeleteConfirmModal"
 import {
   FileText,
   Car,
@@ -17,6 +19,7 @@ import {
   Phone,
   Mail,
   ShieldCheck,
+  Trash2,
 } from "lucide-react"
 import { formatAUD, formatDateAU } from "@/lib/utils"
 
@@ -25,11 +28,13 @@ export default function InvoiceDetailPage({
 }: {
   params: Promise<{ id: string }>
 }) {
+  const router = useRouter()
   const { id } = use(params)
   const [invoice, setInvoice] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [paying, setPaying] = useState(false)
   const [updatingSettings, setUpdatingSettings] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   // Invoice discount & GST configuration
   const [discountExGst, setDiscountExGst] = useState<string | number>(0)
@@ -127,6 +132,23 @@ export default function InvoiceDetailPage({
     }
   }
 
+  const handleDeleteInvoice = async () => {
+    try {
+      const res = await fetch(`/api/invoices/${id}`, {
+        method: "DELETE",
+      })
+      if (res.ok) {
+        router.push("/invoices")
+      } else {
+        const json = await res.json()
+        alert(json.error || "Failed to delete invoice")
+      }
+    } catch (err) {
+      console.error(err)
+      alert("Error occurred while deleting invoice.")
+    }
+  }
+
   if (loading) {
     return (
       <div className="p-12 text-center text-xs text-gray-400 font-mono">
@@ -160,6 +182,14 @@ export default function InvoiceDetailPage({
         </Link>
 
         <div className="flex items-center space-x-3">
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            className="flex items-center space-x-1.5 bg-white border border-red-200 hover:bg-red-50 text-red-600 px-3.5 py-2 rounded-lg text-xs font-semibold shadow-xs"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Delete Invoice</span>
+          </button>
+
           <button
             onClick={() => window.print()}
             className="flex items-center space-x-1.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3.5 py-2 rounded-lg text-xs font-semibold shadow-xs"
@@ -527,6 +557,17 @@ export default function InvoiceDetailPage({
           </div>
         </div>
       </div>
+
+      {/* 2-Step Safety Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        title="Delete Tax Invoice"
+        itemName={invoice.invoiceNumber}
+        itemType="Invoice"
+        warningMessage="Deleting this invoice will permanently delete payment receipt logs and decouple it from financial and job reports."
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDeleteInvoice}
+      />
     </div>
   )
 }

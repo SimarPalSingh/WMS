@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import DeleteConfirmModal from "@/components/DeleteConfirmModal"
 import {
   FileText,
   Search,
@@ -12,17 +13,20 @@ import {
   Sparkles,
   Calendar,
   User,
-  Car
+  Car,
+  Trash2
 } from "lucide-react"
 import { formatAUD, formatDateAU } from "@/lib/utils"
 
-const STATUS_TABS = ["All", "Pending", "Finalised", "Accepted", "Declined"]
+const STATUS_TABS = ["All", "Pending", "Finalised"]
 
 export default function QuotationsPage() {
   const [quotations, setQuotations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("All")
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [selectedQuoteToDelete, setSelectedQuoteToDelete] = useState<any>(null)
 
   const fetchQuotations = () => {
     setLoading(true)
@@ -47,6 +51,26 @@ export default function QuotationsPage() {
     fetchQuotations()
   }
 
+  const handleDeleteQuoteInList = async () => {
+    if (!selectedQuoteToDelete) return
+    try {
+      const res = await fetch(`/api/quotations/${selectedQuoteToDelete.id}`, {
+        method: "DELETE",
+      })
+      if (res.ok) {
+        setShowDeleteModal(false)
+        setSelectedQuoteToDelete(null)
+        fetchQuotations()
+      } else {
+        const json = await res.json()
+        alert(json.error || "Failed to delete quotation")
+      }
+    } catch (err) {
+      console.error(err)
+      alert("Error occurred while deleting quotation.")
+    }
+  }
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -62,10 +86,11 @@ export default function QuotationsPage() {
         </div>
 
         <Link
-          href="/jobs"
-          className="flex items-center space-x-2 bg-[#1B2A4A] hover:bg-[#243656] text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-sm transition-all self-start sm:self-auto"
+          href="/jobs?create=true"
+          className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-xs font-semibold shadow-sm transition-all self-start sm:self-auto"
         >
-          <span>Open New Job / Quote</span>
+          <Sparkles className="w-4 h-4" />
+          <span>+ Create New Job / Quote</span>
         </Link>
       </div>
 
@@ -87,7 +112,7 @@ export default function QuotationsPage() {
             <button
               key={st}
               onClick={() => setStatusFilter(st)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 statusFilter === st
                   ? "bg-purple-600 text-white shadow-xs"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -107,7 +132,7 @@ export default function QuotationsPage() {
           </div>
         ) : quotations.length === 0 ? (
           <div className="p-12 text-center text-xs text-gray-500">
-            No quotations found matching your criteria. You can generate one directly inside any Job Card.
+            No quotations found for the selected filter. You can generate one directly inside any active Job Card.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -123,7 +148,7 @@ export default function QuotationsPage() {
                   <th className="py-3 px-4 text-right">Discount</th>
                   <th className="py-3 px-4 text-right">GST</th>
                   <th className="py-3 px-4 text-right">Estimated Total</th>
-                  <th className="py-3 px-4 text-right">Linked Job Card</th>
+                  <th className="py-3 px-4 text-right">Linked Job & Invoice / Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -132,34 +157,46 @@ export default function QuotationsPage() {
                     ? q.client.businessName || `${q.client.firstName || ""} ${q.client.lastName || ""}`
                     : "Unknown"
 
+                  const linkedInvoice = q.jobCard?.invoice
+
                   return (
                     <tr key={q.id} className="hover:bg-purple-50/20 transition-colors">
-                      <td className="py-3 px-4 font-mono font-bold text-purple-700">
-                        {q.quoteNumber}
+                      <td className="py-3 px-4">
+                        <Link
+                          href={`/quotations/${q.id}`}
+                          className="font-mono font-bold text-purple-700 hover:text-purple-900 hover:underline flex items-center gap-1"
+                        >
+                          <span>{q.quoteNumber}</span>
+                          <FileText className="w-3.5 h-3.5 opacity-70" />
+                        </Link>
                       </td>
                       <td className="py-3 px-4 font-mono text-gray-600">
                         {formatDateAU(q.quoteDate || q.createdAt)}
                       </td>
                       <td className="py-3 px-4">
-                        <span className="font-mono font-bold text-xs bg-[#1B2A4A] text-amber-400 px-2 py-0.5 rounded border border-[#243656]">
+                        <Link
+                          href={`/vehicles/${q.vehicle?.id}`}
+                          className="font-mono font-bold text-xs bg-[#1B2A4A] text-amber-400 px-2 py-0.5 rounded border border-[#243656] hover:opacity-90 inline-block"
+                        >
                           {q.vehicle?.registration}
-                        </span>
+                        </Link>
                       </td>
                       <td className="py-3 px-4">
-                        <p className="font-medium text-gray-900">{clientName}</p>
+                        <Link
+                          href={`/clients/${q.client?.id}`}
+                          className="font-medium text-gray-900 hover:text-[#E8920D] hover:underline"
+                        >
+                          {clientName}
+                        </Link>
                         <p className="text-[10px] text-gray-400 font-mono">
                           {q.client?.mobilePhone}
                         </p>
                       </td>
                       <td className="py-3 px-4">
                         <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
                             q.status === "Finalised"
                               ? "bg-emerald-100 text-emerald-800"
-                              : q.status === "Accepted"
-                              ? "bg-blue-100 text-blue-800"
-                              : q.status === "Declined"
-                              ? "bg-red-100 text-red-800"
                               : "bg-amber-100 text-amber-800"
                           }`}
                         >
@@ -179,17 +216,54 @@ export default function QuotationsPage() {
                         {formatAUD(q.totalAmount || q.totalIncGst || 0)}
                       </td>
                       <td className="py-3 px-4 text-right">
-                        {q.jobCard ? (
+                        <div className="flex items-center justify-end flex-wrap gap-1.5">
                           <Link
-                            href={`/jobs/${q.jobCard.id}`}
-                            className="inline-flex items-center text-purple-700 font-semibold hover:underline font-mono text-xs"
+                            href={`/quotations/${q.id}`}
+                            className="inline-flex items-center px-2 py-1 rounded bg-purple-50 hover:bg-purple-100 text-purple-700 font-semibold text-xs transition-colors"
+                            title="View Printable Quote"
                           >
-                            <span>{q.jobCard.jobCardNumber}</span>
-                            <ChevronRight className="w-3.5 h-3.5" />
+                            <span>View Quote</span>
                           </Link>
-                        ) : (
-                          <span className="text-gray-400 italic text-[11px]">Direct</span>
-                        )}
+                          {q.jobCard && (
+                            <Link
+                              href={`/jobs/${q.jobCard.id}?editQuote=true`}
+                              className="inline-flex items-center px-2 py-1 rounded bg-amber-50 hover:bg-amber-100 text-amber-800 font-semibold text-xs border border-amber-200 transition-colors"
+                              title="Edit repair items in Job Card and update Quote"
+                            >
+                              <span>Edit in Job Card</span>
+                            </Link>
+                          )}
+                          {q.jobCard && (
+                            <Link
+                              href={`/jobs/${q.jobCard.id}`}
+                              className="inline-flex items-center text-gray-700 hover:text-[#1B2A4A] bg-gray-100 hover:bg-gray-200 font-mono text-[11px] font-bold px-2 py-1 rounded transition-colors"
+                              title="Go to Live Job Card"
+                            >
+                              <span>{q.jobCard.jobCardNumber}</span>
+                              <ChevronRight className="w-3 h-3 ml-0.5" />
+                            </Link>
+                          )}
+                          {linkedInvoice && (
+                            <Link
+                              href={`/invoices/${linkedInvoice.id}`}
+                              className="inline-flex items-center text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 font-mono text-[11px] font-bold px-2 py-1 rounded border border-blue-200 transition-colors"
+                              title="Go to Tax Invoice"
+                            >
+                              <span>{linkedInvoice.invoiceNumber}</span>
+                              <ChevronRight className="w-3 h-3 ml-0.5" />
+                            </Link>
+                          )}
+                          <button
+                            onClick={() => {
+                              setSelectedQuoteToDelete(q)
+                              setShowDeleteModal(true)
+                            }}
+                            className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition-colors ml-1"
+                            title="Delete Quotation"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -199,6 +273,20 @@ export default function QuotationsPage() {
           </div>
         )}
       </div>
+
+      {/* 2-Step Safety Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        title="Delete Quotation"
+        itemName={selectedQuoteToDelete ? selectedQuoteToDelete.quoteNumber : "Quotation"}
+        itemType="Quotation"
+        warningMessage="Deleting this quotation will remove the estimate record and decouple it from the associated job card."
+        onClose={() => {
+          setShowDeleteModal(false)
+          setSelectedQuoteToDelete(null)
+        }}
+        onConfirm={handleDeleteQuoteInList}
+      />
     </div>
   )
 }

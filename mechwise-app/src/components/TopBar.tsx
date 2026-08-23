@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Search, Plus, Bell, Calendar, Car, User, FileText, Wrench } from "lucide-react"
+import { Search, Bell, Calendar, Car, User, FileText, Wrench } from "lucide-react"
 
 export default function TopBar() {
   const router = useRouter()
@@ -194,14 +194,6 @@ export default function TopBar() {
         >
           <Bell className="w-4 h-4" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white"></span>
-        </Link>
-
-        <Link
-          href="/jobs"
-          className="flex items-center space-x-2 bg-[#E8920D] hover:bg-[#d68307] text-white px-3.5 py-2 rounded-lg text-xs font-semibold shadow-sm transition-all"
-        >
-          <Plus className="w-4 h-4" />
-          <span>+ New Job Card</span>
         </Link>
       </div>
     </header>

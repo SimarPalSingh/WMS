@@ -1,7 +1,9 @@
 "use client"
 
 import { useEffect, useState, use } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
+import DeleteConfirmModal from "@/components/DeleteConfirmModal"
 import {
   Wrench,
   Car,
@@ -26,6 +28,7 @@ const LIFECYCLE_STAGES = [
   "InProgress",
   "QC",
   "Completed",
+  "Cancelled",
 ]
 
 export default function JobCardDetailPage({
@@ -33,8 +36,12 @@ export default function JobCardDetailPage({
 }: {
   params: Promise<{ id: string }>
 }) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const isEditQuoteMode = searchParams?.get("editQuote") === "true"
   const { id } = use(params)
   const [jobCard, setJobCard] = useState<any>(null)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [staffList, setStaffList] = useState<any[]>([])
   const [bayList, setBayList] = useState<any[]>([])
   const [partsCatalog, setPartsCatalog] = useState<any[]>([])
@@ -209,6 +216,10 @@ export default function JobCardDetailPage({
 
   const handleGenerateQuotation = async () => {
     if (!jobCard) return
+    if (jobCard.status === "Completed" || jobCard.invoice) {
+      alert("Cannot generate quotation: This job card is already completed and has an active tax invoice.")
+      return
+    }
     try {
       const res = await fetch("/api/quotations", {
         method: "POST",
@@ -230,8 +241,10 @@ export default function JobCardDetailPage({
         const actionLabel = json.updated ? "updated" : "generated"
         setQuoteSuccess(`Quotation ${quoteNum} ${actionLabel} successfully!`)
         setTimeout(() => setQuoteSuccess(""), 4000)
+        fetchJobCard()
       } else {
-        alert("Failed to generate quotation.")
+        const errJson = await res.json()
+        alert(errJson.error || "Failed to generate quotation.")
       }
     } catch (err) {
       console.error(err)
@@ -285,6 +298,23 @@ export default function JobCardDetailPage({
     setLines(updated)
   }
 
+  const handleDeleteJobCard = async () => {
+    try {
+      const res = await fetch(`/api/jobs/${id}`, {
+        method: "DELETE",
+      })
+      if (res.ok) {
+        router.push("/jobs")
+      } else {
+        const json = await res.json()
+        alert(json.error || "Failed to delete job card")
+      }
+    } catch (err) {
+      console.error(err)
+      alert("Error occurred while deleting job card.")
+    }
+  }
+
   if (loading) {
     return (
       <div className="p-12 text-center text-xs text-gray-400 font-mono">
@@ -315,6 +345,31 @@ export default function JobCardDetailPage({
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Quotation Editing Mode Alert Banner */}
+      {isEditQuoteMode && jobCard.quotation && (
+        <div className="p-4 bg-purple-50 border border-purple-200 rounded-xl flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-purple-100 rounded-lg text-purple-700">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="font-bold text-purple-900 text-xs">
+                Editing Quotation {jobCard.quotation.quoteNumber} Scope & Items
+              </p>
+              <p className="text-purple-700 text-[11px] mt-0.5">
+                Add or adjust labour lines, parts, discounts, and customer notes below. Clicking <strong>Save & Update Quotation</strong> or <strong>Save Job Changes</strong> will immediately update the quotation.
+              </p>
+            </div>
+          </div>
+          <Link
+            href={`/quotations/${jobCard.quotation.id}`}
+            className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold transition-all shadow-xs shrink-0"
+          >
+            View Quotation Document →
+          </Link>
+        </div>
+      )}
+
       {/* Top Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <Link
@@ -332,13 +387,41 @@ export default function JobCardDetailPage({
             </span>
           )}
 
-          <button
-            onClick={handleGenerateQuotation}
-            className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>Generate Quotation</span>
-          </button>
+          {jobCard.quotation ? (
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/quotations/${jobCard.quotation.id}`}
+                className="inline-flex items-center px-3.5 py-2 rounded-lg text-xs font-mono font-bold bg-purple-50 text-purple-800 border border-purple-200 hover:bg-purple-100 transition-colors gap-1.5 shadow-xs"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                <span>Quotation: {jobCard.quotation.quoteNumber} →</span>
+              </Link>
+
+              {status !== "Completed" && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await handleUpdateStatus(status)
+                    setQuoteSuccess(`Quotation ${jobCard.quotation?.quoteNumber} updated with latest job items!`)
+                    setTimeout(() => setQuoteSuccess(""), 4000)
+                  }}
+                  disabled={saving}
+                  className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>{saving ? "Updating..." : "Save & Update Quotation"}</span>
+                </button>
+              )}
+            </div>
+          ) : status !== "Completed" && !jobCard.invoice && status !== "Cancelled" ? (
+            <button
+              onClick={handleGenerateQuotation}
+              className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Generate Quotation</span>
+            </button>
+          ) : null}
 
           <button
             onClick={() => handleUpdateStatus(status)}
@@ -348,7 +431,7 @@ export default function JobCardDetailPage({
             {saving ? "Saving..." : "Save Job Changes"}
           </button>
 
-          {status !== "Completed" && (
+          {status !== "Completed" && status !== "Cancelled" && (
             <button
               onClick={() => handleUpdateStatus("Completed")}
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-sm transition-all flex items-center gap-1.5"
@@ -357,6 +440,29 @@ export default function JobCardDetailPage({
               <span>Complete & Finalise Invoice</span>
             </button>
           )}
+
+          {status !== "Cancelled" && (
+            <button
+              onClick={() => {
+                if (confirm(`Are you sure you want to mark Job Card ${jobCard.jobCardNumber} as Cancelled?`)) {
+                  handleUpdateStatus("Cancelled")
+                }
+              }}
+              className="px-3.5 py-2 bg-gray-100 hover:bg-red-50 text-gray-700 hover:text-red-700 border border-gray-200 hover:border-red-200 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5"
+            >
+              <AlertCircle className="w-4 h-4 text-gray-500 hover:text-red-600" />
+              <span>Cancel Job</span>
+            </button>
+          )}
+
+          {/* Permanent Delete Button */}
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            className="px-3.5 py-2 bg-white hover:bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Delete Job</span>
+          </button>
 
           {jobCard.invoice && (
             <Link
@@ -380,7 +486,7 @@ export default function JobCardDetailPage({
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
           {LIFECYCLE_STAGES.map((stage) => {
             const isCurrent = status === stage
             return (
@@ -389,7 +495,11 @@ export default function JobCardDetailPage({
                 onClick={() => handleUpdateStatus(stage)}
                 className={`py-2 px-3 rounded-lg text-xs font-semibold transition-all text-center ${
                   isCurrent
-                    ? "bg-[#E8920D] text-white shadow-md ring-2 ring-[#E8920D]/30"
+                    ? stage === "Cancelled"
+                      ? "bg-red-600 text-white shadow-md ring-2 ring-red-600/30"
+                      : stage === "Completed"
+                      ? "bg-emerald-600 text-white shadow-md ring-2 ring-emerald-600/30"
+                      : "bg-[#E8920D] text-white shadow-md ring-2 ring-[#E8920D]/30"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
               >
@@ -890,6 +1000,17 @@ export default function JobCardDetailPage({
           </div>
         </div>
       )}
+
+      {/* 2-Step Safety Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        title="Delete Job Card"
+        itemName={jobCard.jobCardNumber}
+        itemType="Job Card"
+        warningMessage="Deleting this job card will permanently remove all repair line items, labour records, and unlink associated quotations or drafts."
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDeleteJobCard}
+      />
     </div>
   )
 }

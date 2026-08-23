@@ -38,6 +38,7 @@ export async function GET(request: Request) {
       where,
       include: {
         clientVehicles: {
+          orderBy: { isPrimaryOwner: "desc" },
           include: {
             client: true
           }
@@ -151,6 +152,35 @@ export async function POST(request: Request) {
           vehicleId: vehicle.id,
           relationship: "Owner",
           isPrimaryOwner: true
+        }
+      })
+    }
+
+    // Auto-create initial Service and Pink Slip Reminders
+    if (vehicle.nextServiceDue) {
+      await prisma.serviceReminder.create({
+        data: {
+          workshopId,
+          vehicleId: vehicle.id,
+          clientId: finalClientId || null,
+          reminderType: "NextService",
+          dueDate: vehicle.nextServiceDue,
+          status: "Pending",
+          sendCount: 0
+        }
+      })
+    }
+
+    if (vehicle.pinkSlipExpiry) {
+      await prisma.serviceReminder.create({
+        data: {
+          workshopId,
+          vehicleId: vehicle.id,
+          clientId: finalClientId || null,
+          reminderType: "PinkSlip",
+          dueDate: vehicle.pinkSlipExpiry,
+          status: "Pending",
+          sendCount: 0
         }
       })
     }

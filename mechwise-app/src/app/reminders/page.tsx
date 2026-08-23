@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import DeleteConfirmModal from "@/components/DeleteConfirmModal"
 import {
   BellRing,
   Search,
@@ -17,7 +18,8 @@ import {
   Mail,
   Smartphone,
   Check,
-  ExternalLink
+  ExternalLink,
+  Trash2
 } from "lucide-react"
 import { formatDateAU } from "@/lib/utils"
 
@@ -30,6 +32,8 @@ export default function RemindersPage() {
   const [filterStatus, setFilterStatus] = useState("All")
   const [sending, setSending] = useState(false)
   const [dispatchResult, setDispatchResult] = useState<any>(null)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [selectedReminderToDelete, setSelectedReminderToDelete] = useState<any>(null)
 
   const fetchReminders = () => {
     setLoading(true)
@@ -129,6 +133,26 @@ export default function RemindersPage() {
   const overdueCount = reminders.filter(
     (r) => new Date(r.dueDate) < new Date() && r.status === "Pending"
   ).length
+
+  const handleDeleteReminder = async () => {
+    if (!selectedReminderToDelete) return
+    try {
+      const res = await fetch(`/api/reminders?id=${selectedReminderToDelete.id}`, {
+        method: "DELETE"
+      })
+      if (res.ok) {
+        setShowDeleteModal(false)
+        setSelectedReminderToDelete(null)
+        fetchReminders()
+      } else {
+        const errJson = await res.json()
+        alert(errJson.error || "Failed to delete reminder")
+      }
+    } catch (err) {
+      console.error(err)
+      alert("Error occurred while deleting reminder.")
+    }
+  }
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -280,7 +304,7 @@ export default function RemindersPage() {
                   <th className="py-3 px-4">Due Date</th>
                   <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4 text-center">Sent Count</th>
-                  <th className="py-3 px-4 text-right">Quick Dispatch</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -374,6 +398,18 @@ export default function RemindersPage() {
                             <Mail className="w-3.5 h-3.5" />
                             <span className="hidden sm:inline">Email</span>
                           </button>
+
+                          {/* Delete Reminder Button */}
+                          <button
+                            onClick={() => {
+                              setSelectedReminderToDelete(r)
+                              setShowDeleteModal(true)
+                            }}
+                            title="Delete Reminder"
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors ml-0.5"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -384,6 +420,24 @@ export default function RemindersPage() {
           </div>
         )}
       </div>
+
+      {/* 1-Step Safety Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        title="Delete Reminder"
+        itemName={
+          selectedReminderToDelete
+            ? `${selectedReminderToDelete.reminderType === "PinkSlip" ? "Pink Slip" : "Logbook Service"} Reminder (${selectedReminderToDelete.vehicle?.registration || "Vehicle"})`
+            : "Reminder"
+        }
+        itemType="Service Reminder"
+        warningMessage="Deleting this reminder will remove it from the campaign dispatch queue."
+        onClose={() => {
+          setShowDeleteModal(false)
+          setSelectedReminderToDelete(null)
+        }}
+        onConfirm={handleDeleteReminder}
+      />
     </div>
   )
 }

@@ -1,7 +1,9 @@
 "use client"
 
 import { useEffect, useState, use } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
+import DeleteConfirmModal from "@/components/DeleteConfirmModal"
 import {
   Users,
   Car,
@@ -18,7 +20,8 @@ import {
   DollarSign,
   CheckCircle2,
   Clock,
-  Plus
+  Plus,
+  Trash2
 } from "lucide-react"
 import { formatAUD, formatDateAU } from "@/lib/utils"
 
@@ -27,22 +30,193 @@ export default function ClientDetailPage({
 }: {
   params: Promise<{ id: string }>
 }) {
+  const router = useRouter()
   const { id } = use(params)
   const [client, setClient] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
 
-  useEffect(() => {
+  // Edit Client Profile State
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [editFormData, setEditFormData] = useState<any>({
+    clientType: "Individual",
+    firstName: "",
+    lastName: "",
+    businessName: "",
+    abn: "",
+    mobilePhone: "",
+    email: "",
+    address: "",
+    suburb: "",
+    state: "NSW",
+    postcode: "",
+    notes: ""
+  })
+
+  // Link Vehicle State
+  const [showLinkModal, setShowLinkModal] = useState(false)
+  const [linkingVehicle, setLinkingVehicle] = useState(false)
+  const [workshopVehicles, setWorkshopVehicles] = useState<any[]>([])
+  const [isNewVehicleMode, setIsNewVehicleMode] = useState(false)
+  const [selectedVehicleId, setSelectedVehicleId] = useState("")
+  const [newVehicleData, setNewVehicleData] = useState<any>({
+    registration: "",
+    make: "Toyota",
+    model: "",
+    year: "2021",
+    colour: "",
+    fuelType: "Petrol",
+    transmission: "Automatic",
+    vin: "",
+    engineNumber: "",
+    engineCapacity: "",
+    bodyType: "Sedan",
+    currentMileageKm: "",
+    nextServiceKm: "",
+    nextServiceDue: "",
+    pinkSlipExpiry: "",
+  })
+
+  const fetchClient = () => {
     fetch(`/api/clients/${id}`)
       .then((res) => res.json())
       .then((data) => {
-        setClient(data.client)
+        if (data.client) {
+          setClient(data.client)
+          setEditFormData({
+            clientType: data.client.clientType || "Individual",
+            firstName: data.client.firstName || "",
+            lastName: data.client.lastName || "",
+            businessName: data.client.businessName || "",
+            abn: data.client.abn || "",
+            mobilePhone: data.client.mobilePhone || "",
+            email: data.client.email || "",
+            address: data.client.address || "",
+            suburb: data.client.suburb || "Kingswood",
+            state: data.client.state || "NSW",
+            postcode: data.client.postcode || "2747",
+            notes: data.client.notes || ""
+          })
+        }
         setLoading(false)
       })
       .catch((err) => {
         console.error(err)
         setLoading(false)
       })
+  }
+
+  const fetchWorkshopVehicles = () => {
+    fetch("/api/vehicles")
+      .then((res) => res.json())
+      .then((data) => {
+        setWorkshopVehicles(data.vehicles || [])
+      })
+      .catch((err) => console.error(err))
+  }
+
+  useEffect(() => {
+    fetchClient()
   }, [id])
+
+  const handleOpenEdit = () => {
+    if (client) {
+      setEditFormData({
+        clientType: client.clientType || "Individual",
+        firstName: client.firstName || "",
+        lastName: client.lastName || "",
+        businessName: client.businessName || "",
+        abn: client.abn || "",
+        mobilePhone: client.mobilePhone || "",
+        email: client.email || "",
+        address: client.address || "",
+        suburb: client.suburb || "Kingswood",
+        state: client.state || "NSW",
+        postcode: client.postcode || "2747",
+        notes: client.notes || ""
+      })
+    }
+    setShowEditModal(true)
+  }
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSavingProfile(true)
+    try {
+      const res = await fetch(`/api/clients/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editFormData)
+      })
+
+      if (res.ok) {
+        setShowEditModal(false)
+        fetchClient()
+      } else {
+        const json = await res.json()
+        alert(json.error || "Failed to update client profile")
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setSavingProfile(false)
+    }
+  }
+
+  const handleOpenLinkVehicle = () => {
+    fetchWorkshopVehicles()
+    setIsNewVehicleMode(false)
+    setSelectedVehicleId("")
+    setNewVehicleData({
+      registration: "",
+      make: "Toyota",
+      model: "",
+      year: "2021",
+      colour: "",
+      fuelType: "Petrol",
+      transmission: "Automatic",
+      vin: "",
+      engineNumber: "",
+      engineCapacity: "",
+      bodyType: "Sedan",
+      currentMileageKm: "",
+      nextServiceKm: "",
+      nextServiceDue: "",
+      pinkSlipExpiry: "",
+    })
+    setShowLinkModal(true)
+  }
+
+  const handleLinkVehicleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLinkingVehicle(true)
+    try {
+      const payload = {
+        isNewVehicle: isNewVehicleMode,
+        vehicleId: isNewVehicleMode ? null : selectedVehicleId,
+        newVehicleData: isNewVehicleMode ? newVehicleData : null,
+      }
+
+      const res = await fetch(`/api/clients/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      })
+
+      if (res.ok) {
+        setShowLinkModal(false)
+        fetchClient()
+      } else {
+        const json = await res.json()
+        alert(json.error || "Failed to link vehicle to client")
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLinkingVehicle(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -64,10 +238,28 @@ export default function ClientDetailPage({
   const displayName = isBusiness
     ? client.businessName
     : `${client.firstName || ""} ${client.lastName || ""}`
-  const totalSpend = client.invoices?.reduce(
+
+  const totalSpend = (client.invoices || []).reduce(
     (acc: number, inv: any) => acc + (inv.finalAmount || 0),
     0
   )
+
+  const handleDeleteClient = async () => {
+    try {
+      const res = await fetch(`/api/clients/${id}`, {
+        method: "DELETE",
+      })
+      if (res.ok) {
+        router.push("/clients")
+      } else {
+        const json = await res.json()
+        alert(json.error || "Failed to delete client")
+      }
+    } catch (err) {
+      console.error(err)
+      alert("Error occurred while deleting client.")
+    }
+  }
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -81,8 +273,29 @@ export default function ClientDetailPage({
           <span>Back to All Clients</span>
         </Link>
 
-        <div className="flex items-center space-x-3">
-          <button className="flex items-center space-x-1.5 bg-[#E8920D] hover:bg-[#d68307] text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-xs">
+        <div className="flex items-center space-x-2">
+          {/* Edit Client Profile Button */}
+          <button
+            onClick={handleOpenEdit}
+            className="flex items-center space-x-1.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-xs transition-all"
+          >
+            <span>Edit Profile</span>
+          </button>
+
+          {/* Delete Client Button */}
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            className="flex items-center space-x-1.5 bg-white hover:bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-xs transition-all"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Delete Client</span>
+          </button>
+
+          {/* Link Vehicle Button */}
+          <button
+            onClick={handleOpenLinkVehicle}
+            className="flex items-center space-x-1.5 bg-[#E8920D] hover:bg-[#d68307] text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-xs transition-all"
+          >
             <Plus className="w-3.5 h-3.5" />
             <span>+ Link Vehicle</span>
           </button>
@@ -267,6 +480,8 @@ export default function ClientDetailPage({
                                 ? "bg-purple-100 text-purple-800"
                                 : job.status === "Completed"
                                 ? "bg-emerald-100 text-emerald-800"
+                                : job.status === "Cancelled"
+                                ? "bg-gray-100 text-gray-800"
                                 : "bg-blue-100 text-blue-800"
                             }`}
                           >
@@ -360,6 +575,463 @@ export default function ClientDetailPage({
           </div>
         </div>
       </div>
+
+      {/* Edit Profile Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto border border-gray-200">
+            <h3 className="font-bold text-[#1B2A4A] text-base border-b border-gray-100 pb-3 flex items-center gap-2">
+              <User className="w-4 h-4 text-[#E8920D]" />
+              Edit Client Profile
+            </h3>
+
+            <form onSubmit={handleSaveProfile} className="space-y-3 text-xs">
+              <div>
+                <label className="block text-gray-700 font-semibold mb-1">Account Type</label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-1.5 cursor-pointer font-medium">
+                    <input
+                      type="radio"
+                      name="editClientType"
+                      value="Individual"
+                      checked={editFormData.clientType === "Individual"}
+                      onChange={(e) => setEditFormData({ ...editFormData, clientType: e.target.value })}
+                      className="text-[#E8920D]"
+                    />
+                    Individual
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer font-medium">
+                    <input
+                      type="radio"
+                      name="editClientType"
+                      value="Business"
+                      checked={editFormData.clientType === "Business"}
+                      onChange={(e) => setEditFormData({ ...editFormData, clientType: e.target.value })}
+                      className="text-[#E8920D]"
+                    />
+                    Company / Fleet
+                  </label>
+                </div>
+              </div>
+
+              {editFormData.clientType === "Business" ? (
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-1">Business / Company Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={editFormData.businessName}
+                      onChange={(e) => setEditFormData({ ...editFormData, businessName: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-1">ABN (Australian Business Number)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 51 824 753 556"
+                      value={editFormData.abn}
+                      onChange={(e) => setEditFormData({ ...editFormData, abn: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg font-mono"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-1">First Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={editFormData.firstName}
+                      onChange={(e) => setEditFormData({ ...editFormData, firstName: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-1">Last Name</label>
+                    <input
+                      type="text"
+                      value={editFormData.lastName}
+                      onChange={(e) => setEditFormData({ ...editFormData, lastName: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg font-medium"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">Mobile Phone *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editFormData.mobilePhone}
+                    onChange={(e) => setEditFormData({ ...editFormData, mobilePhone: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg font-mono font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">Email Address</label>
+                  <input
+                    type="email"
+                    value={editFormData.email}
+                    onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-gray-700 font-semibold mb-1">Street Address</label>
+                <input
+                  type="text"
+                  placeholder="e.g. 12 High Street"
+                  value={editFormData.address}
+                  onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">Suburb</label>
+                  <input
+                    type="text"
+                    value={editFormData.suburb}
+                    onChange={(e) => setEditFormData({ ...editFormData, suburb: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">State</label>
+                  <select
+                    value={editFormData.state}
+                    onChange={(e) => setEditFormData({ ...editFormData, state: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                  >
+                    <option value="NSW">NSW</option>
+                    <option value="VIC">VIC</option>
+                    <option value="QLD">QLD</option>
+                    <option value="WA">WA</option>
+                    <option value="SA">SA</option>
+                    <option value="TAS">TAS</option>
+                    <option value="ACT">ACT</option>
+                    <option value="NT">NT</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-1">Postcode</label>
+                  <input
+                    type="text"
+                    value={editFormData.postcode}
+                    onChange={(e) => setEditFormData({ ...editFormData, postcode: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-gray-700 font-semibold mb-1">Customer Internal Notes</label>
+                <textarea
+                  rows={2}
+                  placeholder="Special instructions, preferences, etc."
+                  value={editFormData.notes}
+                  onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50 font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingProfile}
+                  className="px-5 py-2 bg-[#E8920D] hover:bg-[#d68307] text-white rounded-lg font-bold shadow-sm disabled:opacity-50"
+                >
+                  {savingProfile ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Link / Register Vehicle Modal */}
+      {showLinkModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto border border-gray-200">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="font-bold text-[#1B2A4A] text-base flex items-center gap-2">
+                <Car className="w-4 h-4 text-[#E8920D]" />
+                Link Vehicle to {displayName}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsNewVehicleMode(!isNewVehicleMode)}
+                className="text-xs text-[#E8920D] hover:underline font-semibold"
+              >
+                {isNewVehicleMode ? "← Link Existing Fleet Vehicle" : "+ Register Brand New Vehicle"}
+              </button>
+            </div>
+
+            <form onSubmit={handleLinkVehicleSubmit} className="space-y-4 text-xs">
+              {isNewVehicleMode ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-gray-700 font-semibold mb-1">
+                        Registration Plate *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. DL88AA"
+                        value={newVehicleData.registration}
+                        onChange={(e) =>
+                          setNewVehicleData({
+                            ...newVehicleData,
+                            registration: e.target.value.toUpperCase()
+                          })
+                        }
+                        className="w-full px-3 py-2 border rounded-lg font-mono font-bold text-base"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-700 font-semibold mb-1">Body Type *</label>
+                      <select
+                        value={newVehicleData.bodyType}
+                        onChange={(e) =>
+                          setNewVehicleData({ ...newVehicleData, bodyType: e.target.value })
+                        }
+                        className="w-full px-3 py-2 border rounded-lg font-medium"
+                      >
+                        <option value="Sedan">Sedan</option>
+                        <option value="SUV">SUV / 4WD</option>
+                        <option value="Hatchback">Hatchback</option>
+                        <option value="Ute">Ute / Cab Chassis</option>
+                        <option value="Van">Van / Commercial</option>
+                        <option value="Wagon">Station Wagon</option>
+                        <option value="Coupe">Coupe / Convertible</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-gray-700 font-semibold mb-1">Make *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Toyota"
+                        value={newVehicleData.make}
+                        onChange={(e) =>
+                          setNewVehicleData({ ...newVehicleData, make: e.target.value })
+                        }
+                        className="w-full px-3 py-2 border rounded-lg font-medium"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-700 font-semibold mb-1">Model *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Hilux SR5"
+                        value={newVehicleData.model}
+                        onChange={(e) =>
+                          setNewVehicleData({ ...newVehicleData, model: e.target.value })
+                        }
+                        className="w-full px-3 py-2 border rounded-lg font-medium"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-700 font-semibold mb-1">Year</label>
+                      <input
+                        type="number"
+                        value={newVehicleData.year}
+                        onChange={(e) =>
+                          setNewVehicleData({ ...newVehicleData, year: e.target.value })
+                        }
+                        className="w-full px-3 py-2 border rounded-lg font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-gray-700 font-semibold mb-1">VIN</label>
+                      <input
+                        type="text"
+                        placeholder="17-character VIN"
+                        value={newVehicleData.vin}
+                        onChange={(e) =>
+                          setNewVehicleData({
+                            ...newVehicleData,
+                            vin: e.target.value.toUpperCase()
+                          })
+                        }
+                        className="w-full px-3 py-2 border rounded-lg font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-700 font-semibold mb-1">Engine Number</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 1KD-FTV-99281"
+                        value={newVehicleData.engineNumber}
+                        onChange={(e) =>
+                          setNewVehicleData({
+                            ...newVehicleData,
+                            engineNumber: e.target.value.toUpperCase()
+                          })
+                        }
+                        className="w-full px-3 py-2 border rounded-lg font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-gray-700 font-semibold mb-1">Current Odometer (km)</label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 68450"
+                        value={newVehicleData.currentMileageKm}
+                        onChange={(e) =>
+                          setNewVehicleData({
+                            ...newVehicleData,
+                            currentMileageKm: e.target.value
+                          })
+                        }
+                        className="w-full px-3 py-2 border rounded-lg font-mono font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-700 font-semibold mb-1">Next Service Due (km)</label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 78450"
+                        value={newVehicleData.nextServiceKm}
+                        onChange={(e) =>
+                          setNewVehicleData({
+                            ...newVehicleData,
+                            nextServiceKm: e.target.value
+                          })
+                        }
+                        className="w-full px-3 py-2 border rounded-lg font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-gray-700 font-semibold mb-1">Next Service Due (Date)</label>
+                      <input
+                        type="date"
+                        value={newVehicleData.nextServiceDue}
+                        onChange={(e) =>
+                          setNewVehicleData({
+                            ...newVehicleData,
+                            nextServiceDue: e.target.value
+                          })
+                        }
+                        className="w-full px-3 py-2 border rounded-lg font-mono"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-gray-700 font-semibold mb-1">Pink Slip Due Date</label>
+                      <input
+                        type="date"
+                        value={newVehicleData.pinkSlipExpiry}
+                        onChange={(e) =>
+                          setNewVehicleData({
+                            ...newVehicleData,
+                            pinkSlipExpiry: e.target.value
+                          })
+                        }
+                        className="w-full px-3 py-2 border rounded-lg font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-gray-700 font-semibold mb-1">
+                      Select Existing Vehicle from Fleet *
+                    </label>
+                    <select
+                      required
+                      value={selectedVehicleId}
+                      onChange={(e) => setSelectedVehicleId(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg font-mono font-bold bg-white text-gray-900"
+                    >
+                      <option value="">-- Choose Vehicle (Rego Plate) --</option>
+                      {workshopVehicles
+                        .filter(
+                          (v) => !client.clientVehicles?.some((cv: any) => cv.vehicle?.id === v.id)
+                        )
+                        .map((v) => {
+                          const currentOwner = v.clientVehicles?.[0]?.client
+                          const ownerTag = currentOwner
+                            ? ` [Currently with: ${currentOwner.businessName || `${currentOwner.firstName || ""} ${currentOwner.lastName || ""}`.trim()}]`
+                            : " [Unassigned]"
+                          return (
+                            <option key={v.id} value={v.id}>
+                              {v.registration} — {v.year} {v.make} {v.model}{ownerTag}
+                            </option>
+                          )
+                        })}
+                    </select>
+                  </div>
+                  <p className="text-[11px] text-gray-500">
+                    Linking will add this vehicle to {displayName}'s profile and update primary ownership records.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setShowLinkModal(false)}
+                  className="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50 font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={linkingVehicle}
+                  className="px-5 py-2 bg-[#E8920D] hover:bg-[#d68307] text-white rounded-lg font-bold shadow-sm disabled:opacity-50"
+                >
+                  {linkingVehicle
+                    ? "Linking..."
+                    : isNewVehicleMode
+                    ? "Register & Link Vehicle"
+                    : "Link Vehicle to Client"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 2-Step Safety Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        title="Delete Client Account"
+        itemName={displayName || "Client Profile"}
+        itemType="Client"
+        warningMessage="Deleting this client will remove their profile and decouple all related vehicle assignments, reminders, invoices, and job histories."
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={handleDeleteClient}
+      />
     </div>
   )
 }

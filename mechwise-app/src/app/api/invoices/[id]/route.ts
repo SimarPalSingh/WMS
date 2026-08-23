@@ -192,3 +192,35 @@ export async function PATCH(
     return NextResponse.json({ error: "Failed to update invoice" }, { status: 500 })
   }
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession()
+    const workshopId = session?.workshopId || "dhalla-auto-nsw"
+    const { id } = await params
+
+    const existingInvoice = await prisma.invoice.findFirst({
+      where: { id, workshopId }
+    })
+
+    if (!existingInvoice) {
+      return NextResponse.json({ error: "Invoice not found" }, { status: 404 })
+    }
+
+    // Delete lines and payments
+    await prisma.invoiceLine.deleteMany({ where: { invoiceId: id } })
+    await prisma.payment.deleteMany({ where: { invoiceId: id } })
+
+    // Delete invoice
+    await prisma.invoice.delete({ where: { id } })
+
+    return NextResponse.json({ success: true, message: "Invoice deleted successfully" })
+  } catch (error) {
+    console.error("Error deleting invoice:", error)
+    return NextResponse.json({ error: "Failed to delete invoice" }, { status: 500 })
+  }
+}
+

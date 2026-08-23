@@ -22,7 +22,8 @@ export async function GET(
           lines: {
             orderBy: { sortOrder: "asc" }
           },
-          invoice: true
+          invoice: true,
+          quotation: true
         }
       }),
       prisma.staff.findMany({ where: { workshopId, isActive: true } }),
@@ -135,11 +136,68 @@ export async function PATCH(
         staff: true,
         bay: true,
         lines: true,
-        invoice: true
+        invoice: true,
+        quotation: true
       }
     })
 
-    // AUTO-COMPLETION TRIGGER PIPELINE
+    // BIDIRECTIONAL QUOTATION STATUS SYNC & AUTO-LINE SYNCHRONIZATION
+    const newEffectiveStatus = status || existingJob.status
+    if (newEffectiveStatus === "Completed") {
+      await prisma.quotation.updateMany({
+        where: { jobCardId: id, status: { not: "Finalised" } },
+        data: { status: "Finalised" }
+      })
+    } else if (newEffectiveStatus !== "Cancelled") {
+      // Revert quotation to Pending if job is active / in progress / reopened
+      await prisma.quotation.updateMany({
+        where: { jobCardId: id, status: "Finalised" },
+        data: { status: "Pending" }
+      })
+    }
+
+    // If an existing quotation is linked to this job card, keep its lines and financial breakdown synchronized
+    const linkedQuote = await prisma.quotation.findFirst({
+      where: { jobCardId: id }
+    })
+
+    if (linkedQuote) {
+      const isQuoteGstFree = !finalIncludeGst
+      const quoteGstAmount = isQuoteGstFree ? 0 : Math.round(netTotalExGst * 0.10 * 100) / 100
+      const quoteTotalIncGst = isQuoteGstFree ? netTotalExGst : netTotalExGst + quoteGstAmount
+
+      // Replace quotation lines with updated job card line items
+      await prisma.quotationLine.deleteMany({
+        where: { quotationId: linkedQuote.id }
+      })
+
+      for (let i = 0; i < updatedJobCard.lines.length; i++) {
+        const line = updatedJobCard.lines[i]
+        await prisma.quotationLine.create({
+          data: {
+            quotationId: linkedQuote.id,
+            lineType: line.lineType,
+            description: line.description,
+            qty: line.qty,
+            unitPriceExGst: line.unitPriceExGst,
+            lineTotalExGst: line.lineTotalExGst,
+            sortOrder: i
+          }
+        })
+      }
+
+      await prisma.quotation.update({
+        where: { id: linkedQuote.id },
+        data: {
+          subtotalExGst: calculatedLinesTotal,
+          discountExGst: finalDiscount,
+          gstAmount: quoteGstAmount,
+          totalAmount: quoteTotalIncGst,
+          notes: updatedJobCard.customerNotes || linkedQuote.notes
+        }
+      })
+    }
+
     if (isNowCompleted) {
       // 1. Auto-generate sequential invoice if not already existing
       const existingInvoice = await prisma.invoice.findUnique({ where: { jobCardId: id } })
@@ -184,12 +242,6 @@ export async function PATCH(
           }
         })
       }
-
-      // 2. Auto-finalise any pending quotation for this job card
-      await prisma.quotation.updateMany({
-        where: { jobCardId: id, status: "Pending" },
-        data: { status: "Finalised" }
-      })
 
       // 3. Auto-record Maintenance History
       await prisma.maintenanceHistory.create({
@@ -244,19 +296,32 @@ export async function PATCH(
       // 6. Deduct Inventory Quantities & Trigger Low Stock Alert Reminders
       for (const line of updatedJobCard.lines) {
         if (line.lineType === "Part") {
-          // Attempt match by exact partNumber or description substring
-          const part = await prisma.part.findFirst({
-            where: {
-              workshopId,
-              OR: [
-                { name: { contains: line.description } },
-                { partNumber: { contains: line.description } }
-              ]
-            }
-          })
+          let part = null
+
+          // Match by direct partId foreign key if present
+          if (line.partId) {
+            part = await prisma.part.findFirst({
+              where: { id: line.partId, workshopId }
+            })
+          }
+
+          // Fallback: match by partNumber or description substring
+          if (!part && line.description) {
+            part = await prisma.part.findFirst({
+              where: {
+                workshopId,
+                OR: [
+                  { name: { contains: line.description } },
+                  { partNumber: { contains: line.description } }
+                ]
+              }
+            })
+          }
 
           if (part) {
-            const newStockQty = Math.max(0, part.stockQty - Math.ceil(line.qty))
+            const qtyUsed = Math.max(1, Math.ceil(line.qty || 1))
+            const newStockQty = Math.max(0, (part.availableStock ?? part.stockQty) - qtyUsed)
+
             const updatedPart = await prisma.part.update({
               where: { id: part.id },
               data: {
@@ -266,7 +331,7 @@ export async function PATCH(
             })
 
             // Trigger Low Stock / Reorder reminder if stock drops below minStockQty
-            if (updatedPart.stockQty <= updatedPart.minStockQty) {
+            if (updatedPart.availableStock <= updatedPart.minStockQty) {
               await prisma.serviceReminder.create({
                 data: {
                   workshopId,
@@ -274,7 +339,7 @@ export async function PATCH(
                   reminderType: "LowStock",
                   dueDate: new Date(),
                   status: "Pending",
-                  messageContent: `Low stock alert: ${updatedPart.name} (${updatedPart.partNumber}) has ${updatedPart.stockQty} remaining (Min: ${updatedPart.minStockQty}).`
+                  messageContent: `Low stock alert: ${updatedPart.name} (${updatedPart.partNumber}) has ${updatedPart.availableStock} remaining (Min: ${updatedPart.minStockQty}).`
                 }
               })
             }
@@ -289,3 +354,49 @@ export async function PATCH(
     return NextResponse.json({ error: "Failed to update job card" }, { status: 500 })
   }
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession()
+    const workshopId = session?.workshopId || "dhalla-auto-nsw"
+    const { id } = await params
+
+    const existingJob = await prisma.jobCard.findFirst({
+      where: { id, workshopId }
+    })
+
+    if (!existingJob) {
+      return NextResponse.json({ error: "Job card not found" }, { status: 404 })
+    }
+
+    // Unlink quotations & invoices from job card before deletion
+    await prisma.quotation.updateMany({
+      where: { jobCardId: id },
+      data: { jobCardId: null }
+    })
+
+    await prisma.invoice.updateMany({
+      where: { jobCardId: id },
+      data: { jobCardId: null }
+    })
+
+    // Delete job card lines
+    await prisma.jobCardLine.deleteMany({
+      where: { jobCardId: id }
+    })
+
+    // Delete job card
+    await prisma.jobCard.delete({
+      where: { id }
+    })
+
+    return NextResponse.json({ success: true, message: "Job card deleted successfully" })
+  } catch (error) {
+    console.error("Error deleting job card:", error)
+    return NextResponse.json({ error: "Failed to delete job card" }, { status: 500 })
+  }
+}
+
