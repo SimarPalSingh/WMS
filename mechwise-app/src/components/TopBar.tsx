@@ -3,10 +3,12 @@
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Search, Bell, Calendar, Car, User, FileText, Wrench } from "lucide-react"
+import { Search, Bell, Calendar, Menu } from "lucide-react"
+import { useSidebar } from "@/context/SidebarContext"
 
 export default function TopBar() {
   const router = useRouter()
+  const { toggleSidebar } = useSidebar()
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<any>(null)
   const [isOpen, setIsOpen] = useState(false)
@@ -78,17 +80,28 @@ export default function TopBar() {
     (results.vehicles.length > 0 || results.clients.length > 0 || results.invoices.length > 0)
 
   return (
-    <header className="h-16 bg-white border-b border-[#E5E7EB] px-6 flex items-center justify-between shrink-0 relative z-30">
-      {/* Global Lookup Search Dropdown */}
-      <div ref={searchRef} className="flex items-center w-96 relative">
-        <Search className="w-4 h-4 text-gray-400 absolute left-3 z-10" />
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Lookup Rego (e.g. DL88AA), Client, or Invoice#..."
-          className="w-full pl-9 pr-4 py-2 text-xs bg-[#F3F5F7] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E8920D] focus:bg-white font-mono placeholder:font-sans transition-all"
-        />
+    <header className="h-16 bg-white border-b border-[#E5E7EB] px-4 sm:px-6 flex items-center justify-between shrink-0 relative z-30">
+      <div className="flex items-center gap-3">
+        {/* Hamburger Menu Toggle */}
+        <button
+          onClick={toggleSidebar}
+          aria-label="Toggle Navigation Sidebar"
+          className="p-2 rounded-lg text-gray-600 hover:text-[#1B2A4A] hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-[#E8920D]"
+          title="Toggle Sidebar"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
+        {/* Global Lookup Search Dropdown */}
+        <div ref={searchRef} className="flex items-center w-64 sm:w-96 relative">
+          <Search className="w-4 h-4 text-gray-400 absolute left-3 z-10" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Lookup Rego (e.g. DL88AA), Client..."
+            className="w-full pl-9 pr-4 py-2 text-xs bg-[#F3F5F7] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#E8920D] focus:bg-white font-mono placeholder:font-sans transition-all"
+          />
 
         {isOpen && (
           <div className="absolute top-11 left-0 w-full bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden text-xs z-50 animate-in fade-in-50 duration-150">
@@ -179,6 +192,7 @@ export default function TopBar() {
             )}
           </div>
         )}
+        </div>
       </div>
 
       {/* Right Actions */}
