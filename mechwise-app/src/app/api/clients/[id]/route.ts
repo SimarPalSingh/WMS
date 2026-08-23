@@ -162,32 +162,21 @@ export async function POST(
       return NextResponse.json({ error: "Vehicle is required to link" }, { status: 400 })
     }
 
-    // When re-linking or assigning a vehicle to this client, demote previous primary owners
-    await prisma.clientVehicle.updateMany({
-      where: { vehicleId: finalVehicleId },
-      data: { isPrimaryOwner: false }
+    // STRICT 1 VEHICLE : 1 CLIENT ENFORCEMENT
+    // 1. Remove vehicle from any prior client link to guarantee 0 duplicate ownership
+    await prisma.clientVehicle.deleteMany({
+      where: { vehicleId: finalVehicleId }
     })
 
-    // Check if relationship already exists for this client
-    const existing = await prisma.clientVehicle.findFirst({
-      where: { clientId, vehicleId: finalVehicleId }
+    // 2. Create the exclusive single relationship to this client
+    await prisma.clientVehicle.create({
+      data: {
+        clientId,
+        vehicleId: finalVehicleId,
+        relationship,
+        isPrimaryOwner: true
+      }
     })
-
-    if (existing) {
-      await prisma.clientVehicle.update({
-        where: { id: existing.id },
-        data: { isPrimaryOwner: true, relationship }
-      })
-    } else {
-      await prisma.clientVehicle.create({
-        data: {
-          clientId,
-          vehicleId: finalVehicleId,
-          relationship,
-          isPrimaryOwner: true
-        }
-      })
-    }
 
     // Touch vehicle updated timestamp
     await prisma.vehicle.update({

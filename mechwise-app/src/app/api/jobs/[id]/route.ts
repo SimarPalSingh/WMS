@@ -198,6 +198,55 @@ export async function PATCH(
       })
     }
 
+    // IF AN INVOICE ALREADY EXISTS FOR THIS JOB CARD, SYNCHRONIZE INVOICE LINES AND AMOUNTS
+    const linkedInvoice = await prisma.invoice.findUnique({
+      where: { jobCardId: id }
+    })
+
+    if (linkedInvoice) {
+      const isInvGstFree = !finalIncludeGst
+      const invGstAmount = isInvGstFree ? 0 : Math.round(netTotalExGst * 0.10 * 100) / 100
+      const invFinalAmount = isInvGstFree ? netTotalExGst : netTotalExGst + invGstAmount
+
+      // Replace invoice line items with the latest saved job card line items
+      await prisma.invoiceLine.deleteMany({
+        where: { invoiceId: linkedInvoice.id }
+      })
+
+      for (let i = 0; i < updatedJobCard.lines.length; i++) {
+        const line = updatedJobCard.lines[i]
+        const lineTotal = line.lineTotalExGst
+        const lineGst = isInvGstFree ? 0 : Math.round(lineTotal * 0.10 * 100) / 100
+
+        await prisma.invoiceLine.create({
+          data: {
+            invoiceId: linkedInvoice.id,
+            lineType: line.lineType,
+            description: line.description,
+            qty: line.qty,
+            unitPriceExGst: line.unitPriceExGst,
+            lineTotalExGst: lineTotal,
+            gstRate: isInvGstFree ? 0.0 : 0.10,
+            gstAmount: lineGst,
+            sortOrder: i
+          }
+        })
+      }
+
+      await prisma.invoice.update({
+        where: { id: linkedInvoice.id },
+        data: {
+          subtotalExGst: calculatedLinesTotal,
+          discountExGst: finalDiscount,
+          discountAmount: finalDiscount,
+          isGstFree: isInvGstFree,
+          gstAmount: invGstAmount,
+          finalAmount: invFinalAmount,
+          futureNotes: updatedJobCard.futureNotes || linkedInvoice.futureNotes
+        }
+      })
+    }
+
     if (isNowCompleted) {
       // 1. Auto-generate sequential invoice if not already existing
       const existingInvoice = await prisma.invoice.findUnique({ where: { jobCardId: id } })

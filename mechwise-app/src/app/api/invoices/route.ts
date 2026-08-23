@@ -120,21 +120,19 @@ export async function POST(request: Request) {
       finalVehicleId = vehicle.id
     }
 
-    // 3. Establish ownership link if both client and vehicle exist
+    // 3. Establish strict single ownership link if both client and vehicle exist
     if (finalClientId && finalVehicleId) {
-      const existingLink = await prisma.clientVehicle.findFirst({
-        where: { clientId: finalClientId, vehicleId: finalVehicleId }
+      await prisma.clientVehicle.deleteMany({
+        where: { vehicleId: finalVehicleId }
       })
-      if (!existingLink) {
-        await prisma.clientVehicle.create({
-          data: {
-            clientId: finalClientId,
-            vehicleId: finalVehicleId,
-            relationship: "Owner",
-            isPrimaryOwner: true
-          }
-        })
-      }
+      await prisma.clientVehicle.create({
+        data: {
+          clientId: finalClientId,
+          vehicleId: finalVehicleId,
+          relationship: "Owner",
+          isPrimaryOwner: true
+        }
+      })
     }
 
     if (!finalClientId || !finalVehicleId) {

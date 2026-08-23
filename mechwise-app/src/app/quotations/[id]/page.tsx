@@ -118,8 +118,8 @@ export default function QuotationDetailPage({
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
-      {/* Top Bar Navigation & Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Top Bar Navigation & Actions (Hidden on Print) */}
+      <div className="no-print flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <Link
           href="/quotations"
           className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-[#1B2A4A] font-medium"
@@ -160,7 +160,7 @@ export default function QuotationDetailPage({
 
           <button
             onClick={() => window.print()}
-            className="flex items-center space-x-1.5 bg-purple-600 hover:bg-purple-700 text-white px-3.5 py-2 rounded-lg text-xs font-semibold shadow-xs transition-all"
+            className="flex items-center space-x-1.5 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 px-3.5 py-2 rounded-lg text-xs font-semibold shadow-xs transition-all"
           >
             <Printer className="w-3.5 h-3.5" />
             <span>Print Quotation PDF</span>
@@ -170,23 +170,25 @@ export default function QuotationDetailPage({
 
       {/* 2-Column: Printable Quotation on Left + Status & Job Details Panel on Right */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Printable Official Quotation Document */}
-        <div className="md:col-span-2 bg-white rounded-xl border border-[#E5E7EB] shadow-xs overflow-hidden print:border-none print:shadow-none">
-          {/* Header */}
+        {/* Printable Official Quotation Document (Identical format to Tax Invoice) */}
+        <div className="printable-document md:col-span-2 bg-white rounded-xl border border-[#E5E7EB] shadow-xs overflow-hidden print:border-none print:shadow-none">
+          {/* Navy Quotation Header */}
           <div className="bg-[#1B2A4A] text-white p-6 flex items-center justify-between border-b border-[#243656]">
             <div>
               <h1 className="text-xl font-black tracking-wider text-white">
-                {workshop.businessName}
+                {workshop.businessName || "DHALLA AUTOMOTIVE PTY LTD"}
               </h1>
               <p className="text-xs text-amber-400 font-mono mt-0.5">
-                ABN: {workshop.abn} • MVRL: {workshop.mvrlNumber}
+                ABN: {workshop.abn || "95 611 566 888"} • MVRL:{" "}
+                {workshop.mvrlNumber || "MVRL58941"}
               </p>
               <p className="text-[11px] text-gray-300 mt-1">
-                {workshop.address} • {workshop.phone}
+                {workshop.address || "70A Cox Avenue, Kingswood NSW 2747"} •{" "}
+                {workshop.phone || "(02) 4732 1199"}
               </p>
             </div>
             <div className="text-right">
-              <span className="inline-block px-3 py-1 bg-purple-900/60 rounded font-mono font-bold text-base tracking-widest border border-purple-400/30 text-purple-200">
+              <span className="inline-block px-3 py-1 bg-white/10 rounded font-mono font-bold text-base tracking-widest border border-white/20">
                 FORMAL QUOTATION
               </span>
               <p className="font-mono font-bold text-amber-400 text-sm mt-1">
@@ -200,7 +202,7 @@ export default function QuotationDetailPage({
             <div className="grid grid-cols-2 gap-6 text-xs border-b border-gray-100 pb-5">
               <div>
                 <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider block mb-1">
-                  Estimate Prepared For:
+                  Quotation Prepared For:
                 </span>
                 <p className="font-bold text-gray-900 text-sm">
                   {isBusiness
@@ -248,7 +250,7 @@ export default function QuotationDetailPage({
                 <thead>
                   <tr className="border-b-2 border-gray-800 text-gray-800 font-bold">
                     <th className="py-2 px-1">Description</th>
-                    <th className="py-2 px-1">Category / Type</th>
+                    <th className="py-2 px-1">Type</th>
                     <th className="py-2 px-1 text-center">Qty / Hrs</th>
                     <th className="py-2 px-1 text-right">Unit Ex-GST</th>
                     <th className="py-2 px-1 text-right">Total Ex-GST</th>
@@ -293,18 +295,18 @@ export default function QuotationDetailPage({
                 </div>
                 <div className="pt-2 border-t border-gray-300 flex justify-between text-sm font-bold text-[#1B2A4A]">
                   <span>Total Estimated (Inc-GST):</span>
-                  <span className="text-purple-700 font-black">
+                  <span className="text-emerald-700 font-black">
                     {formatAUD(quotation.totalAmount || quotation.totalIncGst || 0)}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Customer Notes / Terms */}
+            {/* Customer Notes / Recommendations / Scope of Work */}
             {quotation.notes && (
-              <div className="p-4 bg-purple-50/60 rounded-xl border border-purple-200/60 text-xs text-gray-800 space-y-1">
+              <div className="p-4 bg-amber-50/50 rounded-xl border border-amber-200/60 text-xs text-gray-800 space-y-1">
                 <p className="font-bold text-[#1B2A4A] uppercase text-[10px] tracking-wider flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#E8920D]" />
                   Quotation Notes & Scope of Work:
                 </p>
                 <p className="whitespace-pre-wrap break-words text-gray-700 leading-relaxed font-sans text-xs">
@@ -313,20 +315,20 @@ export default function QuotationDetailPage({
               </div>
             )}
 
-            {/* Workshop Quote Guarantee & Terms */}
+            {/* Australian Quotation Terms & EFT Details */}
             <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 text-xs text-gray-600 space-y-1 font-mono text-[11px]">
               <p className="font-bold text-gray-800 uppercase text-[10px]">
                 Quotation Terms & Conditions:
               </p>
-              <p>1. This estimate is valid for 30 days from the date of issue.</p>
-              <p>2. Prices include standard parts and specified workshop labour.</p>
+              <p>1. This formal quotation is valid for 30 days from the date of issue.</p>
+              <p>2. Prices include standard parts and specified workshop labour (all prices in AUD).</p>
               <p>3. Additional repairs discovered during dismantling will require customer authorisation prior to proceeding.</p>
             </div>
           </div>
         </div>
 
-        {/* Right Column: Status Controls & Linked Job Summary */}
-        <div className="space-y-4">
+        {/* Right Column: Status Controls & Linked Job Summary (Hidden on Print) */}
+        <div className="no-print space-y-4">
           {/* Quote Status Panel */}
           <div className="bg-white rounded-xl border border-[#E5E7EB] p-5 shadow-xs space-y-3">
             <h3 className="text-sm font-bold text-[#1B2A4A] uppercase tracking-wider flex items-center gap-2">

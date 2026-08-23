@@ -152,7 +152,7 @@ model Vehicle {
 model ClientVehicle {
   id             String    @id @default(cuid())
   clientId       String
-  vehicleId      String
+  vehicleId      String    @unique
   relationship   String    @default("Owner")
   isPrimaryOwner Boolean   @default(true)
 

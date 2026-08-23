@@ -171,8 +171,8 @@ export default function InvoiceDetailPage({
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
-      {/* Top Bar Navigation & Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Top Bar Navigation & Actions (Hidden on Print) */}
+      <div className="no-print flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <Link
           href="/invoices"
           className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-[#1B2A4A] font-medium"
@@ -203,7 +203,7 @@ export default function InvoiceDetailPage({
       {/* 2-Column: Printable Tax Invoice on Left + Payment Panel on Right */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Printable Official Australian Tax Invoice */}
-        <div className="md:col-span-2 bg-white rounded-xl border border-[#E5E7EB] shadow-xs overflow-hidden print:border-none print:shadow-none">
+        <div className="printable-document md:col-span-2 bg-white rounded-xl border border-[#E5E7EB] shadow-xs overflow-hidden print:border-none print:shadow-none">
           {/* Navy Tax Invoice Header */}
           <div className="bg-[#1B2A4A] text-white p-6 flex items-center justify-between border-b border-[#243656]">
             <div>
@@ -365,8 +365,8 @@ export default function InvoiceDetailPage({
           </div>
         </div>
 
-        {/* Right Column: Adjustments & Payment Collection Panel */}
-        <div className="space-y-4">
+        {/* Right Column: Adjustments & Payment Collection Panel (Hidden on Print) */}
+        <div className="no-print space-y-4">
           {/* Invoice Adjustments (Discounts & GST Configuration) */}
           <div className="bg-white rounded-xl border border-[#E5E7EB] p-5 shadow-xs space-y-3">
             <div className="flex items-center justify-between">

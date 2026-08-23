@@ -31,3 +31,45 @@ body {
 .font-mono {
   font-family: "JetBrains Mono", "SF Mono", Menlo, Consolas, Monaco, monospace;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   PREMIUM PRINT PREVIEW STYLES (A4 Document Isolation)
+   ═══════════════════════════════════════════════════════════════ */
+@media print {
+  body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* Hide app navigation chrome */
+  aside,
+  header,
+  .no-print,
+  button:not(.allow-print) {
+    display: none !important;
+  }
+
+  /* Expand main printable viewport */
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Ensure document fits cleanly on A4 */
+  .printable-document {
+    width: 100% !important;
+    max-width: 100% !important;
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 12mm 15mm;
+  }
+}

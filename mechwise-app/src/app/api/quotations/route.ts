@@ -71,20 +71,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Client and Vehicle are required for Quotation" }, { status: 400 })
     }
 
-    // Validate job card status and invoice existence if jobCardId is provided
+    // Validate job card status if jobCardId is provided
     if (jobCardId) {
       const linkedJob = await prisma.jobCard.findFirst({
         where: { id: jobCardId, workshopId },
         include: { invoice: true }
       })
 
-      if (linkedJob) {
-        if (linkedJob.status === "Completed" || linkedJob.invoice) {
-          return NextResponse.json(
-            { error: "Cannot generate quotation: This Job Card is already completed and has an active tax invoice." },
-            { status: 400 }
-          )
-        }
+      if (linkedJob && linkedJob.status === "Completed") {
+        return NextResponse.json(
+          { error: "Cannot generate quotation: This Job Card is currently in Completed status." },
+          { status: 400 }
+        )
       }
     }
 

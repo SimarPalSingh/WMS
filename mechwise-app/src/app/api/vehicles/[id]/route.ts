@@ -102,39 +102,23 @@ export async function PATCH(
       data: dataToUpdate
     })
 
-    // Handle re-assigning or de-linking owner
+    // Handle re-assigning or de-linking owner (Strict 1 Vehicle : 1 Client)
     if (clientId !== undefined) {
-      if (clientId === "UNASSIGNED" || clientId === "" || clientId === null) {
-        // De-link vehicle from all clients
-        await prisma.clientVehicle.deleteMany({
-          where: { vehicleId: id }
-        })
-      } else {
-        // Demote other existing links for this vehicle
-        await prisma.clientVehicle.updateMany({
-          where: { vehicleId: id },
-          data: { isPrimaryOwner: false }
-        })
+      // 1. De-link vehicle from any previous client(s)
+      await prisma.clientVehicle.deleteMany({
+        where: { vehicleId: id }
+      })
 
-        const existingLink = await prisma.clientVehicle.findFirst({
-          where: { vehicleId: id, clientId }
+      if (clientId !== "UNASSIGNED" && clientId !== "" && clientId !== null) {
+        // 2. Assign strictly to the single new client
+        await prisma.clientVehicle.create({
+          data: {
+            clientId,
+            vehicleId: id,
+            relationship: "Owner",
+            isPrimaryOwner: true
+          }
         })
-
-        if (existingLink) {
-          await prisma.clientVehicle.update({
-            where: { id: existingLink.id },
-            data: { isPrimaryOwner: true }
-          })
-        } else {
-          await prisma.clientVehicle.create({
-            data: {
-              clientId,
-              vehicleId: id,
-              relationship: "Owner",
-              isPrimaryOwner: true
-            }
-          })
-        }
 
         // DYNAMIC CROSS-ENTITY CASCADE:
         // Update active job cards, quotations, unpaid invoices, and service reminders with the new clientId

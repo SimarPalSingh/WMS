@@ -216,8 +216,8 @@ export default function JobCardDetailPage({
 
   const handleGenerateQuotation = async () => {
     if (!jobCard) return
-    if (jobCard.status === "Completed" || jobCard.invoice) {
-      alert("Cannot generate quotation: This job card is already completed and has an active tax invoice.")
+    if (status === "Completed") {
+      alert("Cannot generate quotation: This job card is currently in Completed status.")
       return
     }
     try {
@@ -413,7 +413,7 @@ export default function JobCardDetailPage({
                 </button>
               )}
             </div>
-          ) : status !== "Completed" && !jobCard.invoice && status !== "Cancelled" ? (
+          ) : status !== "Completed" && status !== "Cancelled" ? (
             <button
               onClick={handleGenerateQuotation}
               className="px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
